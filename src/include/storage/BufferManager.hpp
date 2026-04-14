@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <shared_mutex>
 
 #include "storage/Buffer.hpp"
 #include "storage/PageNumber.hpp"

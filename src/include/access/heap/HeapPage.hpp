@@ -1,20 +1,37 @@
 #pragma once
 
+#include <cstddef>
+
 #include "access/heap/HeapPageHeader.hpp"
+#include "access/heap/HeapPageTupleHeader.hpp"
 #include "access/heap/ItemId.hpp"
 
 namespace mi::access::heap {
-
-/// @brief Heap page wrapper
+// Wrapper class allowing operations with heap page
 class HeapPage final {
   private:
     // Byte array with page contents
-    char *_buffer;
+    std::byte *_buffer;
 
   public:
-    HeapPage(char *buffer);
-    HeapPageHeader& getHeader();
-    const HeapPageHeader& getHeader() const;
+    HeapPage(std::byte *buffer);
+
+    HeapPageHeader &GetHeader();
+    const HeapPageHeader &GetHeader() const;
+
+    /// @brief Get number of items on given page
+    uint16_t ItemsCount() const;
+    /// @brief Get ItemId at specified index
+    /// @param index Index of ItemId, 0-based
+    /// @return Pointer to ItemId
+    ItemId &GetItemId(int index);
+    const ItemId &GetItemId(int index) const;
+    /// @brief Get pointer to tuple to which ItemId is pointing
+    /// @param itemId Item id for this tuple, must be valid
+    /// @return Pointer to tuple
+    HeapPageTupleHeader *GetTuple(const ItemId &itemId);
+    const HeapPageTupleHeader *GetTuple(const ItemId &itemId) const;
+
 };
 
 }; // namespace mi::access::heap

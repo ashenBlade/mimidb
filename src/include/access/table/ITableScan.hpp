@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "executor/ITuple.hpp"
+#include "access/table/ITuple.hpp"
 
 namespace mi::access::table {
 
@@ -13,7 +13,7 @@ public:
     virtual void BeginScan() = 0;
     /// @brief Get next tuple from underlying table
     /// @return Tuple or NULL if end of scan
-    virtual std::unique_ptr<mi::executor::ITuple> GetNextTuple() = 0;
+    virtual std::unique_ptr<mi::access::table::ITuple> GetNextTuple() = 0;
     /// @brief End iteration and cleanup resources
     virtual void EndScan() = 0;
 

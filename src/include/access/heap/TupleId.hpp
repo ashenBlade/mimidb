@@ -6,9 +6,12 @@
 
 namespace mi::access::heap {
 struct TupleId final {
-    /// @brief Number of page in table
+    // Number of page in table
     mi::storage::PageNumber pageno;
-    /// @brief Index of item in page directory
+    // Index of item in page directory
     uint16_t itemid;
+
+    TupleId() : pageno(storage::PageNumber::Invalid), itemid(0) {};
+    TupleId(mi::storage::PageNumber pageno, uint16_t itemid) : pageno(pageno), itemid(itemid) {};
 };
 }; // namespace mi::access::heap

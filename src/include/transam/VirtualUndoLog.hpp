@@ -1,7 +1,5 @@
 #pragma once
 
-#include <memory>
-
 #include "transam/TransactionId.hpp"
 #include "transam/UndoSeqNumber.hpp"
 
@@ -13,11 +11,11 @@ class UndoLog;
 class VirtualUndoLog {
   private:
     /// @brief Undo log to which this virtual log belongs
-    std::shared_ptr<UndoLog> _log;
+    UndoLog &_log;
     /// @brief Transaction by which tnx log is used
     TransactionId _xid;
   public:
-    VirtualUndoLog(std::shared_ptr<UndoLog> log, TransactionId xid);
+    VirtualUndoLog(UndoLog &log, TransactionId xid);
 
     /// @brief Durable write undo record to log
     /// @param record Record to write

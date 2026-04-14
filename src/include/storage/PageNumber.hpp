@@ -4,16 +4,21 @@
 
 namespace mi::storage {
 struct PageNumber {
-    uint32_t value;
+    using type = uint32_t;
+    
+    type value;
 
-    PageNumber(uint32_t value) : value(value) {};
-    operator uint32_t() { return value; };
+    PageNumber(): value (PageNumber::Invalid) {};
+    PageNumber(type value) : value(value) {};
+    operator type() { return this->value; };
 
-    bool isValid() const { return value != PageNumber::Invalid; };
+    bool IsValid() const { return this->value != PageNumber::Invalid; };
 
-    /// @brief Invalid page number
-    static constexpr const uint32_t Invalid = UINT32_MAX;
-    /// @brief Maximal page number
-    static constexpr const uint32_t Max = UINT32_MAX - 1;
+    // Invalid page number
+    static constexpr const type Invalid = UINT32_MAX;
+    // First valid page number
+    static constexpr const type Min = 0;
+    // Maximal page number
+    static constexpr const type Max = UINT32_MAX - 1;
 };
 } // namespace mi::storage

@@ -1,15 +1,18 @@
 #include <iostream>
+#include <thread>
 
 #include "mimidb.hpp"
 
-#include "executor/Datum.hpp"
-#include "transam/TransactionId.hpp"
+#include "worker_state.hpp"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
-    std::cout << "page size: " << mi::PAGESIZE << std::endl;
-    void *pointer = NULL;
-    auto datum = mi::executor::Datum {pointer};
+    // For now leave only 16 workers, i dont need more
+    constexpr const int maxWorkers = 16;
 
-    std::cout << datum.getInt<int>() << std::endl;
+    // Setup global worker manager
+    auto workerGlob = mi::worker::WorkerGlobal = new mi::worker::WorkerManager{maxWorkers};
+
+    // TODO: создание непосредственных воркеров-потоков
+
     return 0;
 }

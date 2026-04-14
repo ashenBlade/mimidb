@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "schema/AttrNumber.hpp"
-#include "schema/Oid.hpp"
+#include "access/table/AttrNumber.hpp"
+#include "access/table/Oid.hpp"
 
-namespace mi::schema {
+namespace mi::access::table {
 
 class TupleDescriptor {
   private:

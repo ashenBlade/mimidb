@@ -1,21 +1,21 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
-#include <shared_mutex>
+
+#include "lock/LWLatch.hpp"
 
 namespace mi::storage {
 
 /// @brief Represents page in buffer pool
 class Buffer {
 private:
-    /// @brief Page contents 
+    // Page contents 
     std::byte *_contents;
 
-    /// @brief Lock for contents
-    std::shared_mutex _mutex;
+    // Latch for contents
+    lock::LWLatch _latch;
 
-    /// @brief Page is dirty
+    // Page is dirty
     bool _dirty;
 public:
     Buffer(std::byte *contents);
