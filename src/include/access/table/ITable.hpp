@@ -11,7 +11,7 @@ namespace mi::access::table {
 
 class ITable {
   public:
-    virtual TupleDescriptor &GetDescriptor() = 0;
+    virtual std::shared_ptr<TupleDescriptor> GetDescriptor() = 0;
 
     /// @brief Create scan state for given table
     /// @param snapshot Snapshot to check tuple visibility

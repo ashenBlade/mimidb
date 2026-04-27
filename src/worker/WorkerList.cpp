@@ -3,6 +3,7 @@
 #include "worker_state.hpp"
 
 using namespace mi::worker;
+using namespace mi;
 
 WorkerListIterator WorkerListHead::Iterate() {
     return WorkerListIterator{this->head};

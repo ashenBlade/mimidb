@@ -2,10 +2,16 @@
 
 #include "worker/WorkerManager.hpp"
 #include "storage/BufferManager.hpp"
+#include "transam/UndoLog.hpp"
+#include "transam/TransactionManager.hpp"
 
 namespace mi {
     // Worker manager for whole cluster
-    extern mi::worker::WorkerManager *WorkerGlobal;
+    extern worker::WorkerManager *WorkerGlobal;
     // Buffer pool for whole cluster
-    extern mi::storage::BufferManager *BufferPoolGlobal;
+    extern storage::BufferManager *BufferPoolGlobal;
+    // Undo log
+    extern transam::UndoLog *UndoLogGlobal;
+    // Transaction manager
+    extern transam::TransactionManager *TransactionManagerGlobal;
 }

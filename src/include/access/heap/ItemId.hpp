@@ -5,9 +5,9 @@
 namespace mi::access::heap {
 
 enum class ItemState {
-    Unused = 0, // not used
-    Normal, // normal
-    Dead,   // dead, should not be used
+    Unused = 0,     // free, not used
+    Normal,         // contains tuple
+    Dead,           // updated, but new tuple moved to another page
 };
 
 // Pointer to tuple on heap page
@@ -18,10 +18,13 @@ struct ItemId final {
     uint32_t offset : 15;
     /// @brief Length of tuple
     uint32_t length : 15; // length of item
-
-    bool isNormal() const { return flags == ItemState::Normal; }
+    
     bool isUnused() const { return flags == ItemState::Unused; }
+    bool isNormal() const { return flags == ItemState::Normal; }
     bool isDead() const { return flags == ItemState::Dead; }
+
+    /// This item have tuple header on page
+    bool hasHeader() const { return flags == ItemState::Normal || flags == ItemState::Dead; }
     uint16_t getLength() const { return static_cast<uint16_t>(length); }
     uint16_t getOffset() const { return static_cast<uint16_t>(offset); }
 };

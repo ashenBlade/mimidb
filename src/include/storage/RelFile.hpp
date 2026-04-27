@@ -1,9 +1,11 @@
 #pragma once
 
+#include "access/table/Oid.hpp"
 #include "storage/File.hpp"
 #include "storage/PageNumber.hpp"
 
 namespace mi::storage {
+// Wrapper object for work with page-based files (relations)
 class RelFile {
   private:
     File _file;
@@ -23,6 +25,9 @@ class RelFile {
     // Write single page
     void Write(const std::byte *buffer, PageNumber pageno);
     
+    // Extend relation file up to specified page (including) with zeroes
+    void Extend(PageNumber pageno);
+
     // Read single page
     void Read(std::byte *buffer, PageNumber pageno);
     
@@ -34,5 +39,9 @@ class RelFile {
 
     // Close this RelFile releasing all resources
     void Close();
+    
+    /// Open new relation file in specified mode
+    /// @param mode File mode to open file with
+    static RelFile Open(Oid relid, int mode);
 };
 } // namespace mi::storage

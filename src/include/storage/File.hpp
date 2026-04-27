@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 #include <unistd.h>
 
 namespace mi::storage {
-
-// Wrapper above file descriptor 
+// Wrapper above file descriptor
 class File {
   private:
     /// @brief File descriptor
@@ -32,7 +32,8 @@ class File {
     /// @param buffer Buffer to which write data
     /// @param size Size of data to read
     /// @param offset Offset at which to start reading
-    /// @return Bytes actually read if torn page encountered. If error exception is thrown. If EOF - 0 is returned.
+    /// @return Bytes actually read if torn page encountered. If error exception is thrown. If EOF -
+    /// 0 is returned.
     size_t Read(std::byte *buffer, size_t size, off64_t offset);
 
     /// @brief Flush data to disk, same as fsync
@@ -46,6 +47,11 @@ class File {
     void Close();
 
     ~File();
+
+    /// @brief Open new file in specified mode
+    /// @return File object
+    /// @throw runtime_error if could not open file
+    static File Open(const std::string &path, int mode);
 };
 
 }; // namespace mi::storage

@@ -33,6 +33,7 @@ uint16_t HeapPage::ItemsCount() const {
 
 static ItemId *header_get_itemid(HeapPageHeader *header, int index) {
     assert(index < page_nitems(header));
+    // TODO: сделать через итератор
     return &header->items[index];
 }
 

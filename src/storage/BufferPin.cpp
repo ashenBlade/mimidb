@@ -1,53 +1,50 @@
-#include "storage/BufferWrapper.hpp"
+#include "mimidb.hpp"
+
+#include "cluster_state.hpp"
+#include "storage/BufferPin.hpp"
+#include "storage/PageTag.hpp"
 
 #include <stdexcept>
 
 using namespace mi::storage;
 
-BufferPin::BufferPin(PageNumber pageno, std::shared_ptr<Buffer> buffer, BufferManager &manager)
-    : _pageno(pageno), _buffer(buffer), _manager(manager), _isLocked(false), _lockIsShared(false) {};
+BufferPin::BufferPin() : _tag(), _buffer(nullptr) {};
 
-BufferPin BufferPin::GetBuffer(PageNumber pageno) {
-    auto buffer = manager.GetBuffer(pageno);
-    return BufferWrapper{pageno, buffer, manager};
+BufferPin::BufferPin(PageTag pagetag, std::shared_ptr<Buffer> buffer)
+    : _tag(pagetag), _buffer(buffer) { };
+
+BufferPin BufferPin::GetBuffer(PageTag tag) {
+    auto buffer = BufferPoolGlobal->GetBuffer(tag);
+    return BufferPin{tag, buffer};
 }
 
 std::byte *BufferPin::GetContents() { return _buffer->GetContents(); }
 
 const std::byte *BufferPin::GetContents() const { return _buffer->GetContents(); }
 
-void BufferPin::Lock(bool shared) {
-    if (_isLocked)
-        throw std::runtime_error("recursive lock is not supported");
-
-    _buffer->Lock(shared);
-    _isLocked = true;
-    _lockIsShared = shared;
-}
-
-void BufferPin::Unlock() {
-    if (!_isLocked)
-        throw std::runtime_error("buffer is not locked");
-
-    _buffer->Unlock(_lockIsShared);
-    _isLocked = _lockIsShared = false;
-}
-
-BufferPin &mi::storage::BufferPin::operator=(const BufferPin &other) {
+BufferPin &BufferPin::operator=(BufferPin &&other) {
     if (&other == this) {
         return *this;
     }
-    // TODO: реализовать copy assignment operator= и попробовать тут swap реализовать (пока не пон че да как)
-    std::swap(_pageno, other._pageno);
-    std::swap()
+
+    if (this->_buffer != nullptr) {
+        BufferPoolGlobal->ReturnBuffer(this->_buffer, this->_tag);
+    }
+
+    this->_tag = PageTag{};
+    this->_buffer = nullptr;
+
+    std::swap(this->_tag, other._tag);
+    std::swap(this->_buffer, other._buffer);
+
+    return *this;
 }
 
 BufferPin::~BufferPin() {
-    if (_pageno == PageNumber::Invalid)
-        return;
+    if (this->_buffer != nullptr) {
+        BufferPoolGlobal->ReturnBuffer(this->_buffer, this->_tag);
+    }
 
-    if (_isLocked)
-        _buffer->Unlock(_lockIsShared);
-    _manager.ReturnBuffer(_buffer, _pageno);
-    _pageno = PageNumber::Invalid;
+    this->_buffer = nullptr;
+    this->_tag = PageTag{};
 }

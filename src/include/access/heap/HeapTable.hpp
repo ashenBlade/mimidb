@@ -14,7 +14,6 @@ namespace mi::access::heap {
 /// @brief ITable implementation for heap table
 class HeapTable : public mi::access::table::ITable, private NonCopyable {
   private:
-    using Oid = mi::access::table::Oid;
     using TupleDescriptor = mi::access::table::TupleDescriptor;
     using ITuple = mi::access::table::ITuple;
 
@@ -31,7 +30,7 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     HeapTable(Oid tableId, std::shared_ptr<TupleDescriptor> descriptor);
 
     Oid GetOid() const;
-    TupleDescriptor &GetDescriptor() override;
+    std::shared_ptr<TupleDescriptor> GetDescriptor() override;
 
     std::unique_ptr<mi::access::table::ITableScan> StartScan(std::shared_ptr<mi::transam::Snapshot> snapshot) override;
     void InsertTuple(std::shared_ptr<ITuple> tuple) override;

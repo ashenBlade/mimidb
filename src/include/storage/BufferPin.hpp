@@ -4,30 +4,34 @@
 
 #include "storage/Buffer.hpp"
 #include "storage/PageNumber.hpp"
+#include "storage/PageTag.hpp"
 
 namespace mi::storage {
 
 /// @brief RAII wrapper above Buffer for pin/unpin logic (for locking see Buffer[Shared]Lock)
 class BufferPin {
   private:
-    /// @brief Number of
-    PageNumber _pageno;
+    /// @brief 
+    PageTag _tag;
+
+    /// @brief Pinned buffer
     std::shared_ptr<Buffer> _buffer;
 
+    public:
     // Create already initialized buffer
-    BufferPin(PageNumber pageno, std::shared_ptr<Buffer> buffer);
+    BufferPin(PageTag tag, std::shared_ptr<Buffer> buffer);
 
-  public:
     // Invalid buffer
     BufferPin();
-    
-    PageNumber GetPageNumber() const;
 
+    PageTag GetPageTag() const;
+    std::shared_ptr<Buffer> GetBuffer();
+    std::shared_ptr<Buffer> GetBuffer() const;
     std::byte *GetContents();
     const std::byte *GetContents() const;
 
     BufferPin(BufferPin &&other);
-    BufferPin &operator=(const BufferPin &&other);
+    BufferPin &operator=(BufferPin &&other);
 
     // We can not (and should not) copy buffer pins, max is to move
     BufferPin(const BufferPin &other) = delete;
@@ -35,7 +39,5 @@ class BufferPin {
 
     /// @brief At the end return this to buffer pool and unpin
     ~BufferPin();
-
-    static BufferPin GetBuffer(PageNumber pageno);
 };
 }; // namespace mi::storage

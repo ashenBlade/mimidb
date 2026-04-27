@@ -1,13 +1,18 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_map>
 
 namespace mi::transam {
 
 /// @brief Transaction Identifier
 struct TransactionId final {
+    // Underlying XID scalar type
+    using type = uint64_t;
+
     uint64_t xid;
 
+    TransactionId() : xid(Invalid) {};
     TransactionId(uint64_t xid) : xid(xid) {};
     operator uint64_t() const { return xid; }
 
@@ -15,9 +20,7 @@ struct TransactionId final {
     bool isValid() const { return xid != TransactionId::Invalid; }
 
     // TransactionId value is in valid range, between Min and Max
-    bool isNormal() const {
-        return TransactionId::Min <= xid && xid <= TransactionId::Max;
-    }
+    bool isNormal() const { return TransactionId::Min <= xid && xid <= TransactionId::Max; }
 
     // Invalid value of XID
     static const constexpr uint64_t Invalid = 0;
@@ -29,3 +32,12 @@ struct TransactionId final {
 };
 
 }; // namespace mi::transam
+
+namespace std {
+template <> struct hash<mi::transam::TransactionId> {
+    using type = mi::transam::TransactionId::type;
+    size_t operator()(const mi::transam::TransactionId &xid) {
+        return std::hash<type>()(static_cast<type>(xid.xid));
+    }
+};
+} // namespace std

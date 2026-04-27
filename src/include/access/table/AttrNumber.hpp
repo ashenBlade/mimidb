@@ -7,22 +7,54 @@ namespace mi::access::table {
 
 /// @brief Number of attribute in tuple
 struct AttrNumber {
-    int16_t value;
+    using type = uint16_t;
 
-    AttrNumber(int16_t value) : value(value) {};
-    int16_t ToIndex() const {
+    uint16_t value;
+
+    AttrNumber() : value(Invalid) {};
+    AttrNumber(uint16_t value) : value(value) {};
+    constexpr std::size_t ToIndex() const {
         assert(this->value != AttrNumber::Invalid);
-        return this->value - 1;
+        return static_cast<std::size_t>(this->value - 1);
     }
 
-    operator int16_t() const { return value; };
+    operator std::size_t() const { return value; };
+    operator uint16_t() const { return value; }
+
+    template<class T>
+    bool operator==(T other) {
+        return this->value == other;
+    }
+
+    bool operator==(const AttrNumber &other) {
+        return this->value == other.value;
+    }
+
+    bool operator<=(const AttrNumber &other) const {
+        return this->value <= other.value;
+    }
+    
+    bool operator<(const AttrNumber &other) const {
+        return this->value < other.value;
+    }
+    
+    AttrNumber operator++() {
+        AttrNumber saved = *this;
+        this->value++;
+        return saved;
+    }
+    
+    AttrNumber &operator++(int) {
+        this->value++;
+        return *this;
+    }
 
     /// @brief Minimal value for attribute number
-    static constexpr const int16_t Min = 1;
+    static constexpr const uint16_t Min = 1;
     /// @brief Max value for attribute number
-    static constexpr const int16_t Max = INT16_MAX;
+    static constexpr const uint16_t Max = UINT16_MAX;
     /// @brief Invalid value for attribute number
-    static constexpr const int16_t Invalid = 0;
+    static constexpr const uint16_t Invalid = 0;
 };
 
-}; // namespace mi::schema
+}; // namespace mi::access::table

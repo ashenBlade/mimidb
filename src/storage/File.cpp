@@ -3,8 +3,10 @@
 #include "storage/File.hpp"
 
 #include <cstdio>
+#include <stdexcept>
 #include <system_error>
 #include <unistd.h>
+#include <fcntl.h>
 #include <format>
 
 using namespace mi::storage;
@@ -74,4 +76,13 @@ void File::Close() {
 
 File::~File() {
     this->Close();
+}
+
+File File::Open(const std::string &path, int mode) {
+    auto fd = open(path.c_str(), mode, 0666);
+    if (fd < 0) {
+        throw std::runtime_error("could not open file");
+    }
+
+    return File{fd};
 }

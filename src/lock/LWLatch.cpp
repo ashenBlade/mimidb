@@ -1,17 +1,17 @@
 #include "mimidb.hpp"
 
+#include "lock/Barrier.hpp"
 #include "lock/LWLatch.hpp"
 #include "lock/Spin.hpp"
-#include "lock/Barrier.hpp"
 #include "worker/Worker.hpp"
 #include "worker_state.hpp"
 
 using namespace mi::lock;
 using namespace mi::worker;
 
-#define LW_FLAG_HAS_WAITERS ((uint32_t)1 << 31)
-#define LW_FLAG_RELEASE_OK ((uint32_t)1 << 30)
-#define LW_FLAG_LOCKED ((uint32_t)1 << 29)
+#define LW_FLAG_HAS_WAITERS static_cast<uint32_t>(1 << 31)
+#define LW_FLAG_RELEASE_OK  static_cast<uint32_t>(1 << 30)
+#define LW_FLAG_LOCKED      static_cast<uint32_t>(1 << 29)
 #define LW_FLAG_BITS 3
 #define LW_FLAG_MASK (((1 << LW_FLAG_BITS) - 1) << (32 - LW_FLAG_BITS))
 
@@ -157,42 +157,43 @@ void LWLatch::wakeup() {
         wakeup.Push(id);
 
         wokeup_somebody = true;
-        
+
         assert(state.status == LockWaitState::Wait);
         state.status = LockWaitState::Pending;
-        
-        // 
+
+        //
         if (state.mode == LockMode::Exclusive) {
             break;
         }
     }
-    
+
     assert(wakeup.IsEmpty() || this->_state.load() & LW_FLAG_HAS_WAITERS);
-    
+
     auto oldState = this->_state.load();
     while (true) {
         auto desiredState = oldState;
 
-        // new_release_ok in PG for me always false, because i do not have LW_WAIT_UNTIL_FREE wait mode
+        // new_release_ok in PG for me always false, because i do not have LW_WAIT_UNTIL_FREE wait
+        // mode
         desiredState &= ~LW_FLAG_RELEASE_OK;
-        
+
         if (this->_waitList.IsEmpty()) {
             desiredState &= ~LW_FLAG_HAS_WAITERS;
         }
-        
+
         // release wait lock
         desiredState &= ~LW_FLAG_LOCKED;
         if (this->_state.compare_exchange_strong(oldState, desiredState)) {
             break;
         }
     }
-    
+
     // awaken any waiters removed from queue
     iter = wakeup.Iterate();
     while (iter.Next()) {
         auto &waiter = *iter;
         auto &state = waiter.GetLockState();
-        
+
         wakeup.Delete(waiter.GetId());
         Barrier::Write();
         state.status = LockWaitState::NoWait;

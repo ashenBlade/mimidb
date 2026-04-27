@@ -1,9 +1,10 @@
 #include "storage/Buffer.hpp"
+#include "lock/LockMode.hpp"
 #include "storage/BufferManager.hpp"
 
 using namespace mi::storage;
 
-Buffer::Buffer(std::byte *contents): _contents(contents), _mutex(), _dirty(false) { };
+Buffer::Buffer(std::byte *contents): _contents(contents), _latch(), _dirty(false) { };
 
 std::byte *Buffer::GetContents() {
     return _contents;
@@ -14,15 +15,11 @@ const std::byte *Buffer::GetContents() const {
 }
 
 void Buffer::Lock(bool shared) {
-    if (shared)
-        _mutex.lock_shared();
-    else
-        _mutex.lock();
+    auto mode = shared ? lock::LockMode::Share : lock::LockMode::Exclusive;
+    this->_latch.Lock(mode);
 }
 
 void Buffer::Unlock(bool shared) {
-    if (shared)
-        _mutex.unlock_shared();
-    else
-        _mutex.unlock();
+    auto mode = shared ? lock::LockMode::Share : lock::LockMode::Exclusive;
+    this->_latch.Release(mode);
 }

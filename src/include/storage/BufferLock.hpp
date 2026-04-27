@@ -32,6 +32,7 @@ class BufferSharedLock {
   private:
     std::shared_ptr<Buffer> _buffer;
     bool _locked;
+
   public:
     BufferSharedLock(std::shared_ptr<Buffer> buffer);
     BufferSharedLock();

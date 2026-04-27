@@ -38,7 +38,7 @@ void RelFile::Read(std::byte *buffer, PageNumber pageno) {
         throw std::invalid_argument("could not read page:: pageno is invalid");
     }
 
-    auto offset = PAGESIZE * pageno;
+    auto offset = PAGESIZE * static_cast<off64_t>(pageno);
     auto size = static_cast<size_t>(PAGESIZE);
 
     auto ret = this->_file.Read(buffer, size, offset);
