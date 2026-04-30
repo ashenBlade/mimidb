@@ -10,17 +10,17 @@ struct TransactionId final {
     // Underlying XID scalar type
     using type = uint64_t;
 
-    uint64_t xid;
+    uint64_t value;
 
-    TransactionId() : xid(Invalid) {};
-    TransactionId(uint64_t xid) : xid(xid) {};
-    operator uint64_t() const { return xid; }
+    TransactionId() : value(Invalid) {};
+    TransactionId(uint64_t xid) : value(xid) {};
+    operator uint64_t() const { return value; }
 
     // TransactionId is not Invalid value
-    bool isValid() const { return xid != TransactionId::Invalid; }
+    bool isValid() const { return value != TransactionId::Invalid; }
 
     // TransactionId value is in valid range, between Min and Max
-    bool isNormal() const { return TransactionId::Min <= xid && xid <= TransactionId::Max; }
+    bool isNormal() const { return TransactionId::Min <= value && value <= TransactionId::Max; }
 
     // Invalid value of XID
     static const constexpr uint64_t Invalid = 0;
@@ -30,14 +30,12 @@ struct TransactionId final {
     // 2 highest bits are used by others, i.e. clog uses for committed/aborted
     static const constexpr uint64_t Max = UINT64_MAX >> 2;
 };
-
 }; // namespace mi::transam
 
 namespace std {
 template <> struct hash<mi::transam::TransactionId> {
-    using type = mi::transam::TransactionId::type;
-    size_t operator()(const mi::transam::TransactionId &xid) {
-        return std::hash<type>()(static_cast<type>(xid.xid));
+    size_t operator()(const mi::transam::TransactionId &xid) const {
+        return std::hash<mi::transam::TransactionId::type>()(xid.value);
     }
 };
 } // namespace std

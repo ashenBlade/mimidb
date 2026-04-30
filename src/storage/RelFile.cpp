@@ -2,6 +2,7 @@
 
 #include "storage/RelFile.hpp"
 
+#include <format>
 #include <stdexcept>
 #include <utility>
 
@@ -33,9 +34,15 @@ void RelFile::Write(const std::byte *buffer, PageNumber pageno) {
     this->_file.Write(buffer, size, offset);
 }
 
+void RelFile::Extend(PageNumber pageno) {
+    std::array<std::byte, PAGESIZE> buffer {};
+    buffer.fill(std::byte{0});
+    this->Write(buffer.data(), pageno);
+}
+
 void RelFile::Read(std::byte *buffer, PageNumber pageno) {
     if (!pageno.IsValid()) {
-        throw std::invalid_argument("could not read page:: pageno is invalid");
+        throw std::invalid_argument("could not read page: pageno is invalid");
     }
 
     auto offset = PAGESIZE * static_cast<off64_t>(pageno);
@@ -56,3 +63,9 @@ PageNumber RelFile::GetPagesCount() {
 }
 
 void RelFile::Close() { this->_file.Close(); }
+
+RelFile RelFile::Open(Oid relid, int mode) {
+    auto filepath = std::format("data/{}", relid.value);
+    return RelFile{File::Open(filepath, mode)};
+}
+

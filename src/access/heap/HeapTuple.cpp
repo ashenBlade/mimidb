@@ -4,7 +4,6 @@
 #include "access/table/AttrNumber.hpp"
 #include "access/table/Datum.hpp"
 #include <algorithm>
-#include <bitset>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -17,8 +16,9 @@ using namespace mi::access;
 using namespace mi::access::table;
 
 // Parse current attribute and returns pair of stored attribute's value and it's full length
-static std::pair<Datum, size_t> extract_attr_datum(char *cursor, const AttributeDescriptor &desc) {
-    Datum value;
+static std::pair<mi::Datum, size_t> extract_attr_datum(char *cursor,
+                                                       const AttributeDescriptor &desc) {
+    mi::Datum value;
     size_t length;
 
     if (desc.ByVal()) {
@@ -26,24 +26,24 @@ static std::pair<Datum, size_t> extract_attr_datum(char *cursor, const Attribute
         length = static_cast<size_t>(desc.Length());
         assert(length > 0);
         switch (length) {
-            case sizeof(int8_t):
-                value = Datum{*reinterpret_cast<int8_t *>(cursor)};
-                break;
-            case sizeof(int16_t):
-                value = Datum{*reinterpret_cast<int16_t *>(cursor)};
-                break;
-            case sizeof(int32_t):
-                value = Datum{*reinterpret_cast<int32_t *>(cursor)};
-                break;
-            case sizeof(int64_t):
-                value = Datum{*reinterpret_cast<int64_t *>(cursor)};
-                break;
-            default:
-                assert(false);
-                throw std::runtime_error("unknown type length " + std::to_string(length));
+        case sizeof(int8_t):
+            value = mi::Datum{*reinterpret_cast<int8_t *>(cursor)};
+            break;
+        case sizeof(int16_t):
+            value = mi::Datum{*reinterpret_cast<int16_t *>(cursor)};
+            break;
+        case sizeof(int32_t):
+            value = mi::Datum{*reinterpret_cast<int32_t *>(cursor)};
+            break;
+        case sizeof(int64_t):
+            value = mi::Datum{*reinterpret_cast<int64_t *>(cursor)};
+            break;
+        default:
+            assert(false);
+            throw std::runtime_error("unknown type length " + std::to_string(length));
         }
     } else {
-        value = Datum{cursor};
+        value = mi::Datum{cursor};
 
         // First field contains length of remaining data
         auto dataLen = *reinterpret_cast<int32_t *>(cursor);
@@ -54,7 +54,7 @@ static std::pair<Datum, size_t> extract_attr_datum(char *cursor, const Attribute
 
 void HeapTuple::parseTuple() {
     auto natts = this->_descriptor->GetMaxAttrNumber();
-    auto values = std::vector<table::Datum>(natts);
+    auto values = std::vector<mi::Datum>(natts);
     auto isnull = std::vector<bool>(natts);
 
     // First process all nulls
@@ -70,7 +70,7 @@ void HeapTuple::parseTuple() {
     } else {
         std::fill(isnull.begin(), isnull.end(), false);
     }
-    
+
     // Now parse actual data
     tupdata = reinterpret_cast<char *>(this->_tuple.get()) + this->_tuple->hoff;
     auto attributes = this->_descriptor->Attributes();
@@ -89,7 +89,7 @@ void HeapTuple::parseTuple() {
     }
 }
 
-std::optional<table::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
+std::optional<mi::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
     if (this->_descriptor->GetMaxAttrNumber() < attno) {
         throw std::runtime_error("provided attribute number greater than available");
     }
@@ -104,3 +104,11 @@ std::optional<table::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
         return std::make_optional(this->_values[attno.ToIndex()]);
     }
 }
+
+HeapTuple::HeapTuple(const table::TupleDescriptor *descriptor, std::unique_ptr<HeapPageTupleHeader> tuple,
+                     int16_t length)
+    : _tuple(std::move(tuple)), _descriptor(descriptor), _length(length) {
+
+    // Parse tuple descriptor on demand
+    this->_processed = false;
+};

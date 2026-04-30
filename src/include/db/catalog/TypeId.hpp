@@ -3,8 +3,10 @@
 namespace mi::schema::catalog {
 
 /// @brief Oids of builtin types
-enum class TypeId {
-    Int4 = 1,   // int32
+enum TypeId {
+    Int64 = 1,
+    Int32 = 2,
+    Int16 = 3,
 };
 
 };

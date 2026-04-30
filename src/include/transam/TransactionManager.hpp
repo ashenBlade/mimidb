@@ -18,7 +18,7 @@ class TransactionManager : private NonCopyable {
         /// @brief Current XID value
         std::atomic<TransactionId::type> _xid;
         /// @brief Mapping between transaction and it's status
-        std::unordered_map<TransactionId, CommitSeqNumber> _status;
+        std::unordered_map<TransactionId, CommitSeqNumber, std::hash<TransactionId>> _status;
 
     public:
         explicit TransactionManager();

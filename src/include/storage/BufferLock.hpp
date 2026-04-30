@@ -2,51 +2,92 @@
 
 #include <memory>
 
+#include "lock/Barrier.hpp"
 #include "storage/Buffer.hpp"
 
 namespace mi::storage {
-// RAII wrapper for buffer lock in X mode
-class BufferLock {
+
+template <bool VShared> class BufferLockBase {
   private:
     std::shared_ptr<Buffer> _buffer;
     bool _locked;
 
   public:
-    BufferLock(std::shared_ptr<Buffer> buffer);
-    BufferLock();
+    BufferLockBase() : _buffer(nullptr), _locked(false) {}
+    BufferLockBase(std::shared_ptr<Buffer> buffer) : _buffer(nullptr), _locked(false) {
+        buffer->Lock(VShared);
+        _buffer = buffer;
+        lock::Barrier::Write();
+        _locked = true;
+    }
 
-    BufferLock(BufferLock &&other);
-    BufferLock &operator=(BufferLock &&other);
+    BufferLockBase(BufferLockBase &&other) {
+        if (this == &other) {
+            return;
+        }
 
-    BufferLock(const BufferLock &other) = delete;
-    BufferLock &operator=(const BufferLock &other) = delete;
-    
-    void Release();
-    void Lock();
+        // release lock if there is one
+        if (this->_locked) {
+            this->_buffer->Unlock(VShared);
+            this->_locked = false;
+        }
 
-    ~BufferLock();
+        std::swap(this->_buffer, other._buffer);
+        std::swap(this->_locked, other._locked);
+    }
+    BufferLockBase &operator=(BufferLockBase &&other) {
+        if (this == &other) {
+            return *this;
+        }
+
+        // release lock if there is one
+        if (this->_locked) {
+            this->_buffer->Unlock(VShared);
+            lock::Barrier::Write();
+            this->_locked = false;
+        }
+
+        std::swap(this->_buffer, other._buffer);
+        std::swap(this->_locked, other._locked);
+        return *this;
+    }
+
+    BufferLockBase(const BufferLockBase &other) = delete;
+    BufferLockBase &operator=(const BufferLockBase &other) = delete;
+
+    void Release() {
+        if (!this->_locked) {
+            return;
+        }
+
+        this->_buffer->Unlock(VShared);
+        lock::Barrier::Write();
+        this->_locked = false;
+    }
+    void Lock() {
+        if (this->_locked) {
+            return;
+        }
+
+        this->_buffer->Lock(VShared);
+        lock::Barrier::Write();
+        this->_locked = true;
+    }
+
+    ~BufferLockBase() {
+        if (!this->_locked) {
+            return;
+        }
+
+        this->_buffer->Unlock(VShared);
+        this->_locked = false;
+    }
 };
+
+// RAII wrapper for buffer lock in X mode
+class BufferLock : public BufferLockBase<false> {};
 
 // RAII wrapper for buffer lock in S mode
-class BufferSharedLock {
-  private:
-    std::shared_ptr<Buffer> _buffer;
-    bool _locked;
-
-  public:
-    BufferSharedLock(std::shared_ptr<Buffer> buffer);
-    BufferSharedLock();
-
-    BufferSharedLock(BufferLock &&other);
-    BufferSharedLock &operator=(BufferSharedLock &&other);
-
-    BufferSharedLock(const BufferSharedLock &other) = delete;
-    BufferSharedLock &operator=(const BufferSharedLock &other) = delete;
-
-    void Release();
-    void LockShared();
-
-    ~BufferSharedLock();
-};
+class BufferSharedLock : public BufferLockBase<true> {};
 
 }; // namespace mi::storage

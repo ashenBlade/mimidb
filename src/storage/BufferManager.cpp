@@ -19,11 +19,6 @@ using namespace mi;
 
 BufferManager::BufferManager() : _map(), _mutex() {}
 
-static RelFile open_relation(Oid relid, int mode) {
-    auto filepath = std::format("data/{}", relid.value);
-    return RelFile{File::Open(filepath, mode)};
-}
-
 BufferPin BufferManager::GetBuffer(PageTag tag) {
     auto lock = std::shared_lock{this->_mutex};
     auto it = this->_map.find(tag);
@@ -38,7 +33,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
     auto guard = std::lock_guard{this->_mutex};
 
     // Open file and read page into stack allocated buffer
-    auto file = open_relation(tag.Relid, O_RDONLY);
+    auto file = RelFile::Open(tag.Relid, O_RDONLY);
     auto data = std::array<std::byte, PAGESIZE>{};
     file.Read(data.data(), tag.PageNo);
 
@@ -64,7 +59,7 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
     // For now for this operation use single lock for whole buffer manager.
     // This locks both internal map and 
     auto lock = std::lock_guard{this->_mutex};
-    auto file = open_relation(relid, O_WRONLY);
+    auto file = RelFile::Open(relid, O_WRONLY);
 
     // Get amount of pages so far and decide which page will be new
     auto npages = file.GetPagesCount();

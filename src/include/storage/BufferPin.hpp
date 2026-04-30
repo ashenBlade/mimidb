@@ -27,6 +27,7 @@ class BufferPin {
     PageTag GetPageTag() const;
     std::shared_ptr<Buffer> GetBuffer();
     std::shared_ptr<Buffer> GetBuffer() const;
+
     std::byte *GetContents();
     const std::byte *GetContents() const;
 

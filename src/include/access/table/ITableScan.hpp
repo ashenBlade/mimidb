@@ -17,7 +17,7 @@ public:
     /// @brief End iteration and cleanup resources
     virtual void EndScan() = 0;
 
-    virtual ~ITableScan() = 0;
+    virtual ~ITableScan() = default;
 };
 
 };

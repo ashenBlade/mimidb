@@ -19,13 +19,13 @@ class HeapTableScan : public table::ITableScan {
     // Snapshot to check tuple visibility
     std::shared_ptr<transam::Snapshot> _snapshot;
     // Table we are scanning
-    access::heap::HeapTable &_table;
+    access::heap::HeapTable *_table;
     // Scan is ended
     bool _end;
 
   public:
     HeapTableScan(std::shared_ptr<transam::Snapshot> snapshot,
-                  access::heap::HeapTable &table);
+                  access::heap::HeapTable *table);
     /// @brief Start iteration and prepare state
     void BeginScan() override;
     /// @brief Get next tuple from underlying table

@@ -3,7 +3,7 @@
 namespace mi::schema::catalog {
 
 /// @brief Oids of builtin relations
-enum class TableId {
+enum TableId {
     MainTableId = 1,
 };
 

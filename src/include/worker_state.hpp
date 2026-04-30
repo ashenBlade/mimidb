@@ -8,5 +8,5 @@ namespace mi {
     extern thread_local mi::worker::Worker *MyWorker;
 
     // Database for this worker
-    extern thread_local mi::db::Database *MyDatabase;
+    extern mi::db::Database *MyDatabase;
 }

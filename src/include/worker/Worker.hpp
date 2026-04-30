@@ -3,9 +3,8 @@
 #include <unistd.h>
 
 #include <memory>
+#include <thread>
 
-#include "lock/LockState.hpp"
-#include "lock/Semaphore.hpp"
 #include "worker/WorkerId.hpp"
 
 namespace mi::worker {
@@ -14,20 +13,22 @@ class Worker {
     /// @brief Assigned id for worker, index in global array
     WorkerId _id;
 
-    /// @brief State for lock support
-    mi::lock::LockState _lockState;
+    /// @brief Thread for this worker
+    std::thread _thread;
 
-    /// @brief Semaphore to lock on
-    std::unique_ptr<mi::lock::Semaphore> _sema;
+    /// @brief Worker is busy processing the connection
+    bool _busy;
 
     void swap(Worker &other) noexcept;
+    
+    static void HandleUserConnectionGuts(WorkerId id, int sock);
 
   public:
     /// @brief Creates new Worker object with InvalidId
     Worker();
     /// @brief Create new Worker and immediately assign it's id
     Worker(WorkerId id);
-    
+
     // Mark noexcept to use std::swap
     Worker(Worker &&other) noexcept;
     Worker &operator=(Worker &&other) noexcept;
@@ -38,8 +39,11 @@ class Worker {
 
     WorkerId GetId() const;
 
-    mi::lock::LockState &GetLockState();
-    mi::lock::Semaphore &GetSemaphore();
+    /// @brief Worker is processing session right now
+    bool IsBusy() const;
+
+    /// @brief Start new worker with for this client
+    void Submit(int sock);
 };
 
 } // namespace mi::worker

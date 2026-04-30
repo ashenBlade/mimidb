@@ -23,7 +23,6 @@ struct PageNumber {
 
     template <class T>
     PageNumber operator+(T value) { return PageNumber{this->value + value}; }
-    
 
     // Invalid page number
     static constexpr const type Invalid = UINT32_MAX;

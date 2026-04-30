@@ -13,9 +13,16 @@ BufferPin::BufferPin() : _tag(), _buffer(nullptr) {};
 BufferPin::BufferPin(PageTag pagetag, std::shared_ptr<Buffer> buffer)
     : _tag(pagetag), _buffer(buffer) { };
 
-BufferPin BufferPin::GetBuffer(PageTag tag) {
-    auto buffer = BufferPoolGlobal->GetBuffer(tag);
-    return BufferPin{tag, buffer};
+// BufferPin BufferPin::GetBuffer(PageTag tag) {
+//     auto buffer = BufferPoolGlobal->GetBuffer(tag);
+//     return BufferPin{tag, buffer};
+// }
+
+std::shared_ptr<Buffer> BufferPin::GetBuffer() {
+    return this->_buffer;
+}
+std::shared_ptr<Buffer> BufferPin::GetBuffer() const {
+return this->_buffer;
 }
 
 std::byte *BufferPin::GetContents() { return _buffer->GetContents(); }
@@ -28,7 +35,7 @@ BufferPin &BufferPin::operator=(BufferPin &&other) {
     }
 
     if (this->_buffer != nullptr) {
-        BufferPoolGlobal->ReturnBuffer(this->_buffer, this->_tag);
+        BufferPoolGlobal->ReturnBuffer(*this);
     }
 
     this->_tag = PageTag{};
@@ -42,7 +49,7 @@ BufferPin &BufferPin::operator=(BufferPin &&other) {
 
 BufferPin::~BufferPin() {
     if (this->_buffer != nullptr) {
-        BufferPoolGlobal->ReturnBuffer(this->_buffer, this->_tag);
+        BufferPoolGlobal->ReturnBuffer(*this);
     }
 
     this->_buffer = nullptr;

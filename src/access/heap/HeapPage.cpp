@@ -1,5 +1,7 @@
 #include "mimidb.hpp"
 
+#include "access/heap/HeapPageHeader.hpp"
+
 #include "access/heap/HeapPage.hpp"
 #include <cassert>
 
@@ -22,7 +24,7 @@ HeapPageHeader& HeapPage::GetHeader() {
 };
 
 static uint16_t page_nitems(HeapPageHeader *header) {
-    auto length = header->lower - offsetof(HeapPageHeader, items);
+    auto length = header->lower - SizeOfHeapPageHeader;
     return static_cast<uint16_t>(length / sizeof(ItemId));
 }
 
@@ -33,8 +35,8 @@ uint16_t HeapPage::ItemsCount() const {
 
 static ItemId *header_get_itemid(HeapPageHeader *header, int index) {
     assert(index < page_nitems(header));
-    // TODO: сделать через итератор
-    return &header->items[index];
+    ItemId *array = reinterpret_cast<ItemId *>(reinterpret_cast<char *>(header) + SizeOfHeapPageHeader);
+    return &array[index];
 }
 
 ItemId &HeapPage::GetItemId(int index) {

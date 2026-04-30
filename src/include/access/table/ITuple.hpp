@@ -17,7 +17,7 @@ class ITuple {
     /// @return Value of attribute or nullopt if it is null
     virtual std::optional<Datum> GetAttribute(AttrNumber attrNumber) = 0;
 
-    virtual ~ITuple() = 0;
+    virtual ~ITuple() = default;
 };
 
 }; // namespace mi::access::table

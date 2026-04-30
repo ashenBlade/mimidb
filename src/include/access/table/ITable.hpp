@@ -11,7 +11,7 @@ namespace mi::access::table {
 
 class ITable {
   public:
-    virtual std::shared_ptr<TupleDescriptor> GetDescriptor() = 0;
+    virtual const TupleDescriptor *GetDescriptor() const = 0;
 
     /// @brief Create scan state for given table
     /// @param snapshot Snapshot to check tuple visibility
@@ -28,7 +28,7 @@ class ITable {
     /// @param tuple Tuple to delete
     virtual void DeleteTuple(std::shared_ptr<ITuple> tuple) = 0;
 
-    virtual ~ITable() = 0;
+    virtual ~ITable() = default;
 };
 
 }; // namespace mi::access::table

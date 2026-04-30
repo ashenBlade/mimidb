@@ -30,7 +30,7 @@ class TupleDescriptor {
     std::vector<AttributeDescriptor> _attributes;
 
   public:
-    TupleDescriptor(std::vector<AttributeDescriptor> attributes) : _attributes(attributes) {};
+    TupleDescriptor(const std::vector<AttributeDescriptor> &attributes) : _attributes(attributes) {};
     TupleDescriptor(std::vector<AttributeDescriptor> &&attributes)
         : _attributes(std::move(attributes)) {};
     std::vector<AttributeDescriptor> &Attributes() { return this->_attributes; }

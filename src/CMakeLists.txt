@@ -40,20 +40,16 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # Сам исполняемый файл БД
-add_executable(${PROJECT_NAME}
-    main.cpp
-    
-    access/heap/HeapPage.cpp
-    access/heap/HeapTable.cpp
-    access/heap/HeapTableScan.cpp
-    
-    storage/Buffer.cpp
-    storage/BufferManager.cpp
-    storage/BufferWrapper.cpp
-    
-    transam/Snapshot.cpp
-    )
+add_executable(${PROJECT_NAME} main.cpp)
 
-# Заголовочные файлы
+# Заголовки
 target_include_directories(${PROJECT_NAME} PUBLIC "include")
+
+# Все поддиректории
+add_subdirectory(access)
+add_subdirectory(db)
+add_subdirectory(lock)
+add_subdirectory(storage)
+add_subdirectory(transam)
+add_subdirectory(worker)
 

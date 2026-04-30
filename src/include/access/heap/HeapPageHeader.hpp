@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 #include "transam/LogSeqNumber.hpp"
 
@@ -19,5 +20,7 @@ struct HeapPageHeader final {
     // End of free space
     uint16_t upper;
 };
+
+constexpr std::size_t SizeOfHeapPageHeader = offsetof(HeapPageHeader, upper) + sizeof(uint16_t);
 
 }; // namespace mi::access::heap

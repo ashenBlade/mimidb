@@ -11,7 +11,7 @@ struct Oid {
 
     uint32_t value;
 
-    Oid(): value(Oid::Invalid) {};
+    Oid() : value(Oid::Invalid) {};
     Oid(uint32_t value) : value(value) {};
     bool IsValid() const { return this->value != Oid::Invalid; };
 
@@ -22,7 +22,7 @@ struct Oid {
     static constexpr const uint32_t Invalid = 0;
 };
 
-}; // namespace mi::access::table
+}; // namespace mi
 
 namespace std {
 
