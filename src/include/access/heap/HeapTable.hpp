@@ -1,10 +1,12 @@
 #pragma once
 
+#include "access/heap/HeapPageTuple.hpp"
 #include "access/table/ITable.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/Oid.hpp"
 #include "access/table/TupleDescriptor.hpp"
-#include "storage/File.hpp"
+#include "storage/BufferLock.hpp"
+#include "storage/BufferPin.hpp"
 #include "storage/PageNumber.hpp"
 
 #include "utils/NonCopyable.hpp"
@@ -26,6 +28,9 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     // Amount of pages in given relation so far. If Invalid, then unknown
     mi::storage::PageNumber _pageCountCached;
 
+    HeapPageTuple formHeapPageTuple(ITuple &tuple) const;
+    storage::BufferPin searchPageFreeSpace(size_t freeSpace) const;
+
   public:
     HeapTable(Oid tableId, const TupleDescriptor *descriptor);
     ~HeapTable() = default;
@@ -35,7 +40,7 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
 
     std::unique_ptr<mi::access::table::ITableScan>
     StartScan(std::shared_ptr<mi::transam::Snapshot> snapshot) override;
-    void InsertTuple(std::shared_ptr<ITuple> tuple) override;
+    void InsertTuple(ITuple &tuple) override;
     void UpdateTuple(std::shared_ptr<ITuple> oldTuple, std::shared_ptr<ITuple> newTuple) override;
     void DeleteTuple(std::shared_ptr<ITuple> tuple) override;
 

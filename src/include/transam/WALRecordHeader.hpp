@@ -1,19 +1,16 @@
 #pragma once
 
-#include <cstdint>
-
 #include "transam/ResourceManagerId.hpp"
 #include "transam/TransactionId.hpp"
-
 namespace mi::transam {
 
-struct UndoLogRecordHeader {
+struct WALRecordHeader {
     /// TransactionId created this record
     TransactionId Xid;
-    // Length of data
-    uint64_t DataLength;
-    // Id of resource manager for this record
-    ResourceManagerId ResourceManager;
+    /// Resource manager for this record
+    ResourceManagerId RMgrId;
+    /// Length of data
+    size_t Length;
 };
 
-}
+};

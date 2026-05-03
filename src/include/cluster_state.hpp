@@ -1,5 +1,7 @@
 #pragma once
 
+#include "db/Database.hpp"
+#include "transam/WriteAheadLog.hpp"
 #include "worker/WorkerManager.hpp"
 #include "storage/BufferManager.hpp"
 #include "transam/UndoLog.hpp"
@@ -14,4 +16,8 @@ namespace mi {
     extern transam::UndoLog *UndoLogGlobal;
     // Transaction manager
     extern transam::TransactionManager *TransactionManagerGlobal;
+    // Write Ahead Log
+    extern transam::WriteAheadLog *WALGlobal;
+    // Database instance
+    extern mi::db::Database *DatabaseGlobal;
 }

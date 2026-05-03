@@ -2,7 +2,9 @@
 
 #include "lock/Spin.hpp"
 #include "transam/CommitSeqNumber.hpp"
+#include "transam/Transaction.hpp"
 #include "transam/TransactionId.hpp"
+#include "worker_state.hpp"
 #include <atomic>
 #include <mutex>
 #include <shared_mutex>

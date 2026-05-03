@@ -13,26 +13,22 @@ BufferPin::BufferPin() : _tag(), _buffer(nullptr) {};
 BufferPin::BufferPin(PageTag pagetag, std::shared_ptr<Buffer> buffer)
     : _tag(pagetag), _buffer(buffer) { };
 
-// BufferPin BufferPin::GetBuffer(PageTag tag) {
-//     auto buffer = BufferPoolGlobal->GetBuffer(tag);
-//     return BufferPin{tag, buffer};
-// }
+BufferPin::BufferPin(BufferPin &&other) {
+    assert(&other != this);
 
-std::shared_ptr<Buffer> BufferPin::GetBuffer() {
-    return this->_buffer;
+    if (this->_buffer != nullptr) {
+        BufferPoolGlobal->ReturnBuffer(*this);
+    }
+
+    this->_tag = PageTag{};
+    this->_buffer = nullptr;
+
+    std::swap(this->_tag, other._tag);
+    std::swap(this->_buffer, other._buffer);
 }
-std::shared_ptr<Buffer> BufferPin::GetBuffer() const {
-return this->_buffer;
-}
-
-std::byte *BufferPin::GetContents() { return _buffer->GetContents(); }
-
-const std::byte *BufferPin::GetContents() const { return _buffer->GetContents(); }
 
 BufferPin &BufferPin::operator=(BufferPin &&other) {
-    if (&other == this) {
-        return *this;
-    }
+    assert(&other != this);
 
     if (this->_buffer != nullptr) {
         BufferPoolGlobal->ReturnBuffer(*this);

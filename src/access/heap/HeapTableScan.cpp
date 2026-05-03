@@ -1,8 +1,6 @@
 #include "access/heap/HeapPageTupleHeader.hpp"
-#include "access/heap/undo/DeleteUndoRecord.hpp"
-#include "access/heap/undo/HeapUndoRecord.hpp"
-#include "access/heap/undo/InsertUndoRecord.hpp"
-#include "access/heap/undo/UpdateUndoRecord.hpp"
+#include "access/heap/HeapTupleSerializer.hpp"
+#include "access/heap/undo/HeapUndoRecordBase.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "mimidb.hpp"
 
@@ -44,15 +42,9 @@ void HeapTableScan::BeginScan() {
 };
 
 // Create new HeapTuple from given on page tuple to return from scan node
-static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::TupleDescriptor *descr, HeapPageTupleHeader *header, uint32_t length) {
-    assert(length > sizeof(HeapPageTupleHeader));
-
-    // Allocate new buffer and copy tuple contents there
-    auto buffer = std::aligned_alloc(sizeof(void *), length);
-    std::memcpy(buffer, reinterpret_cast<void *>(header), length);
-    auto ptr = std::unique_ptr<HeapPageTupleHeader>(reinterpret_cast<HeapPageTupleHeader *>(buffer));
-
-    return std::make_unique<HeapTuple>(descr, std::move(ptr), length);
+static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::TupleDescriptor *descr, HeapPageTupleHeader *header) {
+    auto tuple = HeapTupleSerializer::Deserialize(reinterpret_cast<const std::byte *>(header), *descr);
+    return std::make_unique<HeapTuple>(descr, std::move(tuple));
 }
 
 static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupleHeader *header) {
@@ -72,7 +64,7 @@ static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupl
     return false;
 }
 
-static std::unique_ptr<mi::access::heap::HeapTuple> find_visible_tuple_page(const mi::access::table::TupleDescriptor *descr, HeapPageTupleHeader *header, const mi::transam::Snapshot &snapshot) {
+static std::unique_ptr<mi::access::heap::HeapTuple> find_visible_tuple_page(HeapPageTupleHeader *header) {
     size_t length;
     auto xid = header->xid;
     auto usn = header->undo;
@@ -80,28 +72,10 @@ static std::unique_ptr<mi::access::heap::HeapTuple> find_visible_tuple_page(cons
         auto record = mi::UndoLogGlobal->GetRecord<undo::HeapUndoRecordBase>(xid, usn, length);
         switch (record->RecordType) {
             case undo::HeapUndoRecordType::Insert: {
-                auto insert = dynamic_cast<undo::InsertUndoRecord *>(record.get());
-                if (tuple_is_visible(snapshot, &insert->Tuple)) {
-                    return build_heap_tuple(descr, &insert->Tuple, insert->TupleLen);
-                }
-
-                xid = insert->Tuple.xid;
-                usn = insert->Tuple.undo;
-                break;
+                throw std::runtime_error("not implemented");
             }
             case undo::HeapUndoRecordType::Update: {
-                auto update = dynamic_cast<undo::UpdateUndoRecord *>(record.get());
-                if (update->From != update->To) {
-                    return nullptr;
-                }
-
-                if (tuple_is_visible(snapshot, &update->Tuple)) {
-                    return build_heap_tuple(descr,&update->Tuple, update->TupleLen);
-                }
-
-                xid = update->Tuple.xid;
-                usn = update->Tuple.undo;
-                break;
+                throw std::runtime_error("not implemented");
             }
             case undo::HeapUndoRecordType::Delete:
                 // Tuple does not exist anymore
@@ -145,9 +119,9 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
                 continue;
             }
 
-            tuple = build_heap_tuple(this->_table->GetDescriptor(), header, itemid.getLength());
+            tuple = build_heap_tuple(this->_table->GetDescriptor(), header);
         } else {
-            tuple = find_visible_tuple_page(this->_table->GetDescriptor(), header, *this->_snapshot);
+            tuple = find_visible_tuple_page(header);
         }
 
         if (tuple) {

@@ -37,16 +37,16 @@ struct AttrNumber {
     bool operator<(const AttrNumber &other) const {
         return this->value < other.value;
     }
-    
-    AttrNumber operator++() {
-        AttrNumber saved = *this;
-        this->value++;
-        return saved;
-    }
-    
-    AttrNumber &operator++(int) {
+
+    AttrNumber &operator++() {
         this->value++;
         return *this;
+    }
+    
+    AttrNumber operator++(int) {
+        auto copy = *this;
+        this->value++;
+        return copy;
     }
 
     /// @brief Minimal value for attribute number

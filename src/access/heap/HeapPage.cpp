@@ -1,9 +1,12 @@
+#include "access/heap/ItemId.hpp"
 #include "mimidb.hpp"
 
-#include "access/heap/HeapPageHeader.hpp"
-
-#include "access/heap/HeapPage.hpp"
 #include <cassert>
+#include <cstring>
+#include <stdexcept>
+
+#include "access/heap/HeapPageHeader.hpp"
+#include "access/heap/HeapPage.hpp"
 
 using namespace mi::access::heap;
 
@@ -34,19 +37,28 @@ uint16_t HeapPage::ItemsCount() const {
 }
 
 static ItemId *header_get_itemid(HeapPageHeader *header, int index) {
-    assert(index < page_nitems(header));
     ItemId *array = reinterpret_cast<ItemId *>(reinterpret_cast<char *>(header) + SizeOfHeapPageHeader);
     return &array[index];
 }
 
 ItemId &HeapPage::GetItemId(int index) {
     auto header = cast_header(_buffer);
+    assert(index < page_nitems(header));
     return *header_get_itemid(header, index);
 }
 
 const ItemId &HeapPage::GetItemId(int index) const {
     auto header = cast_header(_buffer);
+    assert(index < page_nitems(header));
     return *header_get_itemid(header, index);
+}
+
+ItemId *HeapPage::GetLinePointerArray() {
+    return reinterpret_cast<ItemId *>(this->_buffer + SizeOfHeapPageHeader);
+}
+
+const ItemId *HeapPage::GetLinePointerArray() const {
+    return reinterpret_cast<ItemId *>(this->_buffer + SizeOfHeapPageHeader);
 }
 
 static HeapPageTupleHeader *header_get_tuple(std::byte *buffer, const ItemId &itemId) {
@@ -65,3 +77,7 @@ const HeapPageTupleHeader *HeapPage::GetTuple(const ItemId &itemId) const {
     return header_get_tuple(_buffer, itemId);
 }
 
+size_t HeapPage::GetFreeSpace() const {
+    auto header = reinterpret_cast<HeapPageHeader *>(this->_buffer);
+    return header->upper - header->lower;
+}

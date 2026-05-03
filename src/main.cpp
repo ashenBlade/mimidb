@@ -11,8 +11,10 @@
 #include "db/catalog/TypeId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "storage/BufferManager.hpp"
+#include "transam/Transaction.hpp"
 #include "transam/TransactionManager.hpp"
 #include "transam/UndoLog.hpp"
+#include "transam/WriteAheadLog.hpp"
 #include "worker/Worker.hpp"
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
@@ -74,6 +76,8 @@ static void sigint_handler(int) {
 }
 
 static void setupDatabase() {
+    // CREATE TABLE tbl(a int4, b int2);
+
     // Tuple with 2 attributes, both ints
     auto desc = mi::access::table::TupleDescriptor{std::vector {
         mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int32, sizeof(int32_t), true},
@@ -91,30 +95,33 @@ static void setupDatabase() {
         {mi::schema::catalog::TypeId::Int64, mi::db::catalog::TypeInfo{mi::schema::catalog::TypeId::Int64, sizeof(int64_t), mi::db::builtin::Int64Output}},
     };
     auto schema = std::make_unique<mi::db::Schema>(std::move(tables), std::move(types));
-    mi::MyDatabase = new mi::db::Database(std::move(schema));
+    mi::DatabaseGlobal = new mi::db::Database(std::move(schema));
 }
 
 // Global variables declarations
 // worker_state
-mi::db::Database *mi::MyDatabase;
 thread_local mi::worker::Worker *mi::MyWorker;
+thread_local mi::transam::Transaction *mi::MyTransaction;
 
 // cluster_state
+mi::db::Database *mi::DatabaseGlobal;
 mi::worker::WorkerManager *mi::WorkerGlobal;
 mi::storage::BufferManager *mi::BufferPoolGlobal;
 mi::transam::UndoLog *mi::UndoLogGlobal;
 mi::transam::TransactionManager *mi::TransactionManagerGlobal;
+mi::transam::WriteAheadLog *mi::WALGlobal;
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
     // Create global structures
     auto worker = mi::WorkerGlobal = new mi::worker::WorkerManager(MaxWorkers);
     mi::BufferPoolGlobal = new mi::storage::BufferManager();
-    mi::UndoLogGlobal = new mi::transam::UndoLog();
     mi::TransactionManagerGlobal = new mi::transam::TransactionManager();
+    mi::UndoLogGlobal = mi::transam::UndoLog::Open("undo");
+    mi::WALGlobal = mi::transam::WriteAheadLog::Open("wal");
 
     // There is only 1 database, so no need to setup this in worker
     setupDatabase();
-    
+
     // Register simple handler to stop processing
     signal(SIGINT, sigint_handler);
 
@@ -125,6 +132,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
         if (clientSock < 0) {
             if (errno == EINTR && stop_requested) {
                 std::cerr << "got SIGINT, stop working" << std::endl;
+            } else {
+                std::cerr << "error accepting client, stop working" << std::endl;
             }
             break;
         }

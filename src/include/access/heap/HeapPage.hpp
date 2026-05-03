@@ -26,12 +26,18 @@ class HeapPage final {
     /// @return Pointer to ItemId
     ItemId &GetItemId(int index);
     const ItemId &GetItemId(int index) const;
+
+    /// @brief Get pointer to start of line pointer array
+    ItemId *GetLinePointerArray();
+    const ItemId *GetLinePointerArray() const;
+
     /// @brief Get pointer to tuple to which ItemId is pointing
     /// @param itemId Item id for this tuple, must be valid
     /// @return Pointer to tuple
     HeapPageTupleHeader *GetTuple(const ItemId &itemId);
     const HeapPageTupleHeader *GetTuple(const ItemId &itemId) const;
 
+    size_t GetFreeSpace() const;
 };
 
 }; // namespace mi::access::heap

@@ -24,6 +24,17 @@ struct PageNumber {
     template <class T>
     PageNumber operator+(T value) { return PageNumber{this->value + value}; }
 
+    PageNumber &operator++() {
+        this->value++;
+        return *this;
+    }
+    
+    PageNumber operator++(int) {
+        auto copy = *this;
+        this->value++;
+        return copy;
+    }
+
     // Invalid page number
     static constexpr const type Invalid = UINT32_MAX;
     // First valid page number

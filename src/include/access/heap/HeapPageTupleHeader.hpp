@@ -2,7 +2,6 @@
 
 #include <cstddef>
 
-#include "transam/CommitSeqNumber.hpp"
 #include "transam/TransactionId.hpp"
 #include "transam/UndoSeqNumber.hpp"
 
@@ -20,11 +19,7 @@ struct HeapPageTupleHeader {
     /// @brief Special flags for tuple
     HeapTupleFlags flags;
     /// @brief Offset to start of data
-    uint8_t hoff;
-    
-    
+    uint8_t dataStartOffset;
 };
-
-constexpr std::size_t SizeofHeapPageTupleHeader = offsetof(HeapPageTupleHeader, hoff) + sizeof(uint8_t);
 
 }; // namespace mi::access::heap

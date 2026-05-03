@@ -1,10 +1,12 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <shared_mutex>
 #include <unordered_map>
 
 #include "transam/CommitSeqNumber.hpp"
+#include "transam/Transaction.hpp"
 #include "transam/TransactionId.hpp"
 #include "utils/NonCopyable.hpp"
 
@@ -39,7 +41,7 @@ class TransactionManager : private NonCopyable {
         /// @brief Commit existing transaction
         /// @return Assigned CSN for transaction
         CommitSeqNumber CommitTransaction(TransactionId xid);
-        
+
         /// @brief Mark transaction as aborted
         void AbortTransaction(TransactionId xid);
 };

@@ -18,6 +18,6 @@ struct HeapUndoRecordBase {
     HeapUndoRecordBase(HeapUndoRecordBase &&other) = default;
     HeapUndoRecordBase &operator=(HeapUndoRecordBase &&other) = default;
     
-    virtual ~HeapUndoRecordBase() = 0;
+    virtual ~HeapUndoRecordBase() = default;
 };
 } // namespace mi::access::heap::undo

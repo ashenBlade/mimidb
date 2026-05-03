@@ -1,8 +1,10 @@
 #include "access/table/AttrNumber.hpp"
+#include "access/table/Datum.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
+#include "executor/VirtualTuple.hpp"
 #include "mimidb.hpp"
 
 #include "access/heap/HeapTable.hpp"
@@ -13,9 +15,11 @@
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <exception>
 #include <iostream>
+#include <memory>
 #include <netinet/in.h>
 #include <optional>
 #include <stdexcept>
@@ -23,7 +27,6 @@
 #include <sys/socket.h>
 #include <system_error>
 #include <unistd.h>
-#include <algorithm>
 #include <vector>
 
 #include "worker/Handler.hpp"
@@ -43,20 +46,22 @@ class SocketServer {
   private:
     WorkerId _id;
     int _socket;
-    
+
     // Vector of output functions for each attribute
     std::optional<std::vector<mi::db::catalog::TypeInfo::OutputFunction>> _outputs;
-    
-    const std::vector<mi::db::catalog::TypeInfo::OutputFunction> &getOutputFunctions(const mi::access::table::TupleDescriptor &desc) {
+
+    const std::vector<mi::db::catalog::TypeInfo::OutputFunction> &
+    getOutputFunctions(const mi::access::table::TupleDescriptor &desc) {
         if (!this->_outputs.has_value()) {
             auto natts = desc.GetMaxAttrNumber().ToIndex();
-            auto schema = mi::MyDatabase->GetSchema();
+            auto schema = mi::DatabaseGlobal->GetSchema();
             auto outputs = std::vector<mi::db::catalog::TypeInfo::OutputFunction>{natts};
             auto attrs = desc.Attributes();
-            std::transform(attrs.begin(), attrs.end(), outputs.begin(), [&schema](const mi::access::table::AttributeDescriptor &attr)  {
-                auto &info = schema->GetTypeInfo(attr.TypeId());
-                return info.GetOutputFunction();
-            });
+            std::transform(attrs.begin(), attrs.end(), outputs.begin(),
+                           [&schema](const mi::access::table::AttributeDescriptor &attr) {
+                               auto &info = schema->GetTypeInfo(attr.TypeId());
+                               return info.GetOutputFunction();
+                           });
             this->_outputs = std::optional{outputs};
         }
 
@@ -80,18 +85,19 @@ class SocketServer {
                                     "could not send");
         }
     }
-    
+
     void sendString(const std::string &value) {
         this->sendInt32(static_cast<int32_t>(value.size()));
-        
+
         auto buf = value.c_str();
         auto left = value.size();
         while (left > 0) {
             auto ret = send(this->_socket, buf, left, 0);
             if (ret < 0) {
-                throw std::system_error(std::error_code(errno, std::system_category()), "could not send");
+                throw std::system_error(std::error_code(errno, std::system_category()),
+                                        "could not send");
             }
-            
+
             left -= static_cast<size_t>(ret);
             buf += ret;
         }
@@ -127,6 +133,30 @@ class SocketServer {
         }
     };
 
+    int32_t ReadInt32() {
+        int32_t value;
+
+        auto ret = recv(this->_socket, &value, sizeof(int32_t), 0);
+        if (ret < 0) {
+            std::cerr << "could not recv: " << strerror(errno) << std::endl;
+            throw std::runtime_error("error reading int32");
+        }
+
+        return static_cast<int32_t>(ntohl(static_cast<uint32_t>(value)));
+    }
+
+    int16_t ReadInt16() {
+        int16_t value;
+
+        auto ret = recv(this->_socket, &value, sizeof(int16_t), 0);
+        if (ret < 0) {
+            std::cerr << "could not recv: " << strerror(errno) << std::endl;
+            throw std::runtime_error("error reading int32");
+        }
+
+        return static_cast<int16_t>(ntohs(static_cast<uint16_t>(value)));
+    }
+
     void SendTupleDescriptor(const mi::access::table::TupleDescriptor &desc) {
         this->sendByte('D');
         this->sendInt32(static_cast<int32_t>(desc.GetMaxAttrNumber().ToIndex()));
@@ -151,7 +181,7 @@ class SocketServer {
             }
         }
     }
-    
+
     void SendEnd() {
         // 'E'nd
         this->sendByte('E');
@@ -207,8 +237,9 @@ static void handle_select(SocketServer &server) {
     auto csn = mi::TransactionManagerGlobal->GetCurrentCSN();
     auto snapshot = std::make_shared<mi::transam::Snapshot>(csn);
 
-    auto table = mi::MyDatabase->OpenTable(mi::schema::catalog::TableId::MainTableId);
-    auto scan = std::make_shared<mi::access::heap::HeapTableScan>(snapshot, dynamic_cast<mi::access::heap::HeapTable *>(table.get()));
+    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
+    auto scan = std::make_shared<mi::access::heap::HeapTableScan>(
+        snapshot, dynamic_cast<mi::access::heap::HeapTable *>(table.get()));
 
     scan->BeginScan();
 
@@ -221,16 +252,44 @@ static void handle_select(SocketServer &server) {
 
     scan->EndScan();
     server.SendEnd();
+
+    csn = mi::TransactionManagerGlobal->CommitTransaction(xid);
+    std::cerr << "Commit CSN = " << csn << std::endl;
+}
+
+static void handle_insert(SocketServer &server) {
+    // Read tuple we want to insert.
+    // For now only 1 table exists and schema is fixed - tuple is known.
+    auto val1 = server.ReadInt32();
+    auto val2 = server.ReadInt16();
+    auto tuple = mi::executor::VirtualTuple{std::vector{mi::Datum{val1}, mi::Datum{val2}},
+                                            std::vector{false, false}};
+
+    // Beginning new transaction
+    auto xid = mi::TransactionManagerGlobal->BeginNewTransaction();
+    auto csn = mi::TransactionManagerGlobal->GetCurrentCSN();
+
+    // For now snapshot is not required
+    [[maybe_unused]] auto snapshot = std::make_shared<mi::transam::Snapshot>(csn);
+
+    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
+
+    table->InsertTuple(tuple);
+
+    csn = mi::TransactionManagerGlobal->CommitTransaction(xid);
+    std::cerr << "Commit CSN = " << csn << std::endl;
 }
 
 static void handle_loop(SocketServer &server, WorkerId id) {
     // Setup environment
     mi::MyWorker = mi::WorkerGlobal->GetWorker(id);
-    
+
     // Handle connection itself
     while (auto command = server.ReadNextCommand()) {
         if (command == CommandType::SELECT) {
             handle_select(server);
+        } else if (command == CommandType::INSERT) {
+            handle_insert(server);
         } else {
             server.SendStringResult("Only SELECT is supported for now");
         }

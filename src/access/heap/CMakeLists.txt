@@ -4,4 +4,5 @@ target_sources(
     HeapTable.cpp
     HeapTableScan.cpp
     HeapTuple.cpp
+    HeapTupleSerializer.cpp
 )

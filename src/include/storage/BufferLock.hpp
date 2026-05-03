@@ -21,6 +21,9 @@ template <bool VShared> class BufferLockBase {
         _locked = true;
     }
 
+    std::shared_ptr<Buffer> GetBuffer();
+    const std::shared_ptr<Buffer> GetBuffer() const;
+
     BufferLockBase(BufferLockBase &&other) {
         if (this == &other) {
             return;

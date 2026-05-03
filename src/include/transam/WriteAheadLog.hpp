@@ -1,18 +1,33 @@
 #pragma once
 
+#include <mutex>
+#include <string>
+
+#include "storage/File.hpp"
+#include "transam/IWalRecord.hpp"
 #include "transam/LogSeqNumber.hpp"
 
 namespace mi::transam {
 
 class WriteAheadLog {
 private:
-    /// @brief File descriptor for underlying file
-    int _fd;
+    /// Path to WAL file
+    std::string _path;
+    /// File object for underlying WAL
+    storage::File _file;
+    /// File size
+    off64_t _size;
+    /// Lock for writing new entries
+    std::mutex _lock;
+
+    WriteAheadLog(std::string path, off64_t size, storage::File _file);
 
 public:
     /// @brief Durable write record to WAL
     /// @return LSN at which record is written
-    LogSeqNumber WriteLogRecord();
+    LogSeqNumber WriteLogRecord(const IWalRecord &record);
+
+    static WriteAheadLog *Open(std::string path);
 };
 
 };

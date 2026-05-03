@@ -19,7 +19,7 @@ class ITable {
     virtual std::unique_ptr<ITableScan> StartScan(std::shared_ptr<mi::transam::Snapshot> snapshot) = 0;
     /// @brief Insert new tuple into table
     /// @param tuple Tuple to insert
-    virtual void InsertTuple(std::shared_ptr<ITuple> tuple) = 0;
+    virtual void InsertTuple(ITuple &tuple) = 0;
     /// @brief Update existing tuple with new one
     /// @param oldTuple Tuple to update
     /// @param newTuple New tuple contents

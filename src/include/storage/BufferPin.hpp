@@ -11,25 +11,25 @@ namespace mi::storage {
 /// @brief RAII wrapper above Buffer for pin/unpin logic (for locking see Buffer[Shared]Lock)
 class BufferPin {
   private:
-    /// @brief 
+    /// @brief
     PageTag _tag;
 
     /// @brief Pinned buffer
     std::shared_ptr<Buffer> _buffer;
 
-    public:
+  public:
     // Create already initialized buffer
     BufferPin(PageTag tag, std::shared_ptr<Buffer> buffer);
 
     // Invalid buffer
     BufferPin();
 
-    PageTag GetPageTag() const;
-    std::shared_ptr<Buffer> GetBuffer();
-    std::shared_ptr<Buffer> GetBuffer() const;
+    PageTag GetPageTag() const { return this->_tag; }
+    std::shared_ptr<Buffer> GetBuffer() { return this->_buffer; }
+    std::shared_ptr<Buffer> GetBuffer() const { return this->_buffer; }
 
-    std::byte *GetContents();
-    const std::byte *GetContents() const;
+    std::byte *GetContents() { return this->_buffer->GetContents(); }
+    const std::byte *GetContents() const { return this->_buffer->GetContents(); }
 
     BufferPin(BufferPin &&other);
     BufferPin &operator=(BufferPin &&other);
