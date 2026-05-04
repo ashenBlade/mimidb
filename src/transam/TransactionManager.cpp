@@ -44,16 +44,14 @@ TransactionId TransactionManager::BeginNewTransaction() {
 
 CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
     // First mark transaction as committing
-    {
-        auto lock = std::lock_guard{this->_mutex};
+    WITH(auto lock = std::lock_guard{this->_mutex}) {
         this->_status[xid] = CommitSeqNumber::Committing;
     }
 
     // Then obtain it's CSN and mark as committed
     auto csn = std::atomic_fetch_add(&this->_csn, 1);
 
-    {
-        auto lock = std::lock_guard{this->_mutex};
+    WITH(auto lock = std::lock_guard{this->_mutex}) {
         this->_status[xid] = csn;
     }
 

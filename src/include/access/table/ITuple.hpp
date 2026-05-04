@@ -1,11 +1,9 @@
 #pragma once
 
-#include <memory>
 #include <optional>
 
 #include "access/table/Datum.hpp"
 #include "access/table/AttrNumber.hpp"
-#include "access/table/TupleDescriptor.hpp"
 
 namespace mi::access::table {
 

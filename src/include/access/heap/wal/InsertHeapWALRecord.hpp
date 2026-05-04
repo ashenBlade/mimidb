@@ -11,15 +11,15 @@
 #include <memory>
 
 namespace mi::access::heap::wal {
-class InsertHeapWALRecord : public HeapWALRecord<HeapWALRecordType::Insert> {
+class InsertHeapWALRecord : public HeapWALRecord {
   public:
-    /// Identification of tuple locationa
+    /// Identification of tuple location
     TupleId TupId;
     /// Actual tuple bytes
     std::shared_ptr<std::vector<std::byte>> Tuple;
 
     InsertHeapWALRecord(TupleId id, std::shared_ptr<std::vector<std::byte>> tuple)
-        : TupId(id), Tuple(std::move(tuple)) {};
+        : HeapWALRecord(HeapWALRecordType::Insert), TupId(id), Tuple(std::move(tuple)) {};
 
     size_t CalculateSize() const override { return sizeof(TupleId) + this->Tuple->size(); }
 

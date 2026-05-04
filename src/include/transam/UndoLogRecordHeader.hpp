@@ -10,10 +10,12 @@ namespace mi::transam {
 struct UndoLogRecordHeader {
     /// TransactionId created this record
     TransactionId Xid;
-    // Length of data
-    uint64_t DataLength;
     // Id of resource manager for this record
     ResourceManagerId ResourceManager;
+    // Resource manager specific type of record
+    uint8_t RecordType;
+    // Length of data
+    uint64_t DataLength;
 };
 
 }

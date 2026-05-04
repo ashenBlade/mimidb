@@ -124,10 +124,8 @@ void HeapTable::InsertTuple(ITuple &tuple) {
             auto tupleId = TupleId{buffer.GetPageTag().PageNo, page.ItemsCount()};
 
             // First, create and insert undo record
-            auto undoRec = undo::DeleteUndoRecord{tupleId};
-            auto usn = UndoLogGlobal->InsertUndoRecord(transam::ResourceManagerId::Heap,
-                                                       reinterpret_cast<std::byte *>(&undoRec),
-                                                       sizeof(undo::DeleteUndoRecord));
+            auto undoRec = undo::DeleteUndoRecord{this->_tableId, tupleId};
+            auto usn = MyTransaction->GetUndoLog().InsertRecord(undoRec);
 
             // Now we have USN, so set it to tuple and actually insert
             heapPageTuple.Header().undo = usn;
@@ -169,7 +167,7 @@ void HeapTable::UpdateTuple([[maybe_unused]] std::shared_ptr<ITuple> oldTuple,
 }
 
 std::unique_ptr<mi::access::table::ITableScan>
-HeapTable::StartScan(std::shared_ptr<mi::transam::Snapshot> snapshot) {
+HeapTable::StartScan(mi::transam::Snapshot *snapshot) {
     return std::make_unique<HeapTableScan>(snapshot, this);
 }
 

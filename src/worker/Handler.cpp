@@ -1,3 +1,5 @@
+#include "mimidb.hpp"
+
 #include "access/table/AttrNumber.hpp"
 #include "access/table/Datum.hpp"
 #include "access/table/ITuple.hpp"
@@ -5,12 +7,12 @@
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "executor/VirtualTuple.hpp"
-#include "mimidb.hpp"
 
 #include "access/heap/HeapTable.hpp"
 #include "access/heap/HeapTableScan.hpp"
 #include "cluster_state.hpp"
 #include "transam/Snapshot.hpp"
+#include "transam/Transaction.hpp"
 #include "transam/TransactionManager.hpp"
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
@@ -36,10 +38,16 @@ using AttrNumber = mi::access::table::AttrNumber;
 
 enum CommandType {
     /* Start from 1 to use as condition in 'while' loop */
+    // CRUD
     SELECT = 1,
     INSERT = 2,
     UPDATE = 3,
     DELETE = 4,
+    
+    // TCL
+    BEGIN = 5,
+    COMMIT = 6,
+    ROLLBACK = 7,
 };
 
 class SocketServer {
@@ -128,6 +136,12 @@ class SocketServer {
             return CommandType::UPDATE;
         case 'D':
             return CommandType::DELETE;
+        case 'B':
+            return CommandType::BEGIN;
+        case 'C':
+            return CommandType::COMMIT;
+        case 'R':
+            return CommandType::ROLLBACK;
         default:
             throw std::runtime_error("operation not supported: " + std::to_string(type));
         }
@@ -186,6 +200,11 @@ class SocketServer {
         // 'E'nd
         this->sendByte('E');
     }
+    
+    void SendOk() {
+        // 'O'k
+        this->sendByte('O');
+    }
 
     void SendStringResult(const std::string &message) {
         auto buf = message.c_str();
@@ -230,16 +249,21 @@ class SocketServer {
     }
 };
 
-static void handle_select(SocketServer &server) {
-    auto xid = mi::TransactionManagerGlobal->BeginNewTransaction();
-    std::cerr << "Beginning new tnx: xid = " << xid << std::endl;
+static void verify_transaction_ok() {
+    if (mi::MyTransaction == nullptr) {
+        throw std::runtime_error("There is no transaction");
+    }
+    if (mi::MyTransaction->GetStatus() != mi::transam::TransactionStatus::RUNNING) {
+        throw std::runtime_error("Invalid transaction status");
+    }
+}
 
-    auto csn = mi::TransactionManagerGlobal->GetCurrentCSN();
-    auto snapshot = std::make_shared<mi::transam::Snapshot>(csn);
+static void handle_select(SocketServer &server) {
+    verify_transaction_ok();
 
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
     auto scan = std::make_shared<mi::access::heap::HeapTableScan>(
-        snapshot, dynamic_cast<mi::access::heap::HeapTable *>(table.get()));
+        mi::MyTransaction->GetSnapshot(), dynamic_cast<mi::access::heap::HeapTable *>(table.get()));
 
     scan->BeginScan();
 
@@ -252,12 +276,11 @@ static void handle_select(SocketServer &server) {
 
     scan->EndScan();
     server.SendEnd();
-
-    csn = mi::TransactionManagerGlobal->CommitTransaction(xid);
-    std::cerr << "Commit CSN = " << csn << std::endl;
 }
 
 static void handle_insert(SocketServer &server) {
+    verify_transaction_ok();
+
     // Read tuple we want to insert.
     // For now only 1 table exists and schema is fixed - tuple is known.
     auto val1 = server.ReadInt32();
@@ -265,19 +288,54 @@ static void handle_insert(SocketServer &server) {
     auto tuple = mi::executor::VirtualTuple{std::vector{mi::Datum{val1}, mi::Datum{val2}},
                                             std::vector{false, false}};
 
-    // Beginning new transaction
-    auto xid = mi::TransactionManagerGlobal->BeginNewTransaction();
-    auto csn = mi::TransactionManagerGlobal->GetCurrentCSN();
-
-    // For now snapshot is not required
-    [[maybe_unused]] auto snapshot = std::make_shared<mi::transam::Snapshot>(csn);
-
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
 
     table->InsertTuple(tuple);
+}
 
-    csn = mi::TransactionManagerGlobal->CommitTransaction(xid);
-    std::cerr << "Commit CSN = " << csn << std::endl;
+static void handle_begin(SocketServer &server) {
+    if (mi::MyTransaction != nullptr) {
+        throw std::runtime_error("Transaction already exists");
+    }
+
+    auto xid = mi::TransactionManagerGlobal->BeginNewTransaction();
+    auto csn = mi::TransactionManagerGlobal->GetCurrentCSN();
+    auto snapshot = mi::transam::Snapshot{csn};
+
+    mi::MyTransaction = new mi::transam::Transaction(xid, snapshot);
+
+    server.SendOk();
+}
+
+static void handle_commit(SocketServer &server) {
+
+    mi::TransactionManagerGlobal->CommitTransaction(mi::MyTransaction->GetXID());
+
+    delete mi::MyTransaction;
+    mi::MyTransaction = nullptr;
+
+    server.SendOk();
+}
+
+static void rollback_state() {
+    mi::TransactionManagerGlobal->AbortTransaction(mi::MyTransaction->GetXID());
+    
+    if (auto undoLog = mi::MyTransaction->GetUndoLogIfAny()) {
+        undoLog->UndoAllRecords();
+    }    
+}
+
+static void handle_rollback(SocketServer &server) {
+    if (mi::MyTransaction == nullptr) {
+        throw std::runtime_error("There is no transaction");
+    }
+
+    rollback_state();
+
+    delete mi::MyTransaction;
+    mi::MyTransaction = nullptr;
+
+    server.SendOk();
 }
 
 static void handle_loop(SocketServer &server, WorkerId id) {
@@ -286,12 +344,23 @@ static void handle_loop(SocketServer &server, WorkerId id) {
 
     // Handle connection itself
     while (auto command = server.ReadNextCommand()) {
-        if (command == CommandType::SELECT) {
-            handle_select(server);
-        } else if (command == CommandType::INSERT) {
-            handle_insert(server);
-        } else {
-            server.SendStringResult("Only SELECT is supported for now");
+        try {
+            if (command == CommandType::BEGIN) {
+                handle_begin(server);
+            } else if (command == CommandType::COMMIT) {
+                handle_commit(server);
+            } else if (command == CommandType::ROLLBACK) {
+                handle_rollback(server);
+            } else if (command == CommandType::SELECT) {
+                handle_select(server);
+            } else if (command == CommandType::INSERT) {
+                handle_insert(server);
+            } else {
+                server.SendStringResult("Only SELECT is supported for now");
+            }
+        } catch (std::exception &ex) {
+            server.SendStringResult(std::string("ERROR: ") + ex.what());
+            mi::MyTransaction->SetStatus(mi::transam::TransactionStatus::ABORTED);
         }
     }
 }

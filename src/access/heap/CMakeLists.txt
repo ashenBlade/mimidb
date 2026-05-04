@@ -5,4 +5,8 @@ target_sources(
     HeapTableScan.cpp
     HeapTuple.cpp
     HeapTupleSerializer.cpp
+    HeapResourceManager.cpp
+
+    undo/UndoApplierVisitor.cpp
+    undo/DeleteUndoRecord.cpp
 )

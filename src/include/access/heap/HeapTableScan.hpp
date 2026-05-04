@@ -4,8 +4,8 @@
 #include "access/heap/TupleId.hpp"
 #include "access/table/ITableScan.hpp"
 #include "access/table/ITuple.hpp"
-#include "storage/PageNumber.hpp"
 #include "storage/BufferPin.hpp"
+#include "storage/PageNumber.hpp"
 
 namespace mi::access::heap {
 
@@ -17,15 +17,14 @@ class HeapTableScan : public table::ITableScan {
     // Other pages will definitely be created by other transactions so will not be visible to us.
     storage::PageNumber _lastPageNumber;
     // Snapshot to check tuple visibility
-    std::shared_ptr<transam::Snapshot> _snapshot;
+    transam::Snapshot *_snapshot;
     // Table we are scanning
     access::heap::HeapTable *_table;
     // Scan is ended
     bool _end;
 
   public:
-    HeapTableScan(std::shared_ptr<transam::Snapshot> snapshot,
-                  access::heap::HeapTable *table);
+    HeapTableScan(transam::Snapshot *snapshot, access::heap::HeapTable *table);
     /// @brief Start iteration and prepare state
     void BeginScan() override;
     /// @brief Get next tuple from underlying table

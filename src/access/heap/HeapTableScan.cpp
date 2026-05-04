@@ -1,14 +1,14 @@
 #include "access/heap/HeapPageTupleHeader.hpp"
 #include "access/heap/HeapTupleSerializer.hpp"
-#include "access/heap/undo/HeapUndoRecordBase.hpp"
+#include "access/heap/undo/HeapUndoRecord.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "mimidb.hpp"
 
 #include <cstddef>
+#include <cstring>
 #include <fcntl.h>
 #include <memory>
 #include <stdexcept>
-#include <cstring>
 #include <unistd.h>
 
 #include "access/heap/HeapPage.hpp"
@@ -24,8 +24,7 @@
 
 using namespace mi::access::heap;
 
-HeapTableScan::HeapTableScan(std::shared_ptr<mi::transam::Snapshot> snapshot,
-                             HeapTable *table)
+HeapTableScan::HeapTableScan(mi::transam::Snapshot *snapshot, HeapTable *table)
     : _snapshot(snapshot), _table(table) {}
 
 void HeapTableScan::BeginScan() {
@@ -42,14 +41,16 @@ void HeapTableScan::BeginScan() {
 };
 
 // Create new HeapTuple from given on page tuple to return from scan node
-static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::TupleDescriptor *descr, HeapPageTupleHeader *header) {
-    auto tuple = HeapTupleSerializer::Deserialize(reinterpret_cast<const std::byte *>(header), *descr);
+static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::TupleDescriptor *descr,
+                                                   HeapPageTupleHeader *header) {
+    auto tuple =
+        HeapTupleSerializer::Deserialize(reinterpret_cast<const std::byte *>(header), *descr);
     return std::make_unique<HeapTuple>(descr, std::move(tuple));
 }
 
 static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupleHeader *header) {
     auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(header->xid);
-    
+
     assert(!csn.IsInvalid());
 
     if (csn.IsInProgress() || csn.IsAborted() || csn.IsCommitting()) {
@@ -64,24 +65,19 @@ static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupl
     return false;
 }
 
-static std::unique_ptr<mi::access::heap::HeapTuple> find_visible_tuple_page(HeapPageTupleHeader *header) {
+static std::unique_ptr<mi::access::heap::HeapTuple>
+find_visible_tuple_page(HeapPageTupleHeader *header) {
     size_t length;
     auto xid = header->xid;
     auto usn = header->undo;
     do {
-        auto record = mi::UndoLogGlobal->GetRecord<undo::HeapUndoRecordBase>(xid, usn, length);
-        switch (record->RecordType) {
-            case undo::HeapUndoRecordType::Insert: {
-                throw std::runtime_error("not implemented");
-            }
-            case undo::HeapUndoRecordType::Update: {
-                throw std::runtime_error("not implemented");
-            }
-            case undo::HeapUndoRecordType::Delete:
-                // Tuple does not exist anymore
-                return nullptr;
-            default:
-                throw std::runtime_error("unknown heap undo record type");
+        auto record = mi::UndoLogGlobal->GetRecord<undo::HeapUndoRecord>(xid, usn, length);
+        switch (record->GetType()) {
+        case undo::HeapUndoRecordType::Delete:
+            // Tuple does not exist anymore
+            return nullptr;
+        default:
+            throw std::runtime_error("unknown heap undo record type");
         }
 
         if (!usn.IsValid()) {
@@ -113,7 +109,7 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
         assert(itemid.hasHeader());
 
         auto header = page.GetTuple(itemid);
-        
+
         if (tuple_is_visible(*this->_snapshot, header)) {
             if (header->flags & HeapTupleFlags::Deleted) {
                 continue;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "db/Database.hpp"
+#include "transam/ResourceManagerRegistry.hpp"
 #include "transam/WriteAheadLog.hpp"
 #include "worker/WorkerManager.hpp"
 #include "storage/BufferManager.hpp"
@@ -20,4 +21,6 @@ namespace mi {
     extern transam::WriteAheadLog *WALGlobal;
     // Database instance
     extern mi::db::Database *DatabaseGlobal;
+    // All registered resource managers
+    extern transam::ResourceManagerRegistry *RMgrRegistryGlobal;
 }

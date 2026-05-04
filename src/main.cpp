@@ -1,3 +1,4 @@
+#include "access/heap/HeapResourceManager.hpp"
 #include "mimidb.hpp"
 
 #include "access/table/Oid.hpp"
@@ -11,6 +12,8 @@
 #include "db/catalog/TypeId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "storage/BufferManager.hpp"
+#include "transam/ResourceManagerId.hpp"
+#include "transam/ResourceManagerRegistry.hpp"
 #include "transam/Transaction.hpp"
 #include "transam/TransactionManager.hpp"
 #include "transam/UndoLog.hpp"
@@ -98,6 +101,15 @@ static void setupDatabase() {
     mi::DatabaseGlobal = new mi::db::Database(std::move(schema));
 }
 
+static void setupResourceManagers() {
+    auto manager = new mi::transam::ResourceManagerRegistry();
+
+    // Heap
+    manager->RegisterManager(mi::transam::ResourceManagerId::Heap, mi::access::heap::HeapResourceManager::Create());
+
+    mi::RMgrRegistryGlobal = manager;
+}
+
 // Global variables declarations
 // worker_state
 thread_local mi::worker::Worker *mi::MyWorker;
@@ -110,14 +122,17 @@ mi::storage::BufferManager *mi::BufferPoolGlobal;
 mi::transam::UndoLog *mi::UndoLogGlobal;
 mi::transam::TransactionManager *mi::TransactionManagerGlobal;
 mi::transam::WriteAheadLog *mi::WALGlobal;
+mi::transam::ResourceManagerRegistry *mi::RMgrRegistryGlobal;
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
     // Create global structures
-    auto worker = mi::WorkerGlobal = new mi::worker::WorkerManager(MaxWorkers);
+    mi::WorkerGlobal = new mi::worker::WorkerManager(MaxWorkers);
     mi::BufferPoolGlobal = new mi::storage::BufferManager();
     mi::TransactionManagerGlobal = new mi::transam::TransactionManager();
     mi::UndoLogGlobal = mi::transam::UndoLog::Open("undo");
     mi::WALGlobal = mi::transam::WriteAheadLog::Open("wal");
+
+    setupResourceManagers();
 
     // There is only 1 database, so no need to setup this in worker
     setupDatabase();
@@ -138,7 +153,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
             break;
         }
 
-        worker->StartNewSession(clientSock);
+        mi::WorkerGlobal->StartNewSession(clientSock);
     }
 
     shutdown(server, SHUT_RDWR);

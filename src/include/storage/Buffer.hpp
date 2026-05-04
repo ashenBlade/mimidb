@@ -24,5 +24,13 @@ public:
     const std::byte *GetContents() const;
     void Lock(bool shared);
     void Unlock(bool shared);
+    
+    void MarkDirty() {
+        this->_dirty = true;
+    }
+    
+    bool IsDirty() const {
+        return this->_dirty;
+    }
 };
 }; // namespace mi::storage

@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "transam/UndoLog.hpp"
-#include "transam/ResourceManagerId.hpp"
+#include "transam/IUndoRecord.hpp"
 #include "transam/TransactionId.hpp"
 #include "transam/UndoLogRecordHeader.hpp"
 #include "transam/UndoSeqNumber.hpp"
@@ -55,11 +55,12 @@ std::unique_ptr<std::byte[]> UndoLog::GetRecordRaw([[maybe_unused]] TransactionI
     return buffer;
 }
 
-static std::vector<std::byte> format_undo_record(TransactionId xid, ResourceManagerId rmgrid, std::byte *data, size_t size) {
+static std::vector<std::byte> format_undo_record(TransactionId xid, IUndoRecord &record) {
     // Align data
+    auto size = record.CalculateSize();
     auto fullSize = sizeof(UndoLogRecordHeader) + mi::MaxAlign(size);
     auto buffer = std::vector<std::byte>(fullSize);
-    auto header = UndoLogRecordHeader{xid, size, rmgrid};
+    auto header = UndoLogRecordHeader{xid,record.GetRMgrId(), record.GetType(), size};
 
     auto cursor = buffer.data();
 
@@ -68,7 +69,7 @@ static std::vector<std::byte> format_undo_record(TransactionId xid, ResourceMana
     cursor += sizeof(UndoLogRecordHeader);
 
     // And data itself
-    std::memcpy(cursor, data, size);
+    record.Serialize(cursor);
     return buffer;
 }
 
@@ -77,19 +78,19 @@ UndoSeqNumber UndoLog::getCurrentUSN() const {
     return UndoSeqNumber{this->_size + 1};
 }
 
-UndoSeqNumber UndoLog::InsertUndoRecord(ResourceManagerId rmgrid, std::byte *data, size_t size) {
+UndoSeqNumber UndoLog::InsertUndoRecord(IUndoRecord &record) {
     auto file = storage::File::Open(this->_path, O_WRONLY);
     auto xid = MyTransaction->GetXID();
-    auto vector = format_undo_record(xid, rmgrid, data, size);
-
+    
+    auto buffer = format_undo_record(xid, record);
     auto guard = std::lock_guard{this->_writeMutex};
 
     // Получили лок - делаем запись
-    file.Write(vector.data(), vector.size(), this->_size);
+    file.Write(buffer.data(), buffer.size(), this->_size);
     file.Fsync();
 
     // Обновляем конец файла и рассчитываем USN
     auto usn = this->getCurrentUSN();
-    this->_size += static_cast<off64_t>(vector.size());
+    this->_size += static_cast<off64_t>(buffer.size());
     return usn;
 }

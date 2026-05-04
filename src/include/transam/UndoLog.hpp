@@ -6,6 +6,7 @@
 #include <sys/types.h>
 
 #include "storage/File.hpp"
+#include "transam/IUndoRecord.hpp"
 #include "transam/ResourceManagerId.hpp"
 #include "transam/TransactionId.hpp"
 #include "transam/UndoSeqNumber.hpp"
@@ -29,7 +30,7 @@ class UndoLog : private NonCopyable {
   public:
 
     /// @brief Insert new undo record
-    UndoSeqNumber InsertUndoRecord(ResourceManagerId rmgrid, std::byte *data, size_t size);
+    UndoSeqNumber InsertUndoRecord(IUndoRecord &record);
 
     /// @brief Read record from undo loc for specified transaction and CSN
     /// @param xid Transaction Id to which record belong

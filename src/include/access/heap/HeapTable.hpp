@@ -39,7 +39,7 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     const TupleDescriptor *GetDescriptor() const override { return this->_tupleDescriptor; }
 
     std::unique_ptr<mi::access::table::ITableScan>
-    StartScan(std::shared_ptr<mi::transam::Snapshot> snapshot) override;
+    StartScan(mi::transam::Snapshot *snapshot) override;
     void InsertTuple(ITuple &tuple) override;
     void UpdateTuple(std::shared_ptr<ITuple> oldTuple, std::shared_ptr<ITuple> newTuple) override;
     void DeleteTuple(std::shared_ptr<ITuple> tuple) override;

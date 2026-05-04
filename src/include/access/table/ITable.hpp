@@ -16,7 +16,7 @@ class ITable {
     /// @brief Create scan state for given table
     /// @param snapshot Snapshot to check tuple visibility
     /// @return Scan state which performs actual scan
-    virtual std::unique_ptr<ITableScan> StartScan(std::shared_ptr<mi::transam::Snapshot> snapshot) = 0;
+    virtual std::unique_ptr<ITableScan> StartScan(mi::transam::Snapshot *snapshot) = 0;
     /// @brief Insert new tuple into table
     /// @param tuple Tuple to insert
     virtual void InsertTuple(ITuple &tuple) = 0;

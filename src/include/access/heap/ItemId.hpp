@@ -5,7 +5,7 @@
 
 namespace mi::access::heap {
 
-enum class ItemState {
+enum ItemState {
     Unused = 0,     // free, not used
     Normal,         // contains tuple
     Dead,           // updated, but new tuple moved to another page
@@ -37,6 +37,12 @@ struct ItemId final {
     void setOffset(uint16_t offset) {
         this->offset = offset & 0x7FFF;
         assert(this->offset == offset);
+    }
+    
+    void setDead() {
+        this->flags = ItemState::Dead;
+        this->offset = 0;
+        this->length = 0;
     }
 };
 

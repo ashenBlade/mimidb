@@ -5,14 +5,18 @@
 #include <cstdint>
 
 namespace mi::access::heap::wal {
-enum HeapWALRecordType : uint8_t { Insert = 1, Update = 2, Delete = 3 };
+enum HeapWALRecordType : uint8_t { Insert = 1 };
 
 // Base class for HEAP WAL records
-template <HeapWALRecordType VType> class HeapWALRecord : public transam::IWalRecord {
+class HeapWALRecord : public transam::IWalRecord {
+  protected:
+    HeapWALRecordType _type;
+
   public:
+    HeapWALRecord(HeapWALRecordType type) : _type(type) {};
     transam::ResourceManagerId GetRMgrId() const override {
         return transam::ResourceManagerId::Heap;
-    }
-    uint8_t GetType() const override { return VType; }
+    };
+    uint8_t GetType() const override { return this->_type; };
 };
 } // namespace mi::access::heap::wal
