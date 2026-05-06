@@ -39,5 +39,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     )  
 endif()
 
-# Сам исполняемый файл БД
+# Общие именования бинарей
+set(SERVER_EXEC_NAME mimidb)
+set(LIBMIMI_IFACE_NAME mimi)
+set(CLIENT_EXEC_NAME miclient)
+
+# Рекурсивно собираем все
 add_subdirectory(src)

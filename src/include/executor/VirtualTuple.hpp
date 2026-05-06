@@ -4,6 +4,8 @@
 #include "access/table/Datum.hpp"
 #include "access/table/ITuple.hpp"
 #include <optional>
+#include <vector>
+
 namespace mi::executor {
 class VirtualTuple : public access::table::ITuple {
   private:

@@ -1,5 +1,6 @@
-#include "access/heap/HeapResourceManager.hpp"
 #include "mimidb.hpp"
+
+#include "access/heap/HeapResourceManager.hpp"
 
 #include "access/table/Oid.hpp"
 #include "access/table/TupleDescriptor.hpp"
@@ -24,6 +25,7 @@
 
 #include <csignal>
 #include <iostream>
+#include <memory>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -33,6 +35,7 @@
 #include <unordered_map>
 
 static constexpr const int MaxWorkers = 16;
+static constexpr const int Port = 6543;
 
 static int open_server_socket() {
     auto sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -55,8 +58,7 @@ static int open_server_socket() {
     };
 
     addrinfo *s_i = nullptr;
-    const int port = 6543;
-    if (int ret = getaddrinfo(nullptr, std::to_string(port).c_str(), &hints, &s_i); ret != 0) {
+    if (int ret = getaddrinfo(nullptr, std::to_string(Port).c_str(), &hints, &s_i); ret != 0) {
         throw std::logic_error(gai_strerror(ret));
     }
 

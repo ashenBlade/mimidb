@@ -1,3 +1,4 @@
+#include "libmimi/MimiClient.hpp"
 #include "mimidb.hpp"
 
 #include "access/table/AttrNumber.hpp"
@@ -21,7 +22,6 @@
 #include <cstring>
 #include <exception>
 #include <iostream>
-#include <memory>
 #include <netinet/in.h>
 #include <optional>
 #include <stdexcept>
@@ -29,12 +29,12 @@
 #include <sys/socket.h>
 #include <system_error>
 #include <unistd.h>
-#include <vector>
 
 #include "worker/Handler.hpp"
 
 using namespace mi::worker;
 using AttrNumber = mi::access::table::AttrNumber;
+using MimiClient = mi::interface::libmimi::MimiClient;
 
 enum CommandType {
     /* Start from 1 to use as condition in 'while' loop */
@@ -53,7 +53,7 @@ enum CommandType {
 class SocketServer {
   private:
     WorkerId _id;
-    int _socket;
+    MimiClient _client;
 
     // Vector of output functions for each attribute
     std::optional<std::vector<mi::db::catalog::TypeInfo::OutputFunction>> _outputs;
@@ -75,66 +75,11 @@ class SocketServer {
 
         return this->_outputs.value();
     }
-
-    void sendByte(char value) {
-        auto ret = send(this->_socket, &value, sizeof(value), 0);
-        if (ret < 0) {
-            throw std::system_error(std::error_code(errno, std::system_category()),
-                                    "could not send");
-        }
-    }
-    
-    template<class T>
-    void sendInt(T value) {
-        auto v = static_cast<T>(value);
-        auto ret = send(this->_socket, &v, sizeof(v), 0);
-        if (ret != sizeof(T)) {
-            throw std::system_error(std::error_code(errno, std::system_category()),
-                                    "could not send");
-        }
-    }
-
-    void sendInt32(int32_t value) {
-        this->sendInt(value);
-    }
-    
-    void sendInt16(int16_t value) {
-        this->sendInt(value);
-    }
-
-    void sendString(const std::string &value) {
-        this->sendInt32(static_cast<int32_t>(value.size()));
-
-        auto buf = value.c_str();
-        auto left = value.size();
-        while (left > 0) {
-            auto ret = send(this->_socket, buf, left, 0);
-            if (ret < 0) {
-                throw std::system_error(std::error_code(errno, std::system_category()),
-                                        "could not send");
-            }
-
-            left -= static_cast<size_t>(ret);
-            buf += ret;
-        }
-    }
-
   public:
-    SocketServer(int socket, WorkerId id) : _id(id), _socket(socket) {}
+    SocketServer(int socket, WorkerId id) : _id(id), _client(socket) {}
 
     std::optional<CommandType> ReadNextCommand() {
-        char type;
-        auto ret = recv(this->_socket, &type, sizeof(char), 0);
-        if (ret < 0) {
-            std::cerr << "could not recv: " << strerror(errno) << std::endl;
-            return std::nullopt;
-        }
-
-        if (ret == 0) {
-            return std::nullopt;
-        }
-
-        assert(ret == 1);
+        char type = this->_client.ReceiveInt8();
         switch (type) {
         case 'S':
             return CommandType::SELECT;
@@ -156,40 +101,25 @@ class SocketServer {
     };
 
     int32_t ReadInt32() {
-        int32_t value;
-
-        auto ret = recv(this->_socket, &value, sizeof(int32_t), 0);
-        if (ret < 0) {
-            std::cerr << "could not recv: " << strerror(errno) << std::endl;
-            throw std::runtime_error("error reading int32");
-        }
-
-        return static_cast<int32_t>(ntohl(static_cast<uint32_t>(value)));
+        return this->_client.ReceiveInt32();
     }
 
     int16_t ReadInt16() {
-        int16_t value;
-
-        auto ret = recv(this->_socket, &value, sizeof(int16_t), 0);
-        if (ret < 0) {
-            std::cerr << "could not recv: " << strerror(errno) << std::endl;
-            throw std::runtime_error("error reading int32");
-        }
-
-        return static_cast<int16_t>(ntohs(static_cast<uint16_t>(value)));
+        return this->_client.ReceiveInt16();
     }
 
     void SendTupleDescriptor(const mi::access::table::TupleDescriptor &desc) {
-        this->sendByte('D');
+        this->_client.SendInt8('D');
+
         auto natts = static_cast<size_t>(desc.GetMaxAttrNumber());
-        this->sendInt32(static_cast<int32_t>(desc.GetMaxAttrNumber().ToIndex()));
+        this->_client.SendInt32(static_cast<int32_t>(natts));
 
         for (size_t i = 0; i < natts; i++) {
             auto &att = desc.Attributes()[i];
             if (att.ByVal()) {
-                this->sendInt32(att.Length());
+                this->_client.SendInt32(att.Length());
             } else {
-                this->sendInt32(-1);
+                this->_client.SendInt32(-1);
             }
         }
     }
@@ -197,7 +127,7 @@ class SocketServer {
     void SendTuple(const mi::access::table::TupleDescriptor &desc,
                    mi::access::table::ITuple &tuple) {
         // 'T'uple
-        this->sendByte('T');
+        this->_client.SendInt8('T');
 
         // Attribute values
         auto maxAttno = desc.GetMaxAttrNumber();
@@ -205,85 +135,49 @@ class SocketServer {
         for (AttrNumber attno = AttrNumber::Min; attno < maxAttno; attno++) {
             auto datum = tuple.GetAttribute(attno);
             if (datum.has_value()) {
-                this->sendByte('1');
+                this->_client.SendInt8('1');
                 const auto &att = desc.Attributes()[attno.ToIndex()];
                 if (att.ByVal()) {
                     switch (att.Length()) {
                         case 8:
-                            this->sendInt(datum.value().getScalar<int64_t>());
+                            this->_client.SendInt64(datum.value().getScalar<int64_t>());
                             break;
                         case 4:
-                            this->sendInt(datum.value().getScalar<int32_t>());
+                            this->_client.SendInt32(datum.value().getScalar<int32_t>());
                             break;
                         case 2:
-                            this->sendInt(datum.value().getScalar<int16_t>());
+                            this->_client.SendInt16(datum.value().getScalar<int16_t>());
                             break;
                         case 1:
-                            this->sendInt(datum.value().getScalar<int8_t>());
+                            this->_client.SendInt8(datum.value().getScalar<int8_t>());
                             break;
                         default:
                             throw std::runtime_error("unknown length");
                     }
                 } else {
                     auto value = outputs[attno.ToIndex()](datum.value());
-                    this->sendString(value);
+                    this->_client.SendString(value);
                 }
             } else {
-                this->sendByte('0');
+                this->_client.SendInt8('0');
             }
         }
     }
 
     void SendEnd() {
         // 'E'nd
-        this->sendByte('E');
+        this->_client.SendInt8('E');
     }
     
     void SendOk() {
         // 'O'k
-        this->sendByte('O');
+        this->_client.SendInt8('O');
     }
 
     void SendStringResult(const std::string &message) {
-        auto buf = message.c_str();
-        auto left = message.size();
-
         // 'S'tring
-        auto type = 'S';
-        if (send(this->_socket, &type, sizeof(char), 0) != 1) {
-            throw std::runtime_error("could not send 'S' message type");
-        }
-
-        auto length = htonl(static_cast<uint32_t>(left));
-        if (send(this->_socket, &length, sizeof(uint32_t), 0) != sizeof(uint32_t)) {
-            throw std::runtime_error("could not send message length");
-        }
-
-        while (left > 0) {
-            auto ret = send(this->_socket, buf, left, 0);
-            if (ret < 0) {
-                throw std::runtime_error("could not send data: " + std::string(strerror(errno)));
-            }
-
-            if (ret == 0) {
-                // Next recv return EOF
-                return;
-            }
-
-            buf += ret;
-            left -= static_cast<size_t>(ret);
-        }
-    }
-
-    ~SocketServer() {
-        if (this->_socket == -1) {
-            return;
-        }
-
-        /* Close socket */
-        shutdown(this->_socket, SHUT_RDWR);
-        close(this->_socket);
-        this->_socket = -1;
+        this->_client.SendInt8('S');
+        this->_client.SendString(message);
     }
 };
 
@@ -346,7 +240,6 @@ static void handle_begin(SocketServer &server) {
 }
 
 static void handle_commit(SocketServer &server) {
-
     mi::TransactionManagerGlobal->CommitTransaction(mi::MyTransaction->GetXID());
 
     delete mi::MyTransaction;
