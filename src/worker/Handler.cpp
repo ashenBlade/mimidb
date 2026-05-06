@@ -83,15 +83,23 @@ class SocketServer {
                                     "could not send");
         }
     }
-
-    void sendInt32(int32_t value) {
-        auto v = static_cast<uint32_t>(value);
-        v = htonl(v);
+    
+    template<class T>
+    void sendInt(T value) {
+        auto v = static_cast<T>(value);
         auto ret = send(this->_socket, &v, sizeof(v), 0);
-        if (ret < 0) {
+        if (ret != sizeof(T)) {
             throw std::system_error(std::error_code(errno, std::system_category()),
                                     "could not send");
         }
+    }
+
+    void sendInt32(int32_t value) {
+        this->sendInt(value);
+    }
+    
+    void sendInt16(int16_t value) {
+        this->sendInt(value);
     }
 
     void sendString(const std::string &value) {
@@ -173,7 +181,17 @@ class SocketServer {
 
     void SendTupleDescriptor(const mi::access::table::TupleDescriptor &desc) {
         this->sendByte('D');
+        auto natts = static_cast<size_t>(desc.GetMaxAttrNumber());
         this->sendInt32(static_cast<int32_t>(desc.GetMaxAttrNumber().ToIndex()));
+
+        for (size_t i = 0; i < natts; i++) {
+            auto &att = desc.Attributes()[i];
+            if (att.ByVal()) {
+                this->sendInt32(att.Length());
+            } else {
+                this->sendInt32(-1);
+            }
+        }
     }
 
     void SendTuple(const mi::access::table::TupleDescriptor &desc,
@@ -188,8 +206,28 @@ class SocketServer {
             auto datum = tuple.GetAttribute(attno);
             if (datum.has_value()) {
                 this->sendByte('1');
-                auto value = outputs[attno.ToIndex()](datum.value());
-                this->sendString(value);
+                const auto &att = desc.Attributes()[attno.ToIndex()];
+                if (att.ByVal()) {
+                    switch (att.Length()) {
+                        case 8:
+                            this->sendInt(datum.value().getScalar<int64_t>());
+                            break;
+                        case 4:
+                            this->sendInt(datum.value().getScalar<int32_t>());
+                            break;
+                        case 2:
+                            this->sendInt(datum.value().getScalar<int16_t>());
+                            break;
+                        case 1:
+                            this->sendInt(datum.value().getScalar<int8_t>());
+                            break;
+                        default:
+                            throw std::runtime_error("unknown length");
+                    }
+                } else {
+                    auto value = outputs[attno.ToIndex()](datum.value());
+                    this->sendString(value);
+                }
             } else {
                 this->sendByte('0');
             }

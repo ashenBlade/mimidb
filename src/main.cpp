@@ -29,6 +29,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/poll.h>
 #include <unordered_map>
 
 static constexpr const int MaxWorkers = 16;
@@ -72,10 +73,11 @@ static int open_server_socket() {
     return sock;
 }
 
-volatile static bool stop_requested = false;
+static volatile bool stop_requested = false;
 
 static void sigint_handler(int) {
     stop_requested = true;
+    kill(getpid(), SIGURG);
 }
 
 static void setupDatabase() {
@@ -124,22 +126,7 @@ mi::transam::TransactionManager *mi::TransactionManagerGlobal;
 mi::transam::WriteAheadLog *mi::WALGlobal;
 mi::transam::ResourceManagerRegistry *mi::RMgrRegistryGlobal;
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
-    // Create global structures
-    mi::WorkerGlobal = new mi::worker::WorkerManager(MaxWorkers);
-    mi::BufferPoolGlobal = new mi::storage::BufferManager();
-    mi::TransactionManagerGlobal = new mi::transam::TransactionManager();
-    mi::UndoLogGlobal = mi::transam::UndoLog::Open("undo");
-    mi::WALGlobal = mi::transam::WriteAheadLog::Open("wal");
-
-    setupResourceManagers();
-
-    // There is only 1 database, so no need to setup this in worker
-    setupDatabase();
-
-    // Register simple handler to stop processing
-    signal(SIGINT, sigint_handler);
-
+static int main_loop() {
     // Create new server socket
     auto server = open_server_socket();
     while (true) {
@@ -158,6 +145,37 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
 
     shutdown(server, SHUT_RDWR);
     close(server);
-
     return 0;
+}
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
+    // Create global structures
+    mi::WorkerGlobal = new mi::worker::WorkerManager(MaxWorkers);
+    mi::BufferPoolGlobal = new mi::storage::BufferManager();
+    mi::TransactionManagerGlobal = new mi::transam::TransactionManager();
+    mi::UndoLogGlobal = mi::transam::UndoLog::Open("undo");
+    mi::WALGlobal = mi::transam::WriteAheadLog::Open("wal");
+
+    setupResourceManagers();
+
+    // There is only 1 database, so no need to setup this in worker
+    setupDatabase();
+
+    // Register simple handler to stop processing
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = sigint_handler;
+    if (sigaction(SIGINT, &sa, nullptr) < 0) {
+        std::cerr << "could not setup sigint handler" << std::endl;
+        return 1;
+    }
+
+    // Create new server socket
+    auto ret = main_loop();
+    if (ret != 0) {
+        std::cerr << "invalid return code " << ret << std::endl;
+    }
+
+    return ret;
 }

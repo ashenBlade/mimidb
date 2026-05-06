@@ -12,3 +12,5 @@ add_subdirectory(storage)
 add_subdirectory(transam)
 add_subdirectory(worker)
 
+# Клиент
+add_executable(client client.cpp)

@@ -1,5 +1,6 @@
-#include "access/heap/undo/UndoApplierVisitor.hpp"
 #include "mimidb.hpp"
+
+#include "access/heap/undo/UndoApplierVisitor.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
 #include "transam/IUndoRecord.hpp"
 #include "transam/IWalRecord.hpp"
