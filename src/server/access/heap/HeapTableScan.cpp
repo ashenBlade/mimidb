@@ -25,7 +25,7 @@
 using namespace mi::access::heap;
 
 HeapTableScan::HeapTableScan(mi::transam::Snapshot *snapshot, HeapTable *table)
-    : _snapshot(snapshot), _table(table) {}
+    : _snapshot(snapshot), _table(table), _end(false) {}
 
 void HeapTableScan::BeginScan() {
     this->_lastPageNumber = this->_table->GetPageCount();
@@ -99,7 +99,7 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
     // Page is read and locked. We can read it's tuples now
     auto page = HeapPage{buffer.GetContents()};
     std::unique_ptr<HeapTuple> tuple = nullptr;
-    auto index = this->_tupleId.itemid + 1;
+    auto index = this->_tupleId.itemid;
     for (; index < page.ItemsCount(); ++index) {
         auto itemid = page.GetItemId(index);
         if (!itemid.isNormal()) {

@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "access/heap/HeapPageHeader.hpp"
+#include "transam/LogSeqNumber.hpp"
 #include "access/heap/HeapPage.hpp"
 
 using namespace mi::access::heap;
@@ -80,4 +81,16 @@ const HeapPageTupleHeader *HeapPage::GetTuple(const ItemId &itemId) const {
 size_t HeapPage::GetFreeSpace() const {
     auto header = reinterpret_cast<HeapPageHeader *>(this->_buffer);
     return header->upper - header->lower;
+}
+
+bool HeapPage::IsNew() const {
+    // lower can not be 0
+    return this->GetHeader().lower == 0;
+}
+
+void HeapPage::Init(HeapPage &page) {
+    auto &header = page.GetHeader();
+    header.lsn = 0;
+    header.lower = SizeOfHeapPageHeader;
+    header.upper = mi::PAGESIZE;
 }

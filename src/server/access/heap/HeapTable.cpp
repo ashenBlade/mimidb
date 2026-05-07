@@ -93,6 +93,8 @@ mi::storage::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) const {
     // All pages are full - start new page
     auto buffer = BufferPoolGlobal->ExtendRelation(this->_tableId);
     auto page = HeapPage{buffer.GetContents()};
+    if (page.IsNew())
+        HeapPage::Init(page);
     auto lock = storage::BufferSharedLock{buffer.GetBuffer()};
     if (page.GetFreeSpace() < freeSpace) {
         throw std::runtime_error("all pages are occupied");

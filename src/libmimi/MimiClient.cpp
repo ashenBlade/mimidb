@@ -18,7 +18,7 @@ extern void MimiClient::sendBuffer(const std::byte *buffer, size_t length) {
         if (ret < 0) {
             throw std::runtime_error("could not send");
         }
-        left += static_cast<ssize_t>(ret);
+        left -= static_cast<ssize_t>(ret);
         cursor += ret;
     }
 }
@@ -81,7 +81,7 @@ extern int16_t MimiClient::ReceiveInt16() {
 }
 
 extern int32_t MimiClient::ReceiveInt32() {
-    int8_t value;
+    int32_t value;
     this->recvBuffer(reinterpret_cast<std::byte *>(&value), sizeof(value));
     return static_cast<int32_t>(be32toh(static_cast<uint32_t>(value)));
 }

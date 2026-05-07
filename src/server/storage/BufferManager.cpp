@@ -29,7 +29,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
     // Page not found - read it from disk.
 
     // Now we have to update our lock to X to synchronize access for both map and IO
-    lock.release();
+    lock.unlock();
     auto guard = std::lock_guard{this->_mutex};
 
     // Open file and read page into stack allocated buffer

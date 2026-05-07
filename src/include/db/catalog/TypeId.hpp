@@ -9,4 +9,4 @@ enum TypeId {
     Int16 = 3,
 };
 
-};
+}; // namespace mi::schema::catalog

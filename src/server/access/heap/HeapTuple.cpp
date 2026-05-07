@@ -1,14 +1,11 @@
 #include "mimidb.hpp"
 
-#include "access/heap/HeapPageTupleHeader.hpp"
+#include "access/heap/HeapTuple.hpp"
 
 #include "access/table/AttrNumber.hpp"
 #include "access/table/Datum.hpp"
 #include <stdexcept>
-#include <string>
 #include <utility>
-
-#include "access/heap/HeapTuple.hpp"
 
 using namespace mi::access::heap;
 using namespace mi::access;
@@ -27,4 +24,4 @@ std::optional<mi::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
 }
 
 HeapTuple::HeapTuple(const table::TupleDescriptor *descriptor, HeapPageTuple &&tuple)
-    : _descriptor(descriptor), _tuple(std::move(tuple)) { };
+    : _descriptor(descriptor), _tuple(std::move(tuple)) {};

@@ -43,7 +43,7 @@ enum CommandType {
     INSERT = 2,
     UPDATE = 3,
     DELETE = 4,
-    
+
     // TCL
     BEGIN = 5,
     COMMIT = 6,
@@ -61,12 +61,12 @@ class SocketServer {
     const std::vector<mi::db::catalog::TypeInfo::OutputFunction> &
     getOutputFunctions(const mi::access::table::TupleDescriptor &desc) {
         if (!this->_outputs.has_value()) {
-            auto natts = desc.GetMaxAttrNumber().ToIndex();
+            auto natts = static_cast<size_t>(desc.GetMaxAttrNumber());
             auto schema = mi::DatabaseGlobal->GetSchema();
             auto outputs = std::vector<mi::db::catalog::TypeInfo::OutputFunction>{natts};
             auto attrs = desc.Attributes();
             std::transform(attrs.begin(), attrs.end(), outputs.begin(),
-                           [&schema](const mi::access::table::AttributeDescriptor &attr) {
+                           [=](const mi::access::table::AttributeDescriptor &attr) {
                                auto &info = schema->GetTypeInfo(attr.TypeId());
                                return info.GetOutputFunction();
                            });
@@ -75,6 +75,7 @@ class SocketServer {
 
         return this->_outputs.value();
     }
+
   public:
     SocketServer(int socket, WorkerId id) : _id(id), _client(socket) {}
 
@@ -100,13 +101,9 @@ class SocketServer {
         }
     };
 
-    int32_t ReadInt32() {
-        return this->_client.ReceiveInt32();
-    }
+    int32_t ReadInt32() { return this->_client.ReceiveInt32(); }
 
-    int16_t ReadInt16() {
-        return this->_client.ReceiveInt16();
-    }
+    int16_t ReadInt16() { return this->_client.ReceiveInt16(); }
 
     void SendTupleDescriptor(const mi::access::table::TupleDescriptor &desc) {
         this->_client.SendInt8('D');
@@ -132,27 +129,27 @@ class SocketServer {
         // Attribute values
         auto maxAttno = desc.GetMaxAttrNumber();
         auto &outputs = this->getOutputFunctions(desc);
-        for (AttrNumber attno = AttrNumber::Min; attno < maxAttno; attno++) {
+        for (AttrNumber attno = AttrNumber::Min; attno <= maxAttno; attno++) {
             auto datum = tuple.GetAttribute(attno);
             if (datum.has_value()) {
                 this->_client.SendInt8('1');
                 const auto &att = desc.Attributes()[attno.ToIndex()];
                 if (att.ByVal()) {
                     switch (att.Length()) {
-                        case 8:
-                            this->_client.SendInt64(datum.value().getScalar<int64_t>());
-                            break;
-                        case 4:
-                            this->_client.SendInt32(datum.value().getScalar<int32_t>());
-                            break;
-                        case 2:
-                            this->_client.SendInt16(datum.value().getScalar<int16_t>());
-                            break;
-                        case 1:
-                            this->_client.SendInt8(datum.value().getScalar<int8_t>());
-                            break;
-                        default:
-                            throw std::runtime_error("unknown length");
+                    case 8:
+                        this->_client.SendInt64(datum.value().getScalar<int64_t>());
+                        break;
+                    case 4:
+                        this->_client.SendInt32(datum.value().getScalar<int32_t>());
+                        break;
+                    case 2:
+                        this->_client.SendInt16(datum.value().getScalar<int16_t>());
+                        break;
+                    case 1:
+                        this->_client.SendInt8(datum.value().getScalar<int8_t>());
+                        break;
+                    default:
+                        throw std::runtime_error("unknown length");
                     }
                 } else {
                     auto value = outputs[attno.ToIndex()](datum.value());
@@ -164,11 +161,6 @@ class SocketServer {
         }
     }
 
-    void SendEnd() {
-        // 'E'nd
-        this->_client.SendInt8('E');
-    }
-    
     void SendOk() {
         // 'O'k
         this->_client.SendInt8('O');
@@ -207,7 +199,7 @@ static void handle_select(SocketServer &server) {
     }
 
     scan->EndScan();
-    server.SendEnd();
+    server.SendOk();
 }
 
 static void handle_insert(SocketServer &server) {
@@ -223,6 +215,8 @@ static void handle_insert(SocketServer &server) {
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
 
     table->InsertTuple(tuple);
+
+    server.SendOk();
 }
 
 static void handle_begin(SocketServer &server) {
@@ -250,10 +244,10 @@ static void handle_commit(SocketServer &server) {
 
 static void rollback_state() {
     mi::TransactionManagerGlobal->AbortTransaction(mi::MyTransaction->GetXID());
-    
+
     if (auto undoLog = mi::MyTransaction->GetUndoLogIfAny()) {
         undoLog->UndoAllRecords();
-    }    
+    }
 }
 
 static void handle_rollback(SocketServer &server) {
@@ -291,7 +285,8 @@ static void handle_loop(SocketServer &server, WorkerId id) {
             }
         } catch (std::exception &ex) {
             server.SendStringResult(std::string("ERROR: ") + ex.what());
-            mi::MyTransaction->SetStatus(mi::transam::TransactionStatus::ABORTED);
+            if (mi::MyTransaction != nullptr)
+                mi::MyTransaction->SetStatus(mi::transam::TransactionStatus::ABORTED);
         }
     }
 }

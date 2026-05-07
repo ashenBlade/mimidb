@@ -90,7 +90,7 @@ HeapTupleSerializer::Serialize(const HeapPageTuple &tuple, const table::TupleDes
 
     // Serialize data itself
     cursor = buffer->data() + tuple.Header().dataStartOffset;
-    for (table::AttrNumber attno = table::AttrNumber::Min; attno < maxAttno; ++attno) {
+    for (table::AttrNumber attno = table::AttrNumber::Min; attno <= maxAttno; ++attno) {
         // NULL is not written
         if (isnull[attno.ToIndex()]) {
             continue;

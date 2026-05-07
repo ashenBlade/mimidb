@@ -38,6 +38,11 @@ class HeapPage final {
     const HeapPageTupleHeader *GetTuple(const ItemId &itemId) const;
 
     size_t GetFreeSpace() const;
+    
+    bool IsNew() const;
+    
+    // Initialize newly create page (filled with zeroes)
+    static void Init(HeapPage &page);
 };
 
 }; // namespace mi::access::heap

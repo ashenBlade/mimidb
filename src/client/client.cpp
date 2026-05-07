@@ -28,7 +28,7 @@ void sendTcl(mi::interface::libmimi::MimiClient &client, char command) {
         std::cout << str << std::endl;
         return;
     }
-    
+
     throw std::runtime_error("unknown result");
 }
 
@@ -107,14 +107,15 @@ void sendSelect(mi::interface::libmimi::MimiClient &client) {
         case 'T':
             handleTuple(client, attrs);
             break;
-        case 'E':
+        case 'O':
             stop = true;
             break;
         case 'S': {
             auto s = client.ReceiveString();
             std::cout << "error: " << s << std::endl;
             stop = true;
-        } break;
+            break;
+        }
         default:
             stop = true;
             std::cout << "unknown command " << byte << std::endl;
@@ -135,7 +136,7 @@ void sendInsert(mi::interface::libmimi::MimiClient &client) {
     client.SendInt16(second);
 
     auto ret = client.ReceiveInt8();
-    if (ret == 'K') {
+    if (ret == 'O') {
         // OK
     } else if (ret == 'S') {
         auto str = client.ReceiveString();
@@ -161,7 +162,7 @@ int main() {
         std::cerr << "could not connect: " << strerror(errno) << std::endl;
         return -1;
     }
-    
+
     auto client = mi::interface::libmimi::MimiClient{sock};
 
     while (true) {
