@@ -191,6 +191,8 @@ int main() {
                 sendSelect(client);
             } else if (input == "insert") {
                 sendInsert(client);
+            } else if (input == "quit" || input == "\\q" || input == "q") {
+                break;
             } else {
                 std::cerr << "unknown command" << std::endl;
             }
