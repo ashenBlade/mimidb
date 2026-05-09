@@ -25,3 +25,5 @@ std::optional<mi::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
 
 HeapTuple::HeapTuple(const table::TupleDescriptor *descriptor, HeapPageTuple &&tuple)
     : _descriptor(descriptor), _tuple(std::move(tuple)) {};
+
+// TODO: rollback для insert команда работать должна

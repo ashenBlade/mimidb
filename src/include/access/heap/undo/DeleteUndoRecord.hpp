@@ -12,7 +12,10 @@ class DeleteUndoRecord : public HeapUndoRecord {
     TupleId TupId;
     DeleteUndoRecord(Oid tableId, TupleId tupId) : HeapUndoRecord(HeapUndoRecordType::Delete), TableId(tableId), TupId(tupId) {};
 
-    size_t CalculateSize() const override { return sizeof(TupleId) + sizeof(TableId); }
+    // Serialized record size
+    static constexpr const size_t Size = sizeof(TableId) + sizeof(TupId);
+
+    size_t CalculateSize() const override { return DeleteUndoRecord::Size; }
 
     void Serialize(std::byte *buffer) override {
         auto cursor = buffer;
@@ -22,7 +25,7 @@ class DeleteUndoRecord : public HeapUndoRecord {
 
         *reinterpret_cast<TupleId *>(cursor) = this->TupId;
     }
-    
+
     void Accept(IHeapUndoRecordVisitor &visitor) override;
 };
 } // namespace mi::access::heap::undo

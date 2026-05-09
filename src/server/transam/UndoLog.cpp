@@ -2,6 +2,7 @@
 #include "storage/File.hpp"
 
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <fcntl.h>
 #include <memory>
@@ -16,6 +17,7 @@
 #include "transam/UndoSeqNumber.hpp"
 #include "utils/BitUtils.hpp"
 #include "worker_state.hpp"
+#include "cluster_state.hpp"
 
 using namespace mi::transam;
 
@@ -27,27 +29,31 @@ UndoLog *UndoLog::Open(std::string path) {
     return new UndoLog{path, size};
 }
 
-std::unique_ptr<std::byte[]> UndoLog::GetRecordRaw([[maybe_unused]] TransactionId xid,
-                                                   UndoSeqNumber usn, size_t &length) {
+static UndoLogRecordHeader read_header(mi::storage::File &file, off64_t offset) {
+    UndoLogRecordHeader header;
+    auto read = file.Read(reinterpret_cast<std::byte *>(&header), sizeof(UndoLogRecordHeader), offset);
+    if (read != sizeof(UndoLogRecordHeader)) {
+        throw std::runtime_error("could not read UndoLogRecordHeader");
+    }
+
+    return header;
+}
+
+std::unique_ptr<std::byte[]> UndoLog::GetRecordRaw(UndoSeqNumber usn, size_t &length) {
     assert(usn.IsValid());
 
     // Открываем UndoLog файл
     auto file = storage::File::Open(this->_path, O_RDONLY);
 
     // Читаем заголовок записи (получаем ее длину)
-    auto header = UndoLogRecordHeader{};
-
     auto offset = usn.value - 1;
-    auto read = file.Read(reinterpret_cast<std::byte *>(&header), sizeof(UndoLogRecordHeader), offset);
-    if (read != sizeof(UndoLogRecordHeader)) {
-        throw std::runtime_error("could not read UndoLogRecordHeader");
-    }
+    auto header = read_header(file, offset);
 
     // Читаем оставшуюся запись
     auto buffer = std::make_unique<std::byte[]>(header.DataLength);
     offset += static_cast<int64_t>(sizeof(UndoLogRecordHeader));
-    read = file.Read(buffer.get(), header.DataLength, offset);
-    if (read != header.DataLength) {
+    auto ret = file.Read(buffer.get(), header.DataLength, offset);
+    if (ret != header.DataLength) {
         throw std::runtime_error("could not read UndoLogRecordHeader");
     }
 
@@ -93,4 +99,23 @@ UndoSeqNumber UndoLog::InsertUndoRecord(IUndoRecord &record) {
     auto usn = this->getCurrentUSN();
     this->_size += static_cast<off64_t>(buffer.size());
     return usn;
+}
+
+void UndoLog::PerformUndo(UndoSeqNumber usn) {
+    auto file = storage::File::Open(this->_path, O_RDONLY);
+    auto offset = usn.value - 1;
+
+    // Read header and get associated RMgr
+    auto header = read_header(file, offset);
+    auto &manager = RMgrRegistryGlobal->GetManager(header.ResourceManager);
+
+    // Read record payload
+    auto payload = std::make_unique<std::byte[]>(header.DataLength);
+    offset += static_cast<int64_t>(sizeof(UndoLogRecordHeader));
+    auto ret = file.Read(payload.get(), header.DataLength, offset);
+    if (ret != header.DataLength) {
+        throw std::runtime_error("could not read UndoLogRecordHeader");
+    }
+    auto record = manager.ParseUndo(header.RecordType, payload.get(), header.DataLength);
+    manager.ApplyUndo(*record, usn);
 }

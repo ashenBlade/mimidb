@@ -16,13 +16,13 @@ class ResourceManagerRegistry {
     std::array<IResourceManager *, MaxResourceManagers> _managers;
 
   public:
-    IResourceManager *GetManager(ResourceManagerId rmgrId) {
+    IResourceManager &GetManager(ResourceManagerId rmgrId) {
         auto manager = this->_managers[static_cast<uint32_t>(rmgrId)];
         if (manager == nullptr) {
             throw std::runtime_error("No resource manager registered");
         }
 
-        return manager;
+        return *manager;
     }
     void RegisterManager(ResourceManagerId rmgrId, IResourceManager *manager) {
         if (this->_managers[static_cast<uint32_t>(rmgrId)]) {

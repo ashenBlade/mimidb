@@ -68,10 +68,9 @@ static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupl
 static std::unique_ptr<mi::access::heap::HeapTuple>
 find_visible_tuple_page(HeapPageTupleHeader *header) {
     size_t length;
-    auto xid = header->xid;
     auto usn = header->undo;
     do {
-        auto record = mi::UndoLogGlobal->GetRecord<undo::HeapUndoRecord>(xid, usn, length);
+        auto record = mi::UndoLogGlobal->GetRecord<undo::HeapUndoRecord>(usn, length);
         switch (record->GetType()) {
         case undo::HeapUndoRecordType::Delete:
             // Tuple does not exist anymore
