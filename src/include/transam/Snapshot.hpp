@@ -13,6 +13,7 @@ class Snapshot {
     CommitSeqNumber CSN() const { return this->_csn; }
     
     bool IsVisibleFor(CommitSeqNumber csn) const {
+      // TODO: тут надо проверять скорее Aborted и т.д. состояния
       return csn < this->_csn;
     }
 };

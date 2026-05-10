@@ -9,6 +9,7 @@
 #include "transam/IUndoRecord.hpp"
 #include "transam/ResourceManagerId.hpp"
 #include "transam/TransactionId.hpp"
+#include "transam/UndoRecord.hpp"
 #include "transam/UndoSeqNumber.hpp"
 #include "utils/ByteArray.hpp"
 #include "utils/NonCopyable.hpp"
@@ -40,15 +41,7 @@ class UndoLog : private NonCopyable {
     /// @param usn Number of target undo record
     /// @param length Out parameter to which total record length is saved (for debugging and assertions)
     /// @return Pointer to byte array of this record
-    std::unique_ptr<std::byte[]> GetRecordRaw(UndoSeqNumber usn, size_t &length);
-
-    /// @brief Typed version of std::byte *GetRecord
-    template<class T>
-    std::unique_ptr<T> GetRecord(UndoSeqNumber usn, size_t &length) {
-      auto value = this->GetRecordRaw(usn, length);
-      auto ptr = value.release();
-      return std::unique_ptr<T>(reinterpret_cast<T *>(ptr));
-    }
+    std::unique_ptr<IUndoRecord> GetRecord(UndoSeqNumber usn);
     
     static UndoLog *Open(std::string path);
 };

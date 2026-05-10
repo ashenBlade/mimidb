@@ -14,6 +14,7 @@
 #include "transam/IUndoRecord.hpp"
 #include "transam/TransactionId.hpp"
 #include "transam/UndoLogRecordHeader.hpp"
+#include "transam/UndoRecord.hpp"
 #include "transam/UndoSeqNumber.hpp"
 #include "utils/BitUtils.hpp"
 #include "worker_state.hpp"
@@ -39,7 +40,7 @@ static UndoLogRecordHeader read_header(mi::storage::File &file, off64_t offset) 
     return header;
 }
 
-std::unique_ptr<std::byte[]> UndoLog::GetRecordRaw(UndoSeqNumber usn, size_t &length) {
+std::unique_ptr<IUndoRecord> UndoLog::GetRecord(UndoSeqNumber usn) {
     assert(usn.IsValid());
 
     // Открываем UndoLog файл
@@ -48,17 +49,17 @@ std::unique_ptr<std::byte[]> UndoLog::GetRecordRaw(UndoSeqNumber usn, size_t &le
     // Читаем заголовок записи (получаем ее длину)
     auto offset = usn.value - 1;
     auto header = read_header(file, offset);
+    auto &manager = RMgrRegistryGlobal->GetManager(header.ResourceManager);
 
     // Читаем оставшуюся запись
-    auto buffer = std::make_unique<std::byte[]>(header.DataLength);
+    auto buffer = std::vector<std::byte>(header.DataLength);
     offset += static_cast<int64_t>(sizeof(UndoLogRecordHeader));
-    auto ret = file.Read(buffer.get(), header.DataLength, offset);
+    auto ret = file.Read(buffer.data(), header.DataLength, offset);
     if (ret != header.DataLength) {
         throw std::runtime_error("could not read UndoLogRecordHeader");
     }
 
-    length = header.DataLength;
-    return buffer;
+    return manager.ParseUndo(header.RecordType, buffer.data(), buffer.size());
 }
 
 static std::vector<std::byte> format_undo_record(TransactionId xid, IUndoRecord &record) {

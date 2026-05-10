@@ -2,6 +2,7 @@
 #include "access/heap/HeapResourceManager.hpp"
 #include "access/heap/HeapTupleSerializer.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
+#include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "mimidb.hpp"
@@ -21,6 +22,7 @@
 
 #include "cluster_state.hpp"
 #include "transam/CommitSeqNumber.hpp"
+#include "transam/ResourceManagerId.hpp"
 #include "transam/Snapshot.hpp"
 #include "transam/TransactionId.hpp"
 
@@ -67,31 +69,64 @@ static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupl
     return false;
 }
 
-static std::unique_ptr<mi::access::heap::HeapTuple>
-find_visible_tuple_page(HeapPageTupleHeader *header) {
-    size_t length;
+static std::unique_ptr<HeapTuple> find_visible_tuple_page(HeapPageTupleHeader *header,
+                                                          const mi::access::table::TupleDescriptor *descriptor,
+                                                          mi::transam::Snapshot &snapshot) {
     auto usn = header->undo;
-    // TODO: while (usn.IsValid()) переделать
-    do {
-        auto record = mi::UndoLogGlobal->GetRecord<undo::HeapUndoRecord>(usn, length);
-        switch (record->GetType()) {
+    std::unique_ptr<HeapTuple> tuple = nullptr;
+    while (usn.IsValid()) {
+        auto record = mi::UndoLogGlobal->GetRecord(usn);
+        if (record->GetRMgrId() != mi::transam::ResourceManagerId::Heap) {
+            throw std::runtime_error("invalid rmgrid");
+        }
+
+        switch (static_cast<undo::HeapUndoRecordType>(record->GetType())) {
         case undo::HeapUndoRecordType::Delete:
             // Tuple does not exist anymore
-            return nullptr;
+            break;
         case undo::HeapUndoRecordType::Update: {
-            throw std::runtime_error("not implemented");
+            auto updateRecord = dynamic_cast<undo::UpdateUndoRecord *>(record.get());
+
+            // We find visible version only at the same location, because if tuple is not visible, then
+            // we can find another visible version during scan.
+            if (updateRecord->NewLocation != updateRecord->OldLocation) {
+                return nullptr;
+            }
+
+            auto tuple = reinterpret_cast<HeapPageTupleHeader *>(updateRecord->TupleData.data());
+            
+            auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(tuple->xid);
+            assert(!csn.IsCommitting());
+
+            if (csn.IsNormal() || csn.IsFrozen()) {
+                if (snapshot.IsVisibleFor(csn)) {
+                    return build_heap_tuple(descriptor, tuple, updateRecord->NewLocation);
+                }
+            }
+
+            usn = tuple->undo;
         }
         case undo::HeapUndoRecordType::Insert: {
-            throw std::runtime_error("not implemented");
+            auto insertRecord = dynamic_cast<undo::InsertUndoRecord *>(record.get());
+
+            auto tuple = reinterpret_cast<HeapPageTupleHeader *>(insertRecord->TupleData.data());
+            auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(tuple->xid);
+            assert(!csn.IsCommitting());
+
+            if (csn.IsNormal() || csn.IsFrozen()) {
+                if (snapshot.IsVisibleFor(csn)) {
+                    return build_heap_tuple(descriptor, tuple, insertRecord->Location);
+                }
+            }
+
+            usn = tuple->undo;
         }
         default:
             throw std::runtime_error("unknown heap undo record type");
         }
+    }
 
-        if (!usn.IsValid()) {
-            return nullptr;
-        }
-    } while (true);
+    return tuple;
 }
 
 std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
@@ -123,9 +158,10 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
                 continue;
             }
 
-            tuple = build_heap_tuple(this->_table->GetDescriptor(), header, TupleId{pagetag.PageNo, index});
+            tuple = build_heap_tuple(this->_table->GetDescriptor(), header,
+                                     TupleId{pagetag.PageNo, index});
         } else {
-            tuple = find_visible_tuple_page(header);
+            tuple = find_visible_tuple_page(header, this->_table->GetDescriptor(), *this->_snapshot);
         }
 
         if (tuple) {
