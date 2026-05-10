@@ -5,7 +5,9 @@
 #include "access/heap/HeapTupleSerializer.hpp"
 #include "access/heap/ItemId.hpp"
 #include "access/heap/undo/DeleteUndoRecord.hpp"
+#include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
+#include "access/heap/wal/DeleteHeapWALRecord.hpp"
 #include "access/heap/wal/InsertHeapWALRecord.hpp"
 #include "access/heap/wal/UpdateHeapWALRecord.hpp"
 #include "access/table/AttrNumber.hpp"
@@ -23,6 +25,7 @@
 #include "storage/RelFile.hpp"
 #include "transam/LogSeqNumber.hpp"
 #include "transam/ResourceManagerId.hpp"
+#include "transam/TransactionId.hpp"
 #include "transam/UndoLog.hpp"
 #include "transam/UndoSeqNumber.hpp"
 #include "utils/BitUtils.hpp"
@@ -167,6 +170,29 @@ void HeapTable::InsertTuple(ITuple &tuple) {
     } while (!inserted);
 }
 
+static void wait_tnx_end(mi::transam::TransactionId xid) {
+    auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(xid);
+    // Even if tuple on page can be different does not mean we should abort right now.
+    // Transaction updating tuple can abort and we continue successfully.
+    // So obtain current TNX status and decide what to do next.
+    if (csn.IsInProgress()) {
+        mi::TransactionManagerGlobal->WaitTransactionEnd(xid);
+        csn = mi::TransactionManagerGlobal->GetTransactionCsn(xid);
+    }
+
+    // For now we must know tnx status
+    assert(!(csn.IsNormal() || csn.IsCommitting()));
+
+    if (csn.IsAborted()) {
+        throw std::runtime_error("TNX aborted but for now I do not support undoing another transaction");
+    } else if (csn.IsFrozen() || csn.IsNormal()) {
+        throw std::runtime_error("tuple was concurrently modified");
+    } else {
+        assert(false);
+        throw std::runtime_error("invalid status for transaction");
+    }
+}
+
 void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
     auto &oldHeapTuple = dynamic_cast<HeapTuple &>(oldTuple);
 
@@ -189,7 +215,9 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
     // so must be visible and tnx is committed. Other side is that tuple is being modified
     // by us, but for now there is no support for multistatement DML transaction.
     if (oldHeapPageTuple->xid != oldHeapTuple.GetHeader().xid) {
-        throw std::runtime_error("tuple was concurrently modified");
+        wait_tnx_end(oldHeapPageTuple->xid);
+        // For now should not get here
+        assert(false);
     }
 
     // Now decide which path to take in order to update tuple
@@ -208,6 +236,7 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
             newPin = this->searchPageFreeSpace(newTupSize + sizeof(ItemId));
             newLock = storage::BufferLock{newPin.GetBuffer()};
             auto newPage = HeapPage{newPin.GetContents()};
+            
             // There is a possibility, that before we pinned page someone perform concurrent update
             // and now we lack space
             if (newTupSize + sizeof(ItemId) <= newPage.GetFreeSpace()) {
@@ -301,13 +330,50 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
     }
 }
 
+void HeapTable::DeleteTuple(ITuple &tuple) {
+    auto &heapTuple = dynamic_cast<HeapTuple &>(tuple);
+    auto tid = heapTuple.GetTID();
+
+    auto pin = BufferPoolGlobal->GetBuffer(storage::PageTag{this->_tableId, tid.pageno});
+    auto lock = storage::BufferLock{pin.GetBuffer()};
+    auto page = HeapPage{pin.GetContents()};
+
+    auto &itemId = page.GetItemId(heapTuple.GetTID().itemid);
+    auto tuplePageHeader = page.GetTuple(itemId);
+    auto &heapPageTuple = heapTuple.GetHeapPageTuple();
+
+    if (tuplePageHeader->xid != heapPageTuple.Header().xid) {
+        wait_tnx_end(tuplePageHeader->xid);
+        // For now, should not get here
+        assert(false);
+    }
+
+    auto xid = MyTransaction->GetXID();
+    auto newTupleHeader = HeapPageTupleHeader{xid, transam::UndoSeqNumber::Invalid, HeapTupleFlags::Deleted, 0};
+
+    // Create undo record and save old tuple
+    auto oldTupleSer = std::vector<std::byte>{itemId.getLength()};
+    std::memcpy(oldTupleSer.data(), tuplePageHeader, itemId.getLength());
+    auto undoRecord = undo::InsertUndoRecord{this->_tableId, tid, std::move(oldTupleSer)};
+    auto usn = MyTransaction->GetUndoLog().InsertRecord(undoRecord);
+
+    // Update USN in tuple header
+    newTupleHeader.undo = usn;
+
+    // Create WAL record and save new tuple
+    auto walRecord = wal::DeleteHeapWALRecord{this->_tableId, tid};
+    auto lsn = WALGlobal->WriteLogRecord(walRecord);
+
+    // For now we have only to update header and do not touch tuple contents
+    std::memcpy(tuplePageHeader, reinterpret_cast<std::byte *>(&newTupleHeader), sizeof(HeapPageTupleHeader));
+
+    // Update page LSN
+    page.GetHeader().lsn = lsn;
+}
+
 std::unique_ptr<mi::access::table::ITableScan>
 HeapTable::StartScan(mi::transam::Snapshot *snapshot) {
     return std::make_unique<HeapTableScan>(snapshot, this);
-}
-
-void HeapTable::DeleteTuple([[maybe_unused]] std::shared_ptr<ITuple> tuple) {
-    throw std::runtime_error("not implemented");
 }
 
 // Return number of pages for given relation. If

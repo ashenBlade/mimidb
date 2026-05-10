@@ -44,5 +44,9 @@ class TransactionManager : private NonCopyable {
 
         /// @brief Mark transaction as aborted
         void AbortTransaction(TransactionId xid);
+
+        /// @brief Wait for this transaction to end. 
+        /// Either commit or abort.
+        void WaitTransactionEnd(TransactionId xid);
 };
 } // namespace mi::transam

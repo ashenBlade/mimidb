@@ -168,6 +168,20 @@ void sendUpdate(mi::interface::libmimi::MimiClient &client) {
     }
 }
 
+void sendDelete(mi::interface::libmimi::MimiClient &client) {
+    client.SendInt8('D');
+
+    auto ret = client.ReceiveInt8();
+    if (ret == 'O') {
+        // OK
+    } else if (ret == 'S') {
+        auto str = client.ReceiveString();
+        std::cerr << "ERROR: " << str << std::endl;
+    } else {
+        std::cerr << "Unknown result byte " << ret << std::endl;
+    }
+}
+
 int main() {
     auto sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
@@ -215,6 +229,8 @@ int main() {
                 sendInsert(client);
             } else if (input == "update") {
                 sendUpdate(client);
+            } else if (input == "delete") {
+                sendDelete(client);
             } else if (input == "quit" || input == "\\q" || input == "q") {
                 break;
             } else {

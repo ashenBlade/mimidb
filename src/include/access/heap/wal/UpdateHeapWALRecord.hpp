@@ -21,18 +21,19 @@ class UpdateHeapWALRecord : public HeapWALRecord {
         : HeapWALRecord(HeapWALRecordType::Update), TableId(tableId), OldTupleId(oldTupleId),
           NewTupleId(newTupleId), TupleData(std::move(tupleData)) {};
     size_t CalculateSize() const override {
-        return sizeof(this->TableId) + sizeof(this->OldTupleId) + sizeof(this->NewTupleId) + this->TupleData.size();
+        return sizeof(this->TableId) + sizeof(this->OldTupleId) + sizeof(this->NewTupleId) +
+               this->TupleData.size();
     }
-    
+
     void Serialize(std::byte *buffer) const override {
         auto cursor = buffer;
-        
+
         *reinterpret_cast<Oid *>(cursor) = this->TableId;
         cursor += sizeof(Oid);
 
         *reinterpret_cast<TupleId *>(cursor) = this->OldTupleId;
         cursor += sizeof(TupleId);
-        
+
         *reinterpret_cast<TupleId *>(cursor) = this->NewTupleId;
         cursor += sizeof(TupleId);
 

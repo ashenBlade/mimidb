@@ -5,8 +5,8 @@
 namespace mi::transam {
 
 struct CommitSeqNumber {
-    using type= uint64_t;
-    
+    using type = uint64_t;
+
     uint64_t csn;
 
     CommitSeqNumber() : csn(Invalid) {};
@@ -19,6 +19,7 @@ struct CommitSeqNumber {
     constexpr bool IsInProgress() const { return csn == CommitSeqNumber::InProgress; };
     constexpr bool IsAborted() const { return csn == CommitSeqNumber::Aborted; };
     constexpr bool IsCommitting() const { return csn == CommitSeqNumber::Committing; };
+    constexpr bool IsNormal() const { return csn >= Min; }
 
     /// @brief Invalid value for CSN
     static constexpr const uint64_t Invalid = 0;

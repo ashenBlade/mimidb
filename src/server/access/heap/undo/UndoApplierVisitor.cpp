@@ -89,7 +89,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
         if (currentNewTuple->undo != this->_usn) {
             throw std::runtime_error("can not undo update: new tuple was concurrently modified");
         }
-        
+
         // We have verified data was not changed - apply undo
 
         // Actually rewrite tuple to old data. Do not touch ItemId since it wasn't modified.
@@ -134,4 +134,22 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
         // Mark new tuple as dead, so noone can access it
         newItemId.setDead();
     }
+}
+
+void UndoApplierVisitor::Visit(InsertUndoRecord &record) {
+    auto pin = BufferPoolGlobal->GetBuffer(storage::PageTag{record.TableId, record.Location.pageno});
+    auto lock = storage::BufferLock{pin.GetBuffer()};
+    auto page = HeapPage{pin.GetContents()};
+
+    auto itemId = page.GetItemId(record.Location.itemid);
+    auto tupleHeader = page.GetTuple(itemId);
+
+    if (tupleHeader->undo != this->_usn) {
+        // undo was already applied
+        return;
+    }
+
+    // Update tuple contents
+    assert(record.TupleData.size() <= itemId.getLength());
+    std::memcpy(tupleHeader, record.TupleData.data(), record.TupleData.size());
 }

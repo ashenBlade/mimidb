@@ -42,7 +42,7 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     StartScan(mi::transam::Snapshot *snapshot) override;
     void InsertTuple(ITuple &tuple) override;
     void UpdateTuple(ITuple &oldTuple, ITuple &newTuple) override;
-    void DeleteTuple(std::shared_ptr<ITuple> tuple) override;
+    void DeleteTuple(ITuple &tuple) override;
 
     // Return number of pages for given relation. If
     mi::storage::PageNumber GetPageCount();

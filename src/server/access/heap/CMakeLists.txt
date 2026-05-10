@@ -10,4 +10,5 @@ target_sources(
     undo/UndoApplierVisitor.cpp
     undo/DeleteUndoRecord.cpp
     undo/UpdateUndoRecord.cpp
+    undo/InsertUndoRecord.cpp
 )

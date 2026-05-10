@@ -8,6 +8,7 @@ namespace mi::access::heap::wal {
 enum HeapWALRecordType : uint8_t {
     Insert = 1,
     Update = 2,
+    Delete = 3,
 };
 
 // Base class for HEAP WAL records

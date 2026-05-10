@@ -1,4 +1,5 @@
 #include "access/heap/undo/DeleteUndoRecord.hpp"
+#include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "access/table/Oid.hpp"
 #include "mimidb.hpp"
@@ -70,6 +71,20 @@ std::unique_ptr<mi::transam::IUndoRecord> HeapResourceManager::ParseUndo(uint8_t
             std::memcpy(tupleData.data(), cursor, length);
 
             return std::make_unique<undo::UpdateUndoRecord>(tableId, oldLocation, newLocation, std::move(tupleData));
+        }
+        case mi::access::heap::undo::HeapUndoRecordType::Insert: {
+            auto cursor = data;
+
+            auto tableId = *reinterpret_cast<Oid *>(cursor);
+            cursor += sizeof(Oid);
+
+            auto location = *reinterpret_cast<TupleId *>(cursor);
+            cursor += sizeof(TupleId);
+
+            auto buffer = std::vector<std::byte>(length - sizeof(Oid) - sizeof(TupleId));
+            std::memcpy(buffer.data(), cursor, buffer.size());
+
+            return std::make_unique<undo::InsertUndoRecord>(tableId, location, std::move(buffer));
         }
     }
 

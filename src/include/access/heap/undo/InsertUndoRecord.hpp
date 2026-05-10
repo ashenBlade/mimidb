@@ -1,25 +1,22 @@
 #pragma once
 
 #include "access/heap/undo/HeapUndoRecord.hpp"
-#include "access/heap/TupleId.hpp"
 #include "access/table/Oid.hpp"
+#include "access/heap/TupleId.hpp"
 
 #include <vector>
 
 namespace mi::access::heap::undo {
-
-class UpdateUndoRecord : public HeapUndoRecord {
+class InsertUndoRecord : public HeapUndoRecord {
   public:
-    // Updated table id
+    // Table Id
     Oid TableId;
-    // Old tuple location
-    TupleId OldLocation;
-    // New tuple location
-    TupleId NewLocation;
-    // Saved tuple data (which was updated)
+    // Tuple location
+    TupleId Location;
+    // Saved tuple data
     std::vector<std::byte> TupleData;
 
-    UpdateUndoRecord(Oid tableId, TupleId oldLocation, TupleId newLocation, std::vector<std::byte> tupleData);
+    InsertUndoRecord(Oid tableId, TupleId location, std::vector<std::byte> tupleData);
 
     size_t CalculateSize() const override;
     void Serialize(std::byte *buffer) override;

@@ -26,7 +26,7 @@ class ITable {
     virtual void UpdateTuple(ITuple &oldTuple, ITuple &newTuple) = 0;
     /// @brief Delete existing tuple
     /// @param tuple Tuple to delete
-    virtual void DeleteTuple(std::shared_ptr<ITuple> tuple) = 0;
+    virtual void DeleteTuple(ITuple &tuple) = 0;
 
     virtual ~ITable() = default;
 };

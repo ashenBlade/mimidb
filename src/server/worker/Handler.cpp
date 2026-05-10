@@ -227,6 +227,24 @@ static void handle_update(SocketServer &server) {
     server.SendOk();
 }
 
+static void handle_delete(SocketServer &server) {
+    verify_transaction_ok();
+
+    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
+
+    auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
+
+    scan->BeginScan();
+
+    while (auto tuple = scan->GetNextTuple()) {
+        table->DeleteTuple(*tuple);
+    }
+
+    scan->EndScan();
+
+    server.SendOk();
+}
+
 static void handle_insert(SocketServer &server) {
     verify_transaction_ok();
 
@@ -307,6 +325,8 @@ static void handle_loop(SocketServer &server, WorkerId id) {
                 handle_insert(server);
             } else if (command == CommandType::UPDATE) {
                 handle_update(server);
+            } else if (command == CommandType::DELETE) {
+                handle_delete(server);
             } else {
                 server.SendStringResult("Only SELECT/INSERT/UPDATE are supported for now");
             }

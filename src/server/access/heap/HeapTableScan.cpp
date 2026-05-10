@@ -1,6 +1,8 @@
 #include "access/heap/HeapPageTupleHeader.hpp"
+#include "access/heap/HeapResourceManager.hpp"
 #include "access/heap/HeapTupleSerializer.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
+#include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "mimidb.hpp"
 
@@ -69,15 +71,19 @@ static std::unique_ptr<mi::access::heap::HeapTuple>
 find_visible_tuple_page(HeapPageTupleHeader *header) {
     size_t length;
     auto usn = header->undo;
+    // TODO: while (usn.IsValid()) переделать
     do {
         auto record = mi::UndoLogGlobal->GetRecord<undo::HeapUndoRecord>(usn, length);
         switch (record->GetType()) {
         case undo::HeapUndoRecordType::Delete:
             // Tuple does not exist anymore
             return nullptr;
-        case undo::HeapUndoRecordType::Update:
-            // TODO: тут остановился - надо уметь UPDATE откатить
+        case undo::HeapUndoRecordType::Update: {
             throw std::runtime_error("not implemented");
+        }
+        case undo::HeapUndoRecordType::Insert: {
+            throw std::runtime_error("not implemented");
+        }
         default:
             throw std::runtime_error("unknown heap undo record type");
         }

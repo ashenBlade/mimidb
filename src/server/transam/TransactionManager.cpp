@@ -8,6 +8,7 @@
 #include <atomic>
 #include <mutex>
 #include <shared_mutex>
+#include <stdexcept>
 
 #include "transam/TransactionManager.hpp"
 
@@ -65,3 +66,6 @@ void TransactionManager::AbortTransaction(TransactionId xid) {
     status = CommitSeqNumber::Aborted;
 }
 
+void TransactionManager::WaitTransactionEnd([[maybe_unused]] TransactionId xid) {
+    throw std::runtime_error("WaitTransactionEnd is not implemented");
+}
