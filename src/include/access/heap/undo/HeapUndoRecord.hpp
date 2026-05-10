@@ -7,6 +7,7 @@
 namespace mi::access::heap::undo {
 enum HeapUndoRecordType : uint8_t {
     Delete = 1,
+    Update = 2,
 };
 
 // Forward declaration for visitor pattern

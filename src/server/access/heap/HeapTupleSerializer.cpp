@@ -48,17 +48,17 @@ uint16_t HeapTupleSerializer::CalculateSize(const HeapPageTuple &tuple,
     return totalSize;
 }
 
-std::shared_ptr<std::vector<std::byte>>
+std::vector<std::byte>
 HeapTupleSerializer::Serialize(const HeapPageTuple &tuple, const table::TupleDescriptor &desc,
-                               ssize_t size) {
+                               size_t size) {
     auto isnull = tuple.Nulls();
     auto values = tuple.Values();
     auto maxAttno = desc.GetMaxAttrNumber();
     auto attrs = desc.Attributes();
 
     // Now actually serialize tuple
-    auto buffer = std::make_shared<std::vector<std::byte>>(size);
-    auto cursor = buffer->data();
+    auto buffer = std::vector<std::byte>(size);
+    auto cursor = buffer.data();
 
     // Just copy header as is
     *reinterpret_cast<HeapPageTupleHeader *>(cursor) = tuple.Header();
@@ -89,7 +89,7 @@ HeapTupleSerializer::Serialize(const HeapPageTuple &tuple, const table::TupleDes
     }
 
     // Serialize data itself
-    cursor = buffer->data() + tuple.Header().dataStartOffset;
+    cursor = buffer.data() + tuple.Header().dataStartOffset;
     for (table::AttrNumber attno = table::AttrNumber::Min; attno <= maxAttno; ++attno) {
         // NULL is not written
         if (isnull[attno.ToIndex()]) {

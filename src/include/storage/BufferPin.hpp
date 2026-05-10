@@ -28,6 +28,8 @@ class BufferPin {
     std::shared_ptr<Buffer> GetBuffer() { return this->_buffer; }
     std::shared_ptr<Buffer> GetBuffer() const { return this->_buffer; }
 
+    bool IsValid() const { return this->_buffer != nullptr; }
+
     std::byte *GetContents() { return this->_buffer->GetContents(); }
     const std::byte *GetContents() const { return this->_buffer->GetContents(); }
 

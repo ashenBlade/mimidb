@@ -7,8 +7,8 @@
 
 namespace mi::access::heap {
 enum HeapTupleFlags : uint8_t {
-    Deleted = 0x1,  // Tuple was deleted, so no new updated versions exist and no data exists on page
-    HasNulls = 0x2, // Some attributes are nulls
+    Deleted = 1U, // Tuple was deleted or updated, but new tuple version is in another place (see undo log record to know what happened).
+    HasNulls = 1U << 1, // Some attributes are nulls
 };
 
 struct HeapPageTupleHeader {

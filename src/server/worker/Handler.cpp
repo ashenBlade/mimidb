@@ -202,6 +202,31 @@ static void handle_select(SocketServer &server) {
     server.SendOk();
 }
 
+static void handle_update(SocketServer &server) {
+    verify_transaction_ok();
+
+    auto val1 = server.ReadInt32();
+    auto val2 = server.ReadInt16();
+    auto newTuple = mi::executor::VirtualTuple{
+        std::vector{mi::Datum{val1}, mi::Datum{val2}},
+        std::vector{false, false}
+    };
+
+    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::MainTableId);
+
+    auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
+
+    scan->BeginScan();
+
+    while (auto tuple = scan->GetNextTuple()) {
+        table->UpdateTuple(*tuple, newTuple);
+    }
+
+    scan->EndScan();
+
+    server.SendOk();
+}
+
 static void handle_insert(SocketServer &server) {
     verify_transaction_ok();
 
@@ -280,8 +305,10 @@ static void handle_loop(SocketServer &server, WorkerId id) {
                 handle_select(server);
             } else if (command == CommandType::INSERT) {
                 handle_insert(server);
+            } else if (command == CommandType::UPDATE) {
+                handle_update(server);
             } else {
-                server.SendStringResult("Only SELECT is supported for now");
+                server.SendStringResult("Only SELECT/INSERT/UPDATE are supported for now");
             }
         } catch (std::exception &ex) {
             server.SendStringResult(std::string("ERROR: ") + ex.what());

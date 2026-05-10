@@ -42,10 +42,10 @@ void HeapTableScan::BeginScan() {
 
 // Create new HeapTuple from given on page tuple to return from scan node
 static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::TupleDescriptor *descr,
-                                                   HeapPageTupleHeader *header) {
+                                                   HeapPageTupleHeader *header, TupleId tid) {
     auto tuple =
         HeapTupleSerializer::Deserialize(reinterpret_cast<const std::byte *>(header), *descr);
-    return std::make_unique<HeapTuple>(descr, std::move(tuple));
+    return std::make_unique<HeapTuple>(descr, std::move(tuple), tid);
 }
 
 static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupleHeader *header) {
@@ -75,6 +75,9 @@ find_visible_tuple_page(HeapPageTupleHeader *header) {
         case undo::HeapUndoRecordType::Delete:
             // Tuple does not exist anymore
             return nullptr;
+        case undo::HeapUndoRecordType::Update:
+            // TODO: тут остановился - надо уметь UPDATE откатить
+            throw std::runtime_error("not implemented");
         default:
             throw std::runtime_error("unknown heap undo record type");
         }
@@ -92,11 +95,11 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
 
     // Read current page
     auto pagetag = storage::PageTag{this->_table->GetOid(), this->_tupleId.pageno};
-    auto buffer = BufferPoolGlobal->GetBuffer(pagetag);
-    auto lock = storage::BufferSharedLock{buffer.GetBuffer()};
+    auto pin = BufferPoolGlobal->GetBuffer(pagetag);
+    auto lock = storage::BufferSharedLock{pin.GetBuffer()};
 
     // Page is read and locked. We can read it's tuples now
-    auto page = HeapPage{buffer.GetContents()};
+    auto page = HeapPage{pin.GetContents()};
     std::unique_ptr<HeapTuple> tuple = nullptr;
     auto index = this->_tupleId.itemid;
     for (; index < page.ItemsCount(); ++index) {
@@ -114,7 +117,7 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
                 continue;
             }
 
-            tuple = build_heap_tuple(this->_table->GetDescriptor(), header);
+            tuple = build_heap_tuple(this->_table->GetDescriptor(), header, TupleId{pagetag.PageNo, index});
         } else {
             tuple = find_visible_tuple_page(header);
         }

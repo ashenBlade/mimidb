@@ -1,6 +1,7 @@
 #pragma once
 
 #include "access/heap/undo/IHeapUndoRecordVisitor.hpp"
+#include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "transam/UndoSeqNumber.hpp"
 namespace mi::access::heap::undo {
 class UndoApplierVisitor : public IHeapUndoRecordVisitor {
@@ -10,5 +11,6 @@ class UndoApplierVisitor : public IHeapUndoRecordVisitor {
   public:
     UndoApplierVisitor(transam::UndoSeqNumber usn) : _usn(usn) {};
     void Visit(DeleteUndoRecord &record) override;
+    void Visit(UpdateUndoRecord &record) override;
 };
 } // namespace mi::access::heap::undo

@@ -44,6 +44,12 @@ struct ItemId final {
         this->offset = 0;
         this->length = 0;
     }
+
+    void setNormal(uint16_t length, uint16_t offset) {
+        this->setLength(length);
+        this->setOffset(offset);
+        this->flags = ItemState::Normal;
+    }
 };
 
 }; // namespace mi::access::heap

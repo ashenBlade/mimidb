@@ -1,14 +1,12 @@
 #pragma once
 
-#include "access/heap/HeapPageTuple.hpp"
-#include "access/heap/HeapPageTupleHeader.hpp"
-#include "access/heap/TupleId.hpp"
-#include "access/heap/wal/HeapWALRecord.hpp"
-#include "transam/IWalRecord.hpp"
-#include "transam/ResourceManagerId.hpp"
 #include <cstddef>
 #include <cstring>
 #include <memory>
+
+#include "access/heap/TupleId.hpp"
+#include "access/heap/wal/HeapWALRecord.hpp"
+
 
 namespace mi::access::heap::wal {
 class InsertHeapWALRecord : public HeapWALRecord {
@@ -16,12 +14,12 @@ class InsertHeapWALRecord : public HeapWALRecord {
     /// Identification of tuple location
     TupleId TupId;
     /// Actual tuple bytes
-    std::shared_ptr<std::vector<std::byte>> Tuple;
+    std::vector<std::byte> TupleData;
 
-    InsertHeapWALRecord(TupleId id, std::shared_ptr<std::vector<std::byte>> tuple)
-        : HeapWALRecord(HeapWALRecordType::Insert), TupId(id), Tuple(std::move(tuple)) {};
+    InsertHeapWALRecord(TupleId id, std::vector<std::byte> tuple)
+        : HeapWALRecord(HeapWALRecordType::Insert), TupId(id), TupleData(std::move(tuple)) {};
 
-    size_t CalculateSize() const override { return sizeof(TupleId) + this->Tuple->size(); }
+    size_t CalculateSize() const override { return sizeof(TupleId) + this->TupleData.size(); }
 
     void Serialize(std::byte *buffer) const override {
         auto cursor = buffer;
@@ -31,7 +29,7 @@ class InsertHeapWALRecord : public HeapWALRecord {
         cursor += sizeof(TupleId);
 
         // Tuple data
-        std::memcpy(cursor, this->Tuple->data(), this->Tuple->size());
+        std::memcpy(cursor, this->TupleData.data(), this->TupleData.size());
     }
 
     ~InsertHeapWALRecord() override = default;

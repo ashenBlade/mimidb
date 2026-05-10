@@ -5,7 +5,10 @@
 #include <cstdint>
 
 namespace mi::access::heap::wal {
-enum HeapWALRecordType : uint8_t { Insert = 1 };
+enum HeapWALRecordType : uint8_t {
+    Insert = 1,
+    Update = 2,
+};
 
 // Base class for HEAP WAL records
 class HeapWALRecord : public transam::IWalRecord {

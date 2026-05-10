@@ -44,10 +44,9 @@ BufferPin &BufferPin::operator=(BufferPin &&other) {
 }
 
 BufferPin::~BufferPin() {
-    if (this->_buffer != nullptr) {
+    if (this->IsValid()) {
         BufferPoolGlobal->ReturnBuffer(*this);
     }
 
     this->_buffer = nullptr;
-    this->_tag = PageTag{};
 }

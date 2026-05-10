@@ -21,9 +21,9 @@ class ITable {
     /// @param tuple Tuple to insert
     virtual void InsertTuple(ITuple &tuple) = 0;
     /// @brief Update existing tuple with new one
-    /// @param oldTuple Tuple to update
+    /// @param oldTuple Tuple to update. Type must be exactly the same as one's that returned by scan
     /// @param newTuple New tuple contents
-    virtual void UpdateTuple(std::shared_ptr<ITuple> oldTuple, std::shared_ptr<ITuple> newTuple) = 0;
+    virtual void UpdateTuple(ITuple &oldTuple, ITuple &newTuple) = 0;
     /// @brief Delete existing tuple
     /// @param tuple Tuple to delete
     virtual void DeleteTuple(std::shared_ptr<ITuple> tuple) = 0;

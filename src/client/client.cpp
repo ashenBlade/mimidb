@@ -146,6 +146,28 @@ void sendInsert(mi::interface::libmimi::MimiClient &client) {
     }
 }
 
+void sendUpdate(mi::interface::libmimi::MimiClient &client) {
+    // Пока только 2 числа есть в кортеже
+    int32_t first;
+    int16_t second;
+
+    std::cin >> first >> second;
+
+    client.SendInt8('U');
+    client.SendInt32(first);
+    client.SendInt16(second);
+
+    auto ret = client.ReceiveInt8();
+    if (ret == 'O') {
+        // OK
+    } else if (ret == 'S') {
+        auto str = client.ReceiveString();
+        std::cerr << "ERROR: " << str << std::endl;
+    } else {
+        std::cerr << "Unknown result byte " << ret << std::endl;
+    }
+}
+
 int main() {
     auto sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
@@ -191,6 +213,8 @@ int main() {
                 sendSelect(client);
             } else if (input == "insert") {
                 sendInsert(client);
+            } else if (input == "update") {
+                sendUpdate(client);
             } else if (input == "quit" || input == "\\q" || input == "q") {
                 break;
             } else {

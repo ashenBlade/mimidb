@@ -49,6 +49,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
 
 void BufferManager::ReturnBuffer([[maybe_unused]] BufferPin &pin) {
     // Пока ничего - все в памяти, без вытеснения
+    assert(pin.IsValid());
 }
 
 void BufferManager::FlushBuffer([[maybe_unused]] BufferPin &pin) {
