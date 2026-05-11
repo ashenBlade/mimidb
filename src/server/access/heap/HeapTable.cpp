@@ -61,7 +61,7 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) con
             (this->_tupleDescriptor->GetMaxAttrNumber().value + Config::BitsPerByte - 1) /
             Config::BitsPerByte;
         dataStart = static_cast<uint8_t>(sizeof(HeapPageTupleHeader) + bitmapSize);
-        dataStart = MaxAlign(dataStart);
+        dataStart = BitUtils::MaxAlign(dataStart);
     } else {
         flags = static_cast<HeapTupleFlags>(0);
         dataStart = sizeof(HeapPageTupleHeader);
@@ -151,7 +151,7 @@ void HeapTable::InsertTuple(ITuple &tuple) {
         auto &itemId = lp[page.ItemsCount()];
 
         // Update it's ItemId
-        auto offset = static_cast<uint16_t>(page.GetHeader().upper - MaxAlign(tupleSize));
+        auto offset = static_cast<uint16_t>(page.GetHeader().upper - BitUtils::MaxAlign(tupleSize));
         itemId.flags = ItemState::Normal;
         itemId.setLength(static_cast<uint16_t>(tupleSize));
         itemId.setOffset(offset);
@@ -162,7 +162,7 @@ void HeapTable::InsertTuple(ITuple &tuple) {
 
         // Update lower/upper
         header.lower += sizeof(ItemId);
-        header.upper -= MaxAlign(tupleSize);
+        header.upper -= BitUtils::MaxAlign(tupleSize);
 
         inserted = true;
     } while (!inserted);

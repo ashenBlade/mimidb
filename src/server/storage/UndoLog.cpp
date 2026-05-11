@@ -62,7 +62,7 @@ std::unique_ptr<IUndoRecord> UndoLog::GetRecord(UndoSeqNumber usn) {
 static std::vector<std::byte> format_undo_record(mi::storage::trans::TransactionId xid, IUndoRecord &record) {
     // Align data
     auto size = record.CalculateSize();
-    auto fullSize = sizeof(UndoLogRecordHeader) + mi::MaxAlign(size);
+    auto fullSize = sizeof(UndoLogRecordHeader) + mi::BitUtils::MaxAlign(size);
     auto buffer = std::vector<std::byte>(fullSize);
     auto header = UndoLogRecordHeader{xid, record.GetRMgrId(), record.GetType(), size};
 

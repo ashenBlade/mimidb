@@ -37,7 +37,7 @@ uint16_t HeapTupleSerializer::CalculateSize(const HeapPageTuple &tuple,
             // Length field
             totalSize += sizeof(int32_t);
             // Data itself
-            totalSize += MaxAlign(static_cast<uint16_t>(length));
+            totalSize += BitUtils::MaxAlign(static_cast<uint16_t>(length));
         }
     }
 
@@ -65,7 +65,7 @@ std::vector<std::byte> HeapTupleSerializer::Serialize(const HeapPageTuple &tuple
         uint8_t *bitmap = reinterpret_cast<uint8_t *>(cursor);
 
         auto nfullbytes = isnull.size() / Config::BitsPerByte;
-        auto nbytes = BitmapSize(isnull.size());
+        auto nbytes = BitUtils::BitmapSize(isnull.size());
         auto byte = 0U;
         for (; byte < nbytes; byte++) {
             auto set = std::bitset<Config::BitsPerByte>{0};
@@ -128,7 +128,7 @@ std::vector<std::byte> HeapTupleSerializer::Serialize(const HeapPageTuple &tuple
             data += sizeof(int32_t);
             std::memcpy(cursor, data, static_cast<size_t>(length));
 
-            cursor += MaxAlign(static_cast<uint32_t>(length));
+            cursor += BitUtils::MaxAlign(static_cast<uint32_t>(length));
         }
     }
 
