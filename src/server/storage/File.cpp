@@ -1,6 +1,6 @@
 #include "mimidb.hpp"
 
-#include "storage/File.hpp"
+#include "storage/io/File.hpp"
 
 #include <cstdio>
 #include <stdexcept>

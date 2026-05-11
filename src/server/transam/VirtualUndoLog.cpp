@@ -1,7 +1,7 @@
 #include "mimidb.hpp"
 
-#include "transam/UndoSeqNumber.hpp"
-#include "transam/VirtualUndoLog.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
+#include "storage/undo/VirtualUndoLog.hpp"
 
 #include "cluster_state.hpp"
 

@@ -11,7 +11,7 @@
 #include <iostream>
 #include <vector>
 
-#include "libmimi/MimiClient.hpp"
+#include "MimiClient.hpp"
 
 void sendTcl(mi::interface::libmimi::MimiClient &client, char command) {
     client.SendInt8(command);

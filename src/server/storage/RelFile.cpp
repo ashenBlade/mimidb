@@ -1,6 +1,6 @@
 #include "mimidb.hpp"
 
-#include "storage/RelFile.hpp"
+#include "storage/buffer/RelFile.hpp"
 
 #include <format>
 #include <stdexcept>

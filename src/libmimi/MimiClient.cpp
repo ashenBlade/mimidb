@@ -1,4 +1,4 @@
-#include "libmimi/MimiClient.hpp"
+#include "MimiClient.hpp"
 
 #include <cstddef>
 #include <cstring>

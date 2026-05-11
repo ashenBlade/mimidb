@@ -1,16 +1,18 @@
-#include "access/heap/undo/DeleteUndoRecord.hpp"
-#include "access/heap/undo/InsertUndoRecord.hpp"
-#include "access/heap/undo/UpdateUndoRecord.hpp"
-#include "access/table/Oid.hpp"
 #include "mimidb.hpp"
 
+#include "access/heap/HeapResourceManager.hpp"
+#include "access/heap/undo/DeleteUndoRecord.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
+#include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UndoApplierVisitor.hpp"
-#include "transam/IUndoRecord.hpp"
-#include "transam/IWalRecord.hpp"
-#include "transam/LogSeqNumber.hpp"
-#include "transam/ResourceManagerId.hpp"
-#include "transam/UndoSeqNumber.hpp"
+#include "access/heap/undo/UpdateUndoRecord.hpp"
+#include "access/table/Oid.hpp"
+#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
+#include "storage/wal/IWalRecord.hpp"
+#include "storage/wal/LogSeqNumber.hpp"
+#include "trans/ResourceManagerId.hpp"
+
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -18,7 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "access/heap/HeapResourceManager.hpp"
 
 using namespace mi::access::heap;
 

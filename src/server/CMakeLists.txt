@@ -2,7 +2,8 @@
 add_executable(${SERVER_EXEC_NAME} main.cpp)
 
 # Заголовки
-target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
+target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../libmimi/include")
 
 # Все поддиректории
 add_subdirectory(access)

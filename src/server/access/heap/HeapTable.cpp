@@ -1,3 +1,5 @@
+#include "mimidb.hpp"
+
 #include "access/heap/HeapPage.hpp"
 #include "access/heap/HeapPageTuple.hpp"
 #include "access/heap/HeapPageTupleHeader.hpp"
@@ -18,22 +20,19 @@
 
 #include "access/heap/HeapTable.hpp"
 #include "access/heap/HeapTableScan.hpp"
-#include "storage/BufferLock.hpp"
-#include "storage/BufferPin.hpp"
-#include "storage/PageNumber.hpp"
-#include "storage/PageTag.hpp"
-#include "storage/RelFile.hpp"
-#include "transam/LogSeqNumber.hpp"
-#include "transam/ResourceManagerId.hpp"
-#include "transam/TransactionId.hpp"
-#include "transam/UndoLog.hpp"
-#include "transam/UndoSeqNumber.hpp"
+#include "storage/buffer/BufferLock.hpp"
+#include "storage/buffer/BufferPin.hpp"
+#include "storage/buffer/PageNumber.hpp"
+#include "storage/buffer/PageTag.hpp"
+#include "storage/buffer/RelFile.hpp"
+#include "storage/wal/LogSeqNumber.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
+#include "trans/TransactionId.hpp"
 #include "utils/BitUtils.hpp"
 #include "worker_state.hpp"
 
 #include <cstring>
 #include <fcntl.h>
-#include <memory>
 #include <stdexcept>
 
 using namespace mi::access::heap;

@@ -1,5 +1,6 @@
 #include "mimidb.hpp"
-#include "storage/File.hpp"
+
+#include "storage/io/File.hpp"
 
 #include <cstddef>
 #include <cstdio>
@@ -10,12 +11,11 @@
 #include <stdexcept>
 #include <vector>
 
-#include "transam/UndoLog.hpp"
-#include "transam/IUndoRecord.hpp"
-#include "transam/TransactionId.hpp"
-#include "transam/UndoLogRecordHeader.hpp"
-#include "transam/UndoRecord.hpp"
-#include "transam/UndoSeqNumber.hpp"
+#include "storage/undo/UndoLog.hpp"
+#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/UndoLogRecordHeader.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
+#include "trans/TransactionId.hpp"
 #include "utils/BitUtils.hpp"
 #include "worker_state.hpp"
 #include "cluster_state.hpp"

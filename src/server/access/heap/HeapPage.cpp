@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 #include "access/heap/HeapPageHeader.hpp"
-#include "transam/LogSeqNumber.hpp"
+#include "storage/wal/LogSeqNumber.hpp"
 #include "access/heap/HeapPage.hpp"
 
 using namespace mi::access::heap;

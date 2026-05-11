@@ -1,5 +1,6 @@
-#include "libmimi/MimiClient.hpp"
 #include "mimidb.hpp"
+
+#include "MimiClient.hpp"
 
 #include "access/table/AttrNumber.hpp"
 #include "access/table/Datum.hpp"
@@ -9,12 +10,9 @@
 #include "db/catalog/TypeInfo.hpp"
 #include "executor/VirtualTuple.hpp"
 
-#include "access/heap/HeapTable.hpp"
-#include "access/heap/HeapTableScan.hpp"
 #include "cluster_state.hpp"
-#include "transam/Snapshot.hpp"
-#include "transam/Transaction.hpp"
-#include "transam/TransactionManager.hpp"
+#include "trans/Transaction.hpp"
+#include "trans/TransactionManager.hpp"
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
 
@@ -27,7 +25,6 @@
 #include <stdexcept>
 #include <string>
 #include <sys/socket.h>
-#include <system_error>
 #include <unistd.h>
 
 #include "worker/Handler.hpp"

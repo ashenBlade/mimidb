@@ -1,11 +1,11 @@
+#include "mimidb.hpp"
+
 #include "access/heap/HeapPageTupleHeader.hpp"
-#include "access/heap/HeapResourceManager.hpp"
 #include "access/heap/HeapTupleSerializer.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
 #include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "access/table/TupleDescriptor.hpp"
-#include "mimidb.hpp"
 
 #include <cstddef>
 #include <cstring>
@@ -17,14 +17,14 @@
 #include "access/heap/HeapPage.hpp"
 #include "access/heap/HeapTableScan.hpp"
 #include "access/heap/HeapTuple.hpp"
-#include "storage/BufferLock.hpp"
-#include "storage/PageNumber.hpp"
+#include "storage/buffer/BufferLock.hpp"
+#include "storage/buffer/PageNumber.hpp"
 
 #include "cluster_state.hpp"
-#include "transam/CommitSeqNumber.hpp"
-#include "transam/ResourceManagerId.hpp"
-#include "transam/Snapshot.hpp"
-#include "transam/TransactionId.hpp"
+#include "trans/CommitSeqNumber.hpp"
+#include "trans/ResourceManagerId.hpp"
+#include "trans/Snapshot.hpp"
+#include "trans/TransactionId.hpp"
 
 using namespace mi::access::heap;
 

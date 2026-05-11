@@ -4,7 +4,7 @@
 #include "access/heap/HeapPageTupleHeader.hpp"
 #include "access/heap/HeapTupleSerializer.hpp"
 #include "access/table/AttrNumber.hpp"
-#include "transam/TransactionId.hpp"
+#include "trans/TransactionId.hpp"
 #include "utils/BitUtils.hpp"
 
 #include <bitset>

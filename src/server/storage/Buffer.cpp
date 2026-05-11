@@ -1,6 +1,5 @@
-#include "storage/Buffer.hpp"
+#include "storage/buffer/Buffer.hpp"
 #include "lock/LockMode.hpp"
-#include "storage/BufferManager.hpp"
 
 using namespace mi::storage;
 

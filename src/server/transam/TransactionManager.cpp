@@ -1,16 +1,16 @@
 #include "mimidb.hpp"
 
 #include "lock/Spin.hpp"
-#include "transam/CommitSeqNumber.hpp"
-#include "transam/Transaction.hpp"
-#include "transam/TransactionId.hpp"
+#include "trans/CommitSeqNumber.hpp"
+#include "trans/Transaction.hpp"
+#include "trans/TransactionId.hpp"
 #include "worker_state.hpp"
 #include <atomic>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
 
-#include "transam/TransactionManager.hpp"
+#include "trans/TransactionManager.hpp"
 
 using namespace mi::transam;
 

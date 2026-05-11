@@ -6,8 +6,8 @@
 #include "access/heap/ItemId.hpp"
 #include "access/heap/undo/DeleteUndoRecord.hpp"
 #include "cluster_state.hpp"
-#include "storage/BufferLock.hpp"
-#include "storage/PageTag.hpp"
+#include "storage/buffer/BufferLock.hpp"
+#include "storage/buffer/PageTag.hpp"
 #include <cstring>
 #include <stdexcept>
 

@@ -1,16 +1,15 @@
 #include "mimidb.hpp"
 
-#include "storage/File.hpp"
-#include "transam/IWalRecord.hpp"
-#include "transam/LogSeqNumber.hpp"
-#include "transam/ResourceManagerId.hpp"
-#include "transam/WALRecordHeader.hpp"
+#include "storage/io/File.hpp"
+#include "storage/wal/IWalRecord.hpp"
+#include "storage/wal/LogSeqNumber.hpp"
+#include "storage/wal/WALRecordHeader.hpp"
 #include "worker_state.hpp"
 #include <cstddef>
 #include <cstdio>
 #include <fcntl.h>
 #include <mutex>
-#include "transam/WriteAheadLog.hpp"
+#include "storage/wal/WriteAheadLog.hpp"
 
 using namespace mi::transam;
 

@@ -1,7 +1,7 @@
 #include "cluster_state.hpp"
 #include "mimidb.hpp"
 
-#include "transam/Transaction.hpp"
+#include "trans/Transaction.hpp"
 
 using namespace mi::transam;
 
