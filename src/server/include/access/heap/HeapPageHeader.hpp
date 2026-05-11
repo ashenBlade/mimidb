@@ -11,7 +11,7 @@ namespace mi::access::heap {
 struct HeapPageHeader final {
     // Last applied changes to the page.
     // Must be first on page.
-    mi::transam::LogSeqNumber lsn;
+    storage::wal::LogSeqNumber lsn;
     // Start of free space
     uint16_t lower;
     // End of free space

@@ -123,10 +123,10 @@ static void setupDatabase() {
 }
 
 static void setupResourceManagers() {
-    auto manager = new mi::transam::ResourceManagerRegistry();
+    auto manager = new mi::storage::trans::ResourceManagerRegistry();
 
     // Heap
-    manager->RegisterManager(mi::transam::ResourceManagerId::Heap,
+    manager->RegisterManager(mi::storage::trans::ResourceManagerId::Heap,
                              mi::access::heap::HeapResourceManager::Create());
 
     mi::RMgrRegistryGlobal = manager;
@@ -135,16 +135,16 @@ static void setupResourceManagers() {
 // Global variables declarations
 // worker_state
 thread_local mi::worker::Worker *mi::MyWorker;
-thread_local mi::transam::Transaction *mi::MyTransaction;
+thread_local mi::storage::trans::Transaction *mi::MyTransaction;
 
 // cluster_state
 mi::db::Database *mi::DatabaseGlobal;
 mi::worker::WorkerManager *mi::WorkerGlobal;
-mi::storage::BufferManager *mi::BufferPoolGlobal;
-mi::transam::UndoLog *mi::UndoLogGlobal;
-mi::transam::TransactionManager *mi::TransactionManagerGlobal;
-mi::transam::WriteAheadLog *mi::WALGlobal;
-mi::transam::ResourceManagerRegistry *mi::RMgrRegistryGlobal;
+mi::storage::buffer::BufferManager *mi::BufferPoolGlobal;
+mi::storage::undo::UndoLog *mi::UndoLogGlobal;
+mi::storage::trans::TransactionManager *mi::TransactionManagerGlobal;
+mi::storage::wal::WriteAheadLog *mi::WALGlobal;
+mi::storage::trans::ResourceManagerRegistry *mi::RMgrRegistryGlobal;
 
 static int main_loop() {
     // Create new server socket
@@ -252,10 +252,10 @@ int main(int argc, char **argv) {
 
     // Create global structures
     mi::WorkerGlobal = new mi::worker::WorkerManager(MaxWorkers);
-    mi::BufferPoolGlobal = new mi::storage::BufferManager();
-    mi::TransactionManagerGlobal = new mi::transam::TransactionManager();
-    mi::UndoLogGlobal = mi::transam::UndoLog::Open("undo");
-    mi::WALGlobal = mi::transam::WriteAheadLog::Open("wal");
+    mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager();
+    mi::TransactionManagerGlobal = new mi::storage::trans::TransactionManager();
+    mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");
+    mi::WALGlobal = mi::storage::wal::WriteAheadLog::Open("wal");
 
     setupResourceManagers();
 

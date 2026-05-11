@@ -3,13 +3,13 @@
 #include "trans/ResourceManagerId.hpp"
 #include <cstddef>
 
-namespace mi::transam {
+namespace mi::storage::wal {
 
 // Interface for representing custom WAL record
 class IWalRecord {
   public:
     // Get Resource Manager Id for this record
-    virtual ResourceManagerId GetRMgrId() const = 0;
+    virtual trans::ResourceManagerId GetRMgrId() const = 0;
     // Get type of record specific for resource manager
     virtual uint8_t GetType() const = 0;
     // Get size of serialized record

@@ -1,7 +1,7 @@
 #include "storage/buffer/Buffer.hpp"
 #include "lock/LockMode.hpp"
 
-using namespace mi::storage;
+using namespace mi::storage::buffer;
 
 Buffer::Buffer(std::byte *contents) : _contents(contents), _latch(), _dirty(false) {};
 

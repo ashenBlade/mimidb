@@ -4,15 +4,15 @@
 #include "trans/TransactionId.hpp"
 #include <vector>
 
-namespace mi::transam {
+namespace mi::storage::undo {
 class UndoRecord {
   public:
-    TransactionId Xid;
-    ResourceManagerId RMgrId;
+    trans::TransactionId Xid;
+    trans::ResourceManagerId RMgrId;
     uint8_t Type;
     std::vector<std::byte> Payload;
 
-    UndoRecord(TransactionId xid, ResourceManagerId rmgrid, uint8_t type,
+    UndoRecord(trans::TransactionId xid, trans::ResourceManagerId rmgrid, uint8_t type,
                std::vector<std::byte> payload)
         : Xid(xid), RMgrId(rmgrid), Type(type), Payload(std::move(payload)) {};
 

@@ -9,7 +9,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 
-namespace mi::transam {
+namespace mi::storage::trans {
 class TransactionManager : private NonCopyable {
   private:
     /// @brief Mutex to synchronize access to fields

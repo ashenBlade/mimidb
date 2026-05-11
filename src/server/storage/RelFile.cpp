@@ -6,9 +6,9 @@
 #include <stdexcept>
 #include <utility>
 
-using namespace mi::storage;
+using namespace mi::storage::buffer;
 
-RelFile::RelFile(File &&file) : _file(std::move(file)) {}
+RelFile::RelFile(io::File &&file) : _file(std::move(file)) {}
 
 RelFile::RelFile(RelFile &&other) noexcept { this->_file = std::move(other._file); }
 
@@ -66,5 +66,5 @@ void RelFile::Close() { this->_file.Close(); }
 
 RelFile RelFile::Open(Oid relid, int mode) {
     auto filepath = std::format("data/{}", relid.value);
-    return RelFile{File::Open(filepath, mode)};
+    return RelFile{io::File::Open(filepath, mode)};
 }

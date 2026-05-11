@@ -23,7 +23,7 @@
 
 using namespace mi::access::heap;
 
-HeapTableScan::HeapTableScan(mi::transam::Snapshot *snapshot, HeapTable *table)
+HeapTableScan::HeapTableScan(storage::trans::Snapshot *snapshot, HeapTable *table)
     : _snapshot(snapshot), _table(table), _end(false) {}
 
 void HeapTableScan::BeginScan() {
@@ -31,7 +31,7 @@ void HeapTableScan::BeginScan() {
     assert(this->_lastPageNumber.IsValid());
     // Start iterating from first page. Note that BufferWrapper is initialized with Invalid, so we
     // will read buffer at first scan call
-    this->_tupleId = TupleId{storage::PageNumber::Min, 0};
+    this->_tupleId = TupleId{storage::buffer::PageNumber::Min, 0};
 
     // If relation is empty, then no scan is needed
     if (this->_lastPageNumber == 0U) {
@@ -47,7 +47,7 @@ static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::Tupl
     return std::make_unique<HeapTuple>(descr, std::move(tuple), tid);
 }
 
-static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupleHeader *header) {
+static bool tuple_is_visible(const mi::storage::trans::Snapshot &snapshot, HeapPageTupleHeader *header) {
     auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(header->xid);
 
     assert(!csn.IsInvalid());
@@ -67,12 +67,12 @@ static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupl
 static std::unique_ptr<HeapTuple>
 find_visible_tuple_page(HeapPageTupleHeader *header,
                         const mi::access::table::TupleDescriptor *descriptor,
-                        mi::transam::Snapshot &snapshot) {
+                        mi::storage::trans::Snapshot &snapshot) {
     auto usn = header->undo;
     std::unique_ptr<HeapTuple> tuple = nullptr;
     while (usn.IsValid()) {
         auto record = mi::UndoLogGlobal->GetRecord(usn);
-        if (record->GetRMgrId() != mi::transam::ResourceManagerId::Heap) {
+        if (record->GetRMgrId() != mi::storage::trans::ResourceManagerId::Heap) {
             throw std::runtime_error("invalid rmgrid");
         }
 
@@ -131,9 +131,9 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
     }
 
     // Read current page
-    auto pagetag = storage::PageTag{this->_table->GetOid(), this->_tupleId.pageno};
+    auto pagetag = storage::buffer::PageTag{this->_table->GetOid(), this->_tupleId.pageno};
     auto pin = BufferPoolGlobal->GetBuffer(pagetag);
-    auto lock = storage::BufferSharedLock{pin.GetBuffer()};
+    auto lock = storage::buffer::BufferSharedLock{pin.GetBuffer()};
 
     // Page is read and locked. We can read it's tuples now
     auto page = HeapPage{pin.GetContents()};

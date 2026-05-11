@@ -15,8 +15,7 @@
 #include <mutex>
 #include <shared_mutex>
 
-using namespace mi::storage;
-using namespace mi;
+using namespace mi::storage::buffer;
 
 BufferManager::BufferManager() : _map(), _mutex() {}
 

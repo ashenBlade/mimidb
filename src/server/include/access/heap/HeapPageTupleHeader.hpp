@@ -13,9 +13,9 @@ enum HeapTupleFlags : uint8_t {
 
 struct HeapPageTupleHeader {
     /// @brief Id of transaction created this tuple
-    transam::TransactionId xid;
+    storage::trans::TransactionId xid;
     /// @brief Location of undo record for this tuple
-    transam::UndoSeqNumber undo;
+    storage::undo::UndoSeqNumber undo;
     /// @brief Special flags for tuple
     HeapTupleFlags flags;
     /// @brief Offset to start of data

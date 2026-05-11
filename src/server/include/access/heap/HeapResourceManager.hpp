@@ -10,11 +10,11 @@
 
 namespace mi::access::heap {
 
-class HeapResourceManager : public transam::IResourceManager {
+class HeapResourceManager : public storage::trans::IResourceManager {
   public:
-    std::unique_ptr<transam::IUndoRecord> ParseUndo(uint8_t type, std::byte *data, size_t length) override;
-    void ApplyUndo(transam::IUndoRecord &record, transam::UndoSeqNumber usn) override;
-    void ApplyRedo(transam::IWalRecord &record, transam::LogSeqNumber lsn) override;
+    std::unique_ptr<storage::undo::IUndoRecord> ParseUndo(uint8_t type, std::byte *data, size_t length) override;
+    void ApplyUndo(storage::undo::IUndoRecord &record, storage::undo::UndoSeqNumber usn) override;
+    void ApplyRedo(storage::wal::IWalRecord &record, storage::wal::LogSeqNumber lsn) override;
 
     ~HeapResourceManager() override = default;
 

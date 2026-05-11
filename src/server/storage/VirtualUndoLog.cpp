@@ -1,14 +1,15 @@
 #include "storage/undo/VirtualUndoLog.hpp"
 #include "cluster_state.hpp"
-#include "storage/undo/UndoSeqNumber.hpp"
 
-mi::transam::UndoSeqNumber mi::transam::VirtualUndoLog::InsertRecord(IUndoRecord &record) {
+using namespace mi::storage::undo;
+
+UndoSeqNumber VirtualUndoLog::InsertRecord(IUndoRecord &record) {
     auto usn = UndoLogGlobal->InsertUndoRecord(record);
     this->_history.push_back(usn);
     return usn;
 }
 
-void mi::transam::VirtualUndoLog::UndoAllRecords() {
+void VirtualUndoLog::UndoAllRecords() {
     // Perform undo it backward sequence
     for (auto it = this->_history.rbegin(); it != this->_history.rend(); ++it) {
         UndoLogGlobal->PerformUndo(it->value);

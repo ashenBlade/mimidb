@@ -4,7 +4,7 @@
 // for std::hash<>
 #include <unordered_map>
 
-namespace mi::storage {
+namespace mi::storage::buffer {
 struct PageNumber {
     // Type used for page numbers
     using type = uint32_t;
@@ -47,8 +47,8 @@ struct PageNumber {
 
 namespace std {
 
-template <> struct hash<mi::storage::PageNumber> {
-    size_t operator()(const mi::storage::PageNumber &pageno) {
+template <> struct hash<mi::storage::buffer::PageNumber> {
+    size_t operator()(const mi::storage::buffer::PageNumber &pageno) {
         return std::hash<int>()(static_cast<int>(pageno.value));
     }
 };

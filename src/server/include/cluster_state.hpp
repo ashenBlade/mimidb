@@ -12,15 +12,15 @@ namespace mi {
 // Worker manager for whole cluster
 extern worker::WorkerManager *WorkerGlobal;
 // Buffer pool for whole cluster
-extern storage::BufferManager *BufferPoolGlobal;
+extern storage::buffer::BufferManager *BufferPoolGlobal;
 // Undo log
-extern transam::UndoLog *UndoLogGlobal;
+extern storage::undo::UndoLog *UndoLogGlobal;
 // Transaction manager
-extern transam::TransactionManager *TransactionManagerGlobal;
+extern storage::trans::TransactionManager *TransactionManagerGlobal;
 // Write Ahead Log
-extern transam::WriteAheadLog *WALGlobal;
+extern storage::wal::WriteAheadLog *WALGlobal;
 // Database instance
 extern mi::db::Database *DatabaseGlobal;
 // All registered resource managers
-extern transam::ResourceManagerRegistry *RMgrRegistryGlobal;
+extern storage::trans::ResourceManagerRegistry *RMgrRegistryGlobal;
 } // namespace mi

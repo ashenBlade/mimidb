@@ -2,7 +2,7 @@
 
 namespace mi::executor::plan {
 
-SeqScan::SeqScan(mi::access::table::ITable &table, std::shared_ptr<mi::transam::Snapshot> snapshot)
+SeqScan::SeqScan(mi::access::table::ITable &table, std::shared_ptr<mi::storage::trans::Snapshot> snapshot)
     : _scan(nullptr), _table(table), _snapshot(snapshot) {};
 
 void SeqScan::Start() {

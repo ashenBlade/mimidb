@@ -14,11 +14,11 @@ using namespace mi::access::heap::undo;
 
 void UndoApplierVisitor::Visit(DeleteUndoRecord &record) {
     // Read page where to which this tuple belongs
-    auto tag = storage::PageTag{record.TableId, record.TupId.pageno};
+    auto tag = storage::buffer::PageTag{record.TableId, record.TupId.pageno};
     auto pin = BufferPoolGlobal->GetBuffer(tag);
 
     // Detect whether this record is already undone
-    auto lock = storage::BufferLock{pin.GetBuffer()};
+    auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
     auto page = HeapPage{pin.GetContents()};
     auto &itemId = page.GetItemId(record.TupId.itemid);
     if (!itemId.isNormal()) {
@@ -44,8 +44,8 @@ void UndoApplierVisitor::Visit(DeleteUndoRecord &record) {
 void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
     if (record.NewLocation == record.OldLocation) {
         auto pin = BufferPoolGlobal->GetBuffer(
-            storage::PageTag{record.TableId, record.OldLocation.pageno});
-        auto lock = storage::BufferLock{pin.GetBuffer()};
+            storage::buffer::PageTag{record.TableId, record.OldLocation.pageno});
+        auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
         auto page = HeapPage{pin.GetContents()};
         auto itemId = page.GetItemId(record.OldLocation.itemid);
         auto currentTuple = page.GetTuple(itemId);
@@ -68,8 +68,8 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
     } else if (record.NewLocation.pageno == record.OldLocation.pageno) {
         // New tuple placed on the same page
         auto pin = BufferPoolGlobal->GetBuffer(
-            storage::PageTag{record.TableId, record.OldLocation.pageno});
-        auto lock = storage::BufferLock{pin.GetBuffer()};
+            storage::buffer::PageTag{record.TableId, record.OldLocation.pageno});
+        auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
         auto page = HeapPage{pin.GetContents()};
         auto oldItemId = page.GetItemId(record.OldLocation.itemid);
         auto currentOldTuple = page.GetTuple(oldItemId);
@@ -103,8 +103,8 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
     } else {
         // New tuple placed on DIFFERENT page
         auto oldPin = BufferPoolGlobal->GetBuffer(
-            storage::PageTag{record.TableId, record.OldLocation.pageno});
-        auto oldLock = storage::BufferLock{oldPin.GetBuffer()};
+            storage::buffer::PageTag{record.TableId, record.OldLocation.pageno});
+        auto oldLock = storage::buffer::BufferLock{oldPin.GetBuffer()};
         auto oldPage = HeapPage{oldPin.GetContents()};
         auto oldItemId = oldPage.GetItemId(record.OldLocation.itemid);
         auto currentOldTuple = oldPage.GetTuple(oldItemId);
@@ -123,8 +123,8 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
 
         // Now verify new page
         auto newPin = BufferPoolGlobal->GetBuffer(
-            storage::PageTag{record.TableId, record.NewLocation.pageno});
-        auto newLock = storage::BufferLock{newPin.GetBuffer()};
+            storage::buffer::PageTag{record.TableId, record.NewLocation.pageno});
+        auto newLock = storage::buffer::BufferLock{newPin.GetBuffer()};
         auto newPage = HeapPage{newPin.GetContents()};
         auto &newItemId = newPage.GetItemId(record.NewLocation.itemid);
         auto currentNewTuple = newPage.GetTuple(newItemId);
@@ -145,8 +145,8 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
 
 void UndoApplierVisitor::Visit(InsertUndoRecord &record) {
     auto pin =
-        BufferPoolGlobal->GetBuffer(storage::PageTag{record.TableId, record.Location.pageno});
-    auto lock = storage::BufferLock{pin.GetBuffer()};
+        BufferPoolGlobal->GetBuffer(storage::buffer::PageTag{record.TableId, record.Location.pageno});
+    auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
     auto page = HeapPage{pin.GetContents()};
 
     auto itemId = page.GetItemId(record.Location.itemid);

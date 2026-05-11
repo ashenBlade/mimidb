@@ -67,7 +67,7 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) con
 
     auto header = HeapPageTupleHeader{
         MyTransaction->GetXID(),
-        transam::UndoSeqNumber::Invalid,
+        storage::undo::UndoSeqNumber::Invalid,
         flags,
         dataStart,
     };
@@ -77,14 +77,14 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) con
 // Search page on table with required free space or start new page.
 // Returned buffer is already locked in S mode.
 // Passed freeSpace is a total required size including item id and padding.
-mi::storage::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) const {
-    auto file = storage::RelFile::Open(this->_tableId, O_RDONLY);
+mi::storage::buffer::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) const {
+    auto file = storage::buffer::RelFile::Open(this->_tableId, O_RDONLY);
     auto npages = file.GetPagesCount();
-    for (storage::PageNumber attno = storage::PageNumber::Min; attno < npages; ++attno) {
-        auto tag = storage::PageTag{this->_tableId, attno};
+    for (storage::buffer::PageNumber attno = storage::buffer::PageNumber::Min; attno < npages; ++attno) {
+        auto tag = storage::buffer::PageTag{this->_tableId, attno};
         auto buffer = BufferPoolGlobal->GetBuffer(tag);
         auto page = HeapPage{buffer.GetContents()};
-        auto lock = storage::BufferSharedLock{buffer.GetBuffer()};
+        auto lock = storage::buffer::BufferSharedLock{buffer.GetBuffer()};
         if (page.GetFreeSpace() < freeSpace) {
             continue;
         }
@@ -97,7 +97,7 @@ mi::storage::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) const {
     auto page = HeapPage{buffer.GetContents()};
     if (page.IsNew())
         HeapPage::Init(page);
-    auto lock = storage::BufferSharedLock{buffer.GetBuffer()};
+    auto lock = storage::buffer::BufferSharedLock{buffer.GetBuffer()};
     if (page.GetFreeSpace() < freeSpace) {
         throw std::runtime_error("all pages are occupied");
     }
@@ -116,7 +116,7 @@ void HeapTable::InsertTuple(ITuple &tuple) {
         auto pin = this->searchPageFreeSpace(freeSpace);
 
         // update S -> X, so we can change page contents
-        WITH(auto lock = storage::BufferLock{pin.GetBuffer()}) {
+        WITH(auto lock = storage::buffer::BufferLock{pin.GetBuffer()}) {
             auto page = HeapPage{pin.GetBuffer()->GetContents()};
 
             // Check we still have free space
@@ -165,7 +165,7 @@ void HeapTable::InsertTuple(ITuple &tuple) {
     } while (!inserted);
 }
 
-static void wait_tnx_end(mi::transam::TransactionId xid) {
+static void wait_tnx_end(mi::storage::trans::TransactionId xid) {
     auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(xid);
     // Even if tuple on page can be different does not mean we should abort right now.
     // Transaction updating tuple can abort and we continue successfully.
@@ -196,9 +196,9 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
     auto newTupSize = HeapTupleSerializer::CalculateSize(newHeapPageTuple, *this->_tupleDescriptor);
 
     auto oldTID = oldHeapTuple.GetTID();
-    auto tag = storage::PageTag{this->_tableId, oldTID.pageno};
+    auto tag = storage::buffer::PageTag{this->_tableId, oldTID.pageno};
     auto oldPin = BufferPoolGlobal->GetBuffer(tag);
-    auto lock = storage::BufferLock{oldPin.GetBuffer()};
+    auto lock = storage::buffer::BufferLock{oldPin.GetBuffer()};
 
     // First we must check that old tuple was not concurrently modified.
     // If so throw error - we can not proceed due to concurrent access.
@@ -218,8 +218,8 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
 
     // Now decide which path to take in order to update tuple
     auto newTID = oldTID;
-    auto newPin = storage::BufferPin{};
-    auto newLock = storage::BufferLock{};
+    auto newPin = storage::buffer::BufferPin{};
+    auto newLock = storage::buffer::BufferLock{};
     if (newTupSize <= itemId.getLength()) {
         // If new tuple fits old one, than we can successfully overwrite it.
     } else if (newTupSize + sizeof(ItemId) <= oldPage.GetFreeSpace()) {
@@ -230,7 +230,7 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
         // We must search new page for tuple
         while (true) {
             newPin = this->searchPageFreeSpace(newTupSize + sizeof(ItemId));
-            newLock = storage::BufferLock{newPin.GetBuffer()};
+            newLock = storage::buffer::BufferLock{newPin.GetBuffer()};
             auto newPage = HeapPage{newPin.GetContents()};
 
             // There is a possibility, that before we pinned page someone perform concurrent update
@@ -244,7 +244,7 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
 
     // We know where to place new tuple, so begin.
     // First undo record
-    transam::UndoSeqNumber usn;
+    storage::undo::UndoSeqNumber usn;
     {
         auto size = HeapTupleSerializer::CalculateSize(oldHeapTuple.GetHeapPageTuple(),
                                                        *this->_tupleDescriptor);
@@ -260,9 +260,9 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
     auto buffer = HeapTupleSerializer::Serialize(newHeapPageTuple, *this->_tupleDescriptor, size);
 
     // Then WAL record
-    transam::LogSeqNumber lsn;
+    storage::wal::LogSeqNumber lsn;
     {
-        auto record = wal::UpdateHeapWALRecord{this->_tableId, newTID, oldTID, buffer};
+        auto record = heap::wal::UpdateHeapWALRecord{this->_tableId, newTID, oldTID, buffer};
         lsn = WALGlobal->WriteLogRecord(record);
     }
 
@@ -334,8 +334,8 @@ void HeapTable::DeleteTuple(ITuple &tuple) {
     auto &heapTuple = dynamic_cast<HeapTuple &>(tuple);
     auto tid = heapTuple.GetTID();
 
-    auto pin = BufferPoolGlobal->GetBuffer(storage::PageTag{this->_tableId, tid.pageno});
-    auto lock = storage::BufferLock{pin.GetBuffer()};
+    auto pin = BufferPoolGlobal->GetBuffer(storage::buffer::PageTag{this->_tableId, tid.pageno});
+    auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
     auto page = HeapPage{pin.GetContents()};
 
     auto &itemId = page.GetItemId(heapTuple.GetTID().itemid);
@@ -350,7 +350,7 @@ void HeapTable::DeleteTuple(ITuple &tuple) {
 
     auto xid = MyTransaction->GetXID();
     auto newTupleHeader =
-        HeapPageTupleHeader{xid, transam::UndoSeqNumber::Invalid, HeapTupleFlags::Deleted, 0};
+        HeapPageTupleHeader{xid, storage::undo::UndoSeqNumber::Invalid, HeapTupleFlags::Deleted, 0};
 
     // Create undo record and save old tuple
     auto oldTupleSer = std::vector<std::byte>{itemId.getLength()};
@@ -374,12 +374,12 @@ void HeapTable::DeleteTuple(ITuple &tuple) {
 }
 
 std::unique_ptr<mi::access::table::ITableScan>
-HeapTable::StartScan(mi::transam::Snapshot *snapshot) {
+HeapTable::StartScan(storage::trans::Snapshot *snapshot) {
     return std::make_unique<HeapTableScan>(snapshot, this);
 }
 
 // Return number of pages for given relation. If
-mi::storage::PageNumber HeapTable::GetPageCount() {
-    auto file = storage::RelFile::Open(this->_tableId, O_RDONLY);
+mi::storage::buffer::PageNumber HeapTable::GetPageCount() {
+    auto file = storage::buffer::RelFile::Open(this->_tableId, O_RDONLY);
     return file.GetPagesCount();
 }

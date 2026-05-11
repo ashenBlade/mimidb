@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace mi::transam {
+namespace mi::storage::trans {
 
 enum ResourceManagerId : int32_t {
     Invalid = 0,

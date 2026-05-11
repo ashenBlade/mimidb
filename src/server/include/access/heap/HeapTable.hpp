@@ -25,10 +25,10 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     const TupleDescriptor *_tupleDescriptor;
 
     // Amount of pages in given relation so far. If Invalid, then unknown
-    mi::storage::PageNumber _pageCountCached;
+    mi::storage::buffer::PageNumber _pageCountCached;
 
     HeapPageTuple formHeapPageTuple(ITuple &tuple) const;
-    storage::BufferPin searchPageFreeSpace(size_t freeSpace) const;
+    storage::buffer::BufferPin searchPageFreeSpace(size_t freeSpace) const;
 
   public:
     HeapTable(Oid tableId, const TupleDescriptor *descriptor);
@@ -38,13 +38,13 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     const TupleDescriptor *GetDescriptor() const override { return this->_tupleDescriptor; }
 
     std::unique_ptr<mi::access::table::ITableScan>
-    StartScan(mi::transam::Snapshot *snapshot) override;
+    StartScan(storage::trans::Snapshot *snapshot) override;
     void InsertTuple(ITuple &tuple) override;
     void UpdateTuple(ITuple &oldTuple, ITuple &newTuple) override;
     void DeleteTuple(ITuple &tuple) override;
 
     // Return number of pages for given relation. If
-    mi::storage::PageNumber GetPageCount();
+    storage::buffer::PageNumber GetPageCount();
 };
 
 }; // namespace mi::access::heap

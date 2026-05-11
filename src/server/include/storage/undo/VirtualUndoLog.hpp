@@ -5,7 +5,7 @@
 #include "utils/NonCopyable.hpp"
 #include <vector>
 
-namespace mi::transam {
+namespace mi::storage::undo {
 class VirtualUndoLog : public NonCopyable {
   private:
     // Locations of all inserted records

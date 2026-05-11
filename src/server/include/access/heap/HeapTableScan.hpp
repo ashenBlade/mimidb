@@ -14,16 +14,16 @@ class HeapTableScan : public table::ITableScan {
     TupleId _tupleId;
     // Number of last page we want to observe (including).
     // Other pages will definitely be created by other transactions so will not be visible to us.
-    storage::PageNumber _lastPageNumber;
+    storage::buffer::PageNumber _lastPageNumber;
     // Snapshot to check tuple visibility
-    transam::Snapshot *_snapshot;
+    storage::trans::Snapshot *_snapshot;
     // Table we are scanning
     access::heap::HeapTable *_table;
     // Scan is ended
     bool _end;
 
   public:
-    HeapTableScan(transam::Snapshot *snapshot, access::heap::HeapTable *table);
+    HeapTableScan(storage::trans::Snapshot *snapshot, access::heap::HeapTable *table);
     /// @brief Start iteration and prepare state
     void BeginScan() override;
     /// @brief Get next tuple from underlying table

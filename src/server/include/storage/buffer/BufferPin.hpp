@@ -4,7 +4,7 @@
 #include "storage/buffer/PageTag.hpp"
 #include <memory>
 
-namespace mi::storage {
+namespace mi::storage::buffer {
 
 /// @brief RAII wrapper above Buffer for pin/unpin logic (for locking see Buffer[Shared]Lock)
 class BufferPin {

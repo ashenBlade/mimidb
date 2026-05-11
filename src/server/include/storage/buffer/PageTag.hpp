@@ -3,7 +3,7 @@
 #include "access/table/Oid.hpp"
 #include "storage/buffer/PageNumber.hpp"
 
-namespace mi::storage {
+namespace mi::storage::buffer {
 struct PageTag {
   public:
     // Relation id

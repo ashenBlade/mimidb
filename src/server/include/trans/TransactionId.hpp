@@ -4,7 +4,7 @@
 // for std::hash<>
 #include <unordered_map>
 
-namespace mi::transam {
+namespace mi::storage::trans {
 
 /// @brief Transaction Identifier
 struct TransactionId final {
@@ -34,9 +34,9 @@ struct TransactionId final {
 }; // namespace mi::transam
 
 namespace std {
-template <> struct hash<mi::transam::TransactionId> {
-    size_t operator()(const mi::transam::TransactionId &xid) const {
-        return std::hash<mi::transam::TransactionId::type>()(xid.value);
+template <> struct hash<mi::storage::trans::TransactionId> {
+    size_t operator()(const mi::storage::trans::TransactionId &xid) const {
+        return std::hash<mi::storage::trans::TransactionId::type>()(xid.value);
     }
 };
 } // namespace std

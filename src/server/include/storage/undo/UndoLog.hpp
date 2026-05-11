@@ -7,7 +7,7 @@
 #include <mutex>
 #include <sys/types.h>
 
-namespace mi::transam {
+namespace mi::storage::undo {
 
 class UndoLog : private NonCopyable {
   private:

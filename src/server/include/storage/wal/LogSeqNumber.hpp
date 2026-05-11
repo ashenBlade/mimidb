@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace mi::transam {
+namespace mi::storage::wal {
 
 /// @brief Log Sequence Number describing address of record in WAL or UNDO
 struct LogSeqNumber final {

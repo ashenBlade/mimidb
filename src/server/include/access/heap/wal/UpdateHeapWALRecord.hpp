@@ -3,8 +3,8 @@
 #include "access/heap/TupleId.hpp"
 #include "access/heap/wal/HeapWALRecord.hpp"
 #include "access/table/Oid.hpp"
-
 #include <cstring>
+#include <vector>
 
 namespace mi::access::heap::wal {
 class UpdateHeapWALRecord : public HeapWALRecord {

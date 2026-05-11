@@ -20,23 +20,23 @@
 
 using namespace mi::access::heap;
 
-void HeapResourceManager::ApplyUndo(mi::transam::IUndoRecord &record, transam::UndoSeqNumber usn) {
-    assert(record.GetRMgrId() == transam::ResourceManagerId::Heap);
+void HeapResourceManager::ApplyUndo(mi::storage::undo::IUndoRecord &record, storage::undo::UndoSeqNumber usn) {
+    assert(record.GetRMgrId() == storage::trans::ResourceManagerId::Heap);
 
     auto &rec = dynamic_cast<undo::HeapUndoRecord &>(record);
     auto visitor = undo::UndoApplierVisitor{usn};
     rec.Accept(visitor);
 }
 
-void HeapResourceManager::ApplyRedo([[maybe_unused]] mi::transam::IWalRecord &record,
-                                    [[maybe_unused]] transam::LogSeqNumber lsn) {
+void HeapResourceManager::ApplyRedo([[maybe_unused]] mi::storage::wal::IWalRecord &record,
+                                    [[maybe_unused]] storage::wal::LogSeqNumber lsn) {
     throw std::runtime_error("not implemented");
 }
 
 HeapResourceManager *HeapResourceManager::Create() { return new HeapResourceManager(); }
 
-std::unique_ptr<mi::transam::IUndoRecord> HeapResourceManager::ParseUndo(uint8_t t, std::byte *data,
-                                                                         size_t length) {
+std::unique_ptr<mi::storage::undo::IUndoRecord> HeapResourceManager::ParseUndo(uint8_t t, std::byte *data,
+                                                                               size_t length) {
     auto type = static_cast<undo::HeapUndoRecordType>(t);
     switch (type) {
     case mi::access::heap::undo::HeapUndoRecordType::Delete: {

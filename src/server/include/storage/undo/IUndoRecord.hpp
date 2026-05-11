@@ -3,12 +3,12 @@
 #include "trans/ResourceManagerId.hpp"
 #include <cstddef>
 
-namespace mi::transam {
+namespace mi::storage::undo {
 
 class IUndoRecord {
   public:
     // Get resource manager for this record
-    virtual ResourceManagerId GetRMgrId() const = 0;
+    virtual trans::ResourceManagerId GetRMgrId() const = 0;
     // Get type of record specific for resource manager
     virtual uint8_t GetType() const = 0;
     // Calculate all size required for this record

@@ -8,7 +8,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 
-namespace mi::storage {
+namespace mi::storage::buffer {
 class BufferManager {
   private:
     /// @brief Mapping between page identifier and it's object

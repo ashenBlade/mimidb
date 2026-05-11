@@ -1,7 +1,7 @@
 #include "trans/Transaction.hpp"
 #include "cluster_state.hpp"
 
-using namespace mi::transam;
+using namespace mi::storage::trans;
 
 void Transaction::BeginNewStatement() {
     auto csn = TransactionManagerGlobal->GetCurrentCSN();

@@ -15,20 +15,20 @@ enum HeapUndoRecordType : uint8_t {
 class IHeapUndoRecordVisitor;
 
 // Base class for all heap undo records
-class HeapUndoRecord : public transam::IUndoRecord {
+class HeapUndoRecord : public storage::undo::IUndoRecord {
   protected:
     HeapUndoRecordType _type;
 
   public:
-    HeapUndoRecord(HeapUndoRecordType type): _type(type) {};
+    HeapUndoRecord(HeapUndoRecordType type) : _type(type) {};
 
     HeapUndoRecord(const HeapUndoRecord &other) = default;
     HeapUndoRecord &operator=(const HeapUndoRecord &other) = default;
     HeapUndoRecord(HeapUndoRecord &&other) = default;
     HeapUndoRecord &operator=(HeapUndoRecord &&other) = default;
 
-    transam::ResourceManagerId GetRMgrId() const override {
-        return transam::ResourceManagerId::Heap;
+    storage::trans::ResourceManagerId GetRMgrId() const override {
+        return storage::trans::ResourceManagerId::Heap;
     }
 
     uint8_t GetType() const override { return this->_type; }

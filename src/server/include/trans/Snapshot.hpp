@@ -2,7 +2,7 @@
 
 #include "trans/CommitSeqNumber.hpp"
 
-namespace mi::transam {
+namespace mi::storage::trans {
 
 class Snapshot {
   private:

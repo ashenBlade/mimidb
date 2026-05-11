@@ -6,20 +6,20 @@
 #include <mutex>
 #include <string>
 
-namespace mi::transam {
+namespace mi::storage::wal {
 
 class WriteAheadLog {
   private:
     /// Path to WAL file
     std::string _path;
     /// File object for underlying WAL
-    storage::File _file;
+    io::File _file;
     /// File size
     off64_t _size;
     /// Lock for writing new entries
     std::mutex _lock;
 
-    WriteAheadLog(std::string path, off64_t size, storage::File _file);
+    WriteAheadLog(std::string path, off64_t size, io::File _file);
 
   public:
     /// @brief Durable write record to WAL

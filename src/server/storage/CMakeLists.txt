@@ -5,4 +5,7 @@ target_sources(
     BufferPin.cpp
     File.cpp
     RelFile.cpp
+    UndoLog.cpp
+    VirtualUndoLog.cpp
+    WriteAheadLog.cpp
 )

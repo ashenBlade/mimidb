@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace mi::transam {
+namespace mi::storage::trans {
 
 struct CommitSeqNumber {
     using type = uint64_t;

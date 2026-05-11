@@ -9,7 +9,7 @@
 #include <shared_mutex>
 #include <stdexcept>
 
-using namespace mi::transam;
+using namespace mi::storage::trans;
 
 TransactionManager::TransactionManager() : _csn(CommitSeqNumber::Min), _xid(TransactionId::Min) {}
 

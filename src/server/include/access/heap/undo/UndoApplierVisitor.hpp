@@ -8,9 +8,9 @@ namespace mi::access::heap::undo {
 class UndoApplierVisitor : public IHeapUndoRecordVisitor {
   private:
     // UndoSeqNumber for record to apply
-    transam::UndoSeqNumber _usn;
+    storage::undo::UndoSeqNumber _usn;
   public:
-    UndoApplierVisitor(transam::UndoSeqNumber usn) : _usn(usn) {};
+    UndoApplierVisitor(storage::undo::UndoSeqNumber usn) : _usn(usn) {};
     void Visit(DeleteUndoRecord &record) override;
     void Visit(UpdateUndoRecord &record) override;
     void Visit(InsertUndoRecord &record) override;

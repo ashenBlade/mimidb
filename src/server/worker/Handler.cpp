@@ -172,7 +172,7 @@ static void verify_transaction_ok() {
     if (mi::MyTransaction == nullptr) {
         throw std::runtime_error("There is no transaction");
     }
-    if (mi::MyTransaction->GetStatus() != mi::transam::TransactionStatus::RUNNING) {
+    if (mi::MyTransaction->GetStatus() != mi::storage::trans::TransactionStatus::RUNNING) {
         throw std::runtime_error("Invalid transaction status");
     }
 }
@@ -326,7 +326,7 @@ static void handle_loop(SocketServer &server, WorkerId id) {
         } catch (std::exception &ex) {
             server.SendStringResult(std::string("ERROR: ") + ex.what());
             if (mi::MyTransaction != nullptr)
-                mi::MyTransaction->SetStatus(mi::transam::TransactionStatus::ABORTED);
+                mi::MyTransaction->SetStatus(mi::storage::trans::TransactionStatus::ABORTED);
         }
     }
 }

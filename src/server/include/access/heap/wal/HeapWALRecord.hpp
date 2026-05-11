@@ -12,14 +12,14 @@ enum HeapWALRecordType : uint8_t {
 };
 
 // Base class for HEAP WAL records
-class HeapWALRecord : public transam::IWalRecord {
+class HeapWALRecord : public storage::wal::IWalRecord {
   protected:
     HeapWALRecordType _type;
 
   public:
     HeapWALRecord(HeapWALRecordType type) : _type(type) {};
-    transam::ResourceManagerId GetRMgrId() const override {
-        return transam::ResourceManagerId::Heap;
+    storage::trans::ResourceManagerId GetRMgrId() const override {
+        return storage::trans::ResourceManagerId::Heap;
     };
     uint8_t GetType() const override { return this->_type; };
 };

@@ -5,7 +5,7 @@
 #include <array>
 #include <stdexcept>
 
-namespace mi::transam {
+namespace mi::storage::trans {
 class ResourceManagerRegistry {
   public:
     static constexpr const int MaxResourceManagers = 128;

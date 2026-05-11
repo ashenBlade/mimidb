@@ -4,7 +4,7 @@
 #include <string>
 #include <unistd.h>
 
-namespace mi::storage {
+namespace mi::storage::io {
 // Wrapper above file descriptor
 class File {
   private:

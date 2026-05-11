@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace mi::transam {
+namespace mi::storage::undo {
 
 /// @brief Undo Sequence Number describing location of record in undo log
 struct UndoSeqNumber final {

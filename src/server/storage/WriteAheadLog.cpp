@@ -9,9 +9,9 @@
 #include <fcntl.h>
 #include <mutex>
 
-using namespace mi::transam;
+using namespace mi::storage::wal;
 
-WriteAheadLog::WriteAheadLog(std::string path, off64_t size, storage::File file)
+WriteAheadLog::WriteAheadLog(std::string path, off64_t size, io::File file)
     : _path(path), _file(std::move(file)), _size(size) {};
 
 LogSeqNumber WriteAheadLog::WriteLogRecord(const IWalRecord &record) {
@@ -37,7 +37,7 @@ LogSeqNumber WriteAheadLog::WriteLogRecord(const IWalRecord &record) {
 }
 
 WriteAheadLog *WriteAheadLog::Open(std::string path) {
-    auto file = storage::File::Open(path, O_RDWR | O_CREAT);
+    auto file = storage::io::File::Open(path, O_RDWR | O_CREAT);
     auto size = file.Size();
     return new WriteAheadLog{path, size, std::move(file)};
 }

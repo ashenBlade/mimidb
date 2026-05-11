@@ -13,10 +13,10 @@ class SeqScan : public IPlanNode {
     /// @brief Table we are going to scan
     mi::access::table::ITable &_table;
     /// @brief Snapshot to use during scan
-    std::shared_ptr<mi::transam::Snapshot> _snapshot;
+    std::shared_ptr<mi::storage::trans::Snapshot> _snapshot;
 
   public:
-    SeqScan(mi::access::table::ITable &table, std::shared_ptr<mi::transam::Snapshot> snapshot);
+    SeqScan(mi::access::table::ITable &table, std::shared_ptr<mi::storage::trans::Snapshot> snapshot);
 
     void Start() override;
     void End() override;

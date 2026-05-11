@@ -3,7 +3,7 @@
 #include "lock/LWLatch.hpp"
 #include <cstddef>
 
-namespace mi::storage {
+namespace mi::storage::buffer {
 
 /// @brief Represents page in buffer pool
 class Buffer {

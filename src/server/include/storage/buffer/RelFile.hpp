@@ -4,18 +4,18 @@
 #include "storage/buffer/PageNumber.hpp"
 #include "storage/io/File.hpp"
 
-namespace mi::storage {
+namespace mi::storage::buffer {
 // Wrapper object for work with page-based files (relations)
 class RelFile {
   private:
-    File _file;
+    io::File _file;
 
   public:
-    RelFile(File &&file);
+    RelFile(io::File &&file);
 
     // Copying is not supported
     RelFile(const RelFile &other) = delete;
-    RelFile &operator=(File &other) = delete;
+    RelFile &operator=(RelFile &other) = delete;
 
     RelFile(RelFile &&other) noexcept;
     RelFile &operator=(RelFile &&other) noexcept;

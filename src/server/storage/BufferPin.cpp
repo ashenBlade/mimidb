@@ -4,7 +4,7 @@
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageTag.hpp"
 
-using namespace mi::storage;
+using namespace mi::storage::buffer;
 
 BufferPin::BufferPin() : _tag(), _buffer(nullptr) {};
 

@@ -4,7 +4,7 @@
 #include "storage/buffer/Buffer.hpp"
 #include <memory>
 
-namespace mi::storage {
+namespace mi::storage::buffer {
 
 template <bool VShared> class BufferLockBase {
   private:

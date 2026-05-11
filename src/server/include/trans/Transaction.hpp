@@ -5,7 +5,7 @@
 #include "trans/TransactionId.hpp"
 #include <memory>
 
-namespace mi::transam {
+namespace mi::storage::trans {
 enum class TransactionStatus {
     RUNNING = 1,   // Executing statement
     COMMITTED = 2, // Successfully comitted
@@ -21,7 +21,7 @@ class Transaction {
     /// @brief Status of current transaction
     TransactionStatus _status;
     /// @brief Undo Log for this transaction
-    std::unique_ptr<VirtualUndoLog> _undoLog;
+    std::unique_ptr<undo::VirtualUndoLog> _undoLog;
 
   public:
     Transaction(TransactionId xid)
@@ -39,14 +39,14 @@ class Transaction {
     TransactionStatus GetStatus() const { return this->_status; }
     void SetStatus(TransactionStatus status) { this->_status = status; }
 
-    VirtualUndoLog &GetUndoLog() {
+    undo::VirtualUndoLog &GetUndoLog() {
         if (this->_undoLog == nullptr) {
-            this->_undoLog = std::make_unique<VirtualUndoLog>();
+            this->_undoLog = std::make_unique<undo::VirtualUndoLog>();
         }
         return *this->_undoLog.get();
     }
 
-    VirtualUndoLog *GetUndoLogIfAny() const { return this->_undoLog.get(); }
+    undo::VirtualUndoLog *GetUndoLogIfAny() const { return this->_undoLog.get(); }
 };
 
 }; // namespace mi::transam
