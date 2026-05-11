@@ -1,10 +1,14 @@
 #include "libmimi/MimiClient.hpp"
 
+#include <cstddef>
+#include <cstring>
 #include <endian.h>
 #include <netinet/in.h>
+#include <optional>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sstream>
 
 using namespace mi::interface::libmimi;
 
@@ -60,11 +64,39 @@ extern void MimiClient::recvBuffer(std::byte *buffer, size_t length) {
     auto cursor = buffer;
     while (left > 0) {
         auto ret = recv(this->_socket, cursor, static_cast<size_t>(left), 0);
-        if (ret < 0) {
+        if (ret <= 0) {
             throw std::runtime_error("could not recv");
         }
         left -= static_cast<ssize_t>(ret);
         cursor += ret;
+    }
+}
+
+bool MimiClient::recvBufferOpt(std::byte *buffer, size_t length) {
+    auto left = static_cast<ssize_t>(length);
+    auto cursor = buffer;
+    while (left > 0) {
+        auto ret = recv(this->_socket, cursor, static_cast<size_t>(left), 0);
+        if (ret == 0) {
+            return false;
+        } else if (ret < 0) {
+            std::stringstream str {"could not recv: "};
+            str << strerror(errno);
+            throw std::runtime_error(str.str());
+        }
+        left -= static_cast<ssize_t>(ret);
+        cursor += ret;
+    }
+
+    return true;
+}
+
+extern std::optional<int8_t> MimiClient::ReceiveInt8Opt() {
+    int8_t value;
+    if (this->recvBufferOpt(reinterpret_cast<std::byte *>(&value), sizeof(value))) {
+        return value;
+    } else {
+        return std::nullopt;
     }
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <vector>
 #include <cstdint>
 #include <string>
@@ -12,6 +13,7 @@ private:
 
     void sendBuffer(const std::byte *buffer, size_t length);
     void recvBuffer(std::byte *buffer, size_t length);
+    bool recvBufferOpt(std::byte *buffer, size_t length);
 public:
     MimiClient(int sock);
     
@@ -30,6 +32,7 @@ public:
     void SendString(const std::string &buffer);
 
     // Receive functions
+    std::optional<int8_t> ReceiveInt8Opt();
     int8_t ReceiveInt8();
     int16_t ReceiveInt16();
     int32_t ReceiveInt32();

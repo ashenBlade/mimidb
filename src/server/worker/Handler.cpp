@@ -80,8 +80,12 @@ class SocketServer {
     SocketServer(int socket, WorkerId id) : _id(id), _client(socket) {}
 
     std::optional<CommandType> ReadNextCommand() {
-        char type = this->_client.ReceiveInt8();
-        switch (type) {
+        auto type = this->_client.ReceiveInt8Opt();
+        if (!type.has_value()) {
+            return std::nullopt;
+        }
+
+        switch (type.value()) {
         case 'S':
             return CommandType::SELECT;
         case 'I':
@@ -97,7 +101,7 @@ class SocketServer {
         case 'R':
             return CommandType::ROLLBACK;
         default:
-            throw std::runtime_error("operation not supported: " + std::to_string(type));
+            throw std::runtime_error("operation not supported: " + std::to_string(type.value()));
         }
     };
 
