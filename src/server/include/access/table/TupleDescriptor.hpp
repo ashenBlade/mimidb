@@ -1,7 +1,7 @@
 #pragma once
 
 #include "access/table/AttrNumber.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include <vector>
 
 namespace mi::access::table {

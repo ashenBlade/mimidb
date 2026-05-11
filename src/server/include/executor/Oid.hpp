@@ -1,8 +1,7 @@
 #pragma once
 
 #include <cstdint>
-// keep for std::hash impl
-#include <unordered_map>
+#include <bits/functional_hash.h>
 
 namespace mi {
 

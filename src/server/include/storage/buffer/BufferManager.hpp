@@ -1,6 +1,6 @@
 #pragma once
 
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include "storage/buffer/Buffer.hpp"
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageTag.hpp"
@@ -39,4 +39,4 @@ class BufferManager {
 
     ~BufferManager();
 };
-}; // namespace mi::storage
+}; // namespace mi::storage::buffer

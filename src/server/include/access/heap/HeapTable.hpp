@@ -3,7 +3,7 @@
 #include "access/heap/HeapPageTuple.hpp"
 #include "access/table/ITable.hpp"
 #include "access/table/ITuple.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageNumber.hpp"

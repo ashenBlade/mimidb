@@ -8,7 +8,8 @@ namespace mi {
 ///        it must be known to caller
 union Datum final {
   private:
-    /// @brief Actual value of datum stored as some scalar large enough to store both largest scalar type and pointer
+    /// @brief Actual value of datum stored as some scalar large enough to store both largest scalar
+    /// type and pointer
     std::ptrdiff_t _value;
 
   public:

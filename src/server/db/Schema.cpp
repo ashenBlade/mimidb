@@ -1,6 +1,6 @@
 #include "db/Schema.hpp"
-#include "access/table/Oid.hpp"
 #include "db/catalog/TableInfo.hpp"
+#include "executor/Oid.hpp"
 #include <stdexcept>
 
 using namespace mi::db;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "access/table/Datum.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Datum.hpp"
+#include "executor/Oid.hpp"
 #include <functional>
 #include <string>
 

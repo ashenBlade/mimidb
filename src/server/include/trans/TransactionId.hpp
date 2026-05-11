@@ -1,8 +1,7 @@
 #pragma once
 
 #include <cstdint>
-// for std::hash<>
-#include <unordered_map>
+#include <bits/functional_hash.h>
 
 namespace mi::storage::trans {
 

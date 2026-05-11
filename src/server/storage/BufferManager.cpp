@@ -1,5 +1,5 @@
 #include "storage/buffer/BufferManager.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include "mi_config.hpp"
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageTag.hpp"

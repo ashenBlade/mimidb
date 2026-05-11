@@ -41,4 +41,4 @@ class BufferPin {
     /// @brief At the end return this to buffer pool and unpin
     ~BufferPin();
 };
-}; // namespace mi::storage
+}; // namespace mi::storage::buffer

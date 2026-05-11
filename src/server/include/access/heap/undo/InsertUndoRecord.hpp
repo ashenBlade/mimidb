@@ -1,7 +1,7 @@
 #pragma once
 
 #include "access/heap/undo/HeapUndoRecord.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include "access/heap/TupleId.hpp"
 
 #include <vector>

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "access/table/ITable.hpp"
-#include "access/table/Oid.hpp"
 #include "db/Schema.hpp"
+#include "executor/Oid.hpp"
 #include "utils/NonCopyable.hpp"
 #include <memory>
 

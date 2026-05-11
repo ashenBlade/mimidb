@@ -2,7 +2,7 @@
 
 #include "access/heap/TupleId.hpp"
 #include "access/heap/wal/HeapWALRecord.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 
 namespace mi::access::heap::wal {
 class DeleteHeapWALRecord : public HeapWALRecord {

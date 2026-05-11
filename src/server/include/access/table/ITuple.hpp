@@ -1,7 +1,7 @@
 #pragma once
 
 #include "access/table/AttrNumber.hpp"
-#include "access/table/Datum.hpp"
+#include "executor/Datum.hpp"
 #include <optional>
 
 namespace mi::access::table {

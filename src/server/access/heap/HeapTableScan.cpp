@@ -47,7 +47,8 @@ static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::Tupl
     return std::make_unique<HeapTuple>(descr, std::move(tuple), tid);
 }
 
-static bool tuple_is_visible(const mi::storage::trans::Snapshot &snapshot, HeapPageTupleHeader *header) {
+static bool tuple_is_visible(const mi::storage::trans::Snapshot &snapshot,
+                             HeapPageTupleHeader *header) {
     auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(header->xid);
 
     assert(!csn.IsInvalid());

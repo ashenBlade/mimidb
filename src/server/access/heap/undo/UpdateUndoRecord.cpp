@@ -1,7 +1,7 @@
 #include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
 #include "access/heap/undo/IHeapUndoRecordVisitor.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include <cstring>
 
 using namespace mi::access::heap::undo;

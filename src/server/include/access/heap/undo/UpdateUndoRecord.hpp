@@ -2,7 +2,7 @@
 
 #include "access/heap/undo/HeapUndoRecord.hpp"
 #include "access/heap/TupleId.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 
 #include <vector>
 

@@ -1,8 +1,7 @@
 #pragma once
 
+#include <bits/functional_hash.h>
 #include <cstdint>
-// for std::hash<>
-#include <unordered_map>
 
 namespace mi::storage::buffer {
 struct PageNumber {
@@ -17,19 +16,15 @@ struct PageNumber {
 
     operator uint32_t() { return this->value; };
     bool operator==(const PageNumber &other) const noexcept { return this->value == other.value; }
-    template<class T>
-    bool operator==(T value) const noexcept { 
-        return this->value == value;
-    }
+    template <class T> bool operator==(T value) const noexcept { return this->value == value; }
 
-    template <class T>
-    PageNumber operator+(T value) { return PageNumber{this->value + value}; }
+    template <class T> PageNumber operator+(T value) { return PageNumber{this->value + value}; }
 
     PageNumber &operator++() {
         this->value++;
         return *this;
     }
-    
+
     PageNumber operator++(int) {
         auto copy = *this;
         this->value++;
@@ -43,7 +38,7 @@ struct PageNumber {
     // Maximal page number
     static constexpr const type Max = UINT32_MAX - 1;
 };
-} // namespace mi::storage
+} // namespace mi::storage::buffer
 
 namespace std {
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "access/table/Oid.hpp"
 #include "access/table/TupleDescriptor.hpp"
+#include "executor/Oid.hpp"
 
 namespace mi::db::catalog {
 class TableInfo {

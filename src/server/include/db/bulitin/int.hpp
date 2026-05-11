@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "access/table/Datum.hpp"
+#include "executor/Datum.hpp"
 
 namespace mi::db::builtin {
 

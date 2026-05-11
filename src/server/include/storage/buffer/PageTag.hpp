@@ -1,7 +1,8 @@
 #pragma once
 
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include "storage/buffer/PageNumber.hpp"
+#include <cstddef>
 
 namespace mi::storage::buffer {
 struct PageTag {
@@ -31,4 +32,4 @@ struct PageTagHash {
         return std::hash<Oid>()(tag.Relid) ^ (std::hash<PageNumber>()(tag.PageNo) << 1);
     }
 };
-} // namespace mi::storage
+} // namespace mi::storage::buffer

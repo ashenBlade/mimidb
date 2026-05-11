@@ -2,7 +2,7 @@
 
 #include "access/heap/TupleId.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 
 namespace mi::access::heap::undo {
 class DeleteUndoRecord : public HeapUndoRecord {

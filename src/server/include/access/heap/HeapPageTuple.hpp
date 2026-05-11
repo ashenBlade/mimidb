@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "access/heap/HeapPageTupleHeader.hpp"
-#include "access/table/Datum.hpp"
+#include "executor/Datum.hpp"
 
 namespace mi::access::heap {
 

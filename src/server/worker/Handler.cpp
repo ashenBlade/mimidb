@@ -1,7 +1,7 @@
 #include "worker/Handler.hpp"
 #include "MimiClient.hpp"
 #include "access/table/AttrNumber.hpp"
-#include "access/table/Datum.hpp"
+#include "executor/Datum.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "cluster_state.hpp"

@@ -4,7 +4,7 @@
 #include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UndoApplierVisitor.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include "storage/undo/IUndoRecord.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
 #include "storage/wal/IWalRecord.hpp"
@@ -20,7 +20,8 @@
 
 using namespace mi::access::heap;
 
-void HeapResourceManager::ApplyUndo(mi::storage::undo::IUndoRecord &record, storage::undo::UndoSeqNumber usn) {
+void HeapResourceManager::ApplyUndo(mi::storage::undo::IUndoRecord &record,
+                                    storage::undo::UndoSeqNumber usn) {
     assert(record.GetRMgrId() == storage::trans::ResourceManagerId::Heap);
 
     auto &rec = dynamic_cast<undo::HeapUndoRecord &>(record);
@@ -35,8 +36,8 @@ void HeapResourceManager::ApplyRedo([[maybe_unused]] mi::storage::wal::IWalRecor
 
 HeapResourceManager *HeapResourceManager::Create() { return new HeapResourceManager(); }
 
-std::unique_ptr<mi::storage::undo::IUndoRecord> HeapResourceManager::ParseUndo(uint8_t t, std::byte *data,
-                                                                               size_t length) {
+std::unique_ptr<mi::storage::undo::IUndoRecord>
+HeapResourceManager::ParseUndo(uint8_t t, std::byte *data, size_t length) {
     auto type = static_cast<undo::HeapUndoRecordType>(t);
     switch (type) {
     case mi::access::heap::undo::HeapUndoRecordType::Delete: {

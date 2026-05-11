@@ -1,6 +1,6 @@
 #pragma once
 
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include "storage/buffer/PageNumber.hpp"
 #include "storage/io/File.hpp"
 

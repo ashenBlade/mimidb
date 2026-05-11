@@ -2,7 +2,7 @@
 
 #include "access/heap/TupleId.hpp"
 #include "access/heap/wal/HeapWALRecord.hpp"
-#include "access/table/Oid.hpp"
+#include "executor/Oid.hpp"
 #include <cstring>
 #include <vector>
 

@@ -2,6 +2,7 @@
 
 #include "trans/ResourceManagerId.hpp"
 #include "trans/TransactionId.hpp"
+#include <cstddef>
 
 namespace mi::storage::wal {
 
