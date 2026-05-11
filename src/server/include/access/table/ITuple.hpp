@@ -1,9 +1,8 @@
 #pragma once
 
-#include <optional>
-
-#include "access/table/Datum.hpp"
 #include "access/table/AttrNumber.hpp"
+#include "access/table/Datum.hpp"
+#include <optional>
 
 namespace mi::access::table {
 

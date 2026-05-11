@@ -3,15 +3,11 @@
 
 using namespace mi::storage;
 
-Buffer::Buffer(std::byte *contents): _contents(contents), _latch(), _dirty(false) { };
+Buffer::Buffer(std::byte *contents) : _contents(contents), _latch(), _dirty(false) {};
 
-std::byte *Buffer::GetContents() {
-    return _contents;
-}
+std::byte *Buffer::GetContents() { return _contents; }
 
-const std::byte *Buffer::GetContents() const {
-    return _contents;
-}
+const std::byte *Buffer::GetContents() const { return _contents; }
 
 void Buffer::Lock(bool shared) {
     auto mode = shared ? lock::LockMode::Share : lock::LockMode::Exclusive;

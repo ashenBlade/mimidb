@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lock/LockMode.hpp"
-
 #include <shared_mutex>
 
 namespace mi::lock {

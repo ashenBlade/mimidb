@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+// for std::hash<>
 #include <unordered_map>
 
 namespace mi::storage {

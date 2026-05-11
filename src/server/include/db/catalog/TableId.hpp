@@ -7,4 +7,4 @@ enum TableId {
     MainTableId = 1,
 };
 
-}; // namespace mi::schema
+}; // namespace mi::schema::catalog

@@ -1,9 +1,6 @@
-#include "mimidb.hpp"
-
-#include "storage/undo/UndoSeqNumber.hpp"
 #include "storage/undo/VirtualUndoLog.hpp"
-
 #include "cluster_state.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
 
 mi::transam::UndoSeqNumber mi::transam::VirtualUndoLog::InsertRecord(IUndoRecord &record) {
     auto usn = UndoLogGlobal->InsertUndoRecord(record);

@@ -1,8 +1,8 @@
 #pragma once
 
+#include "storage/undo/VirtualUndoLog.hpp"
 #include "trans/Snapshot.hpp"
 #include "trans/TransactionId.hpp"
-#include "storage/undo/VirtualUndoLog.hpp"
 #include <memory>
 
 namespace mi::transam {

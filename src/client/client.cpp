@@ -1,17 +1,15 @@
+#include "MimiClient.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cctype>
+#include <iostream>
 #include <locale>
 #include <netinet/in.h>
 #include <stdexcept>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#include <cassert>
-#include <iostream>
 #include <vector>
-
-#include "MimiClient.hpp"
 
 void sendTcl(mi::interface::libmimi::MimiClient &client, char command) {
     client.SendInt8(command);

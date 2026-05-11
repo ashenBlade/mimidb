@@ -1,7 +1,4 @@
-#include "mimidb.hpp"
-
 #include "access/heap/HeapTuple.hpp"
-
 #include "access/table/AttrNumber.hpp"
 #include "access/table/Datum.hpp"
 #include <stdexcept>

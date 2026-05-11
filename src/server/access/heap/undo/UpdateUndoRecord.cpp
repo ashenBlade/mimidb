@@ -1,10 +1,7 @@
-#include "mimidb.hpp"
-
 #include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
-#include "access/table/Oid.hpp"
 #include "access/heap/undo/IHeapUndoRecordVisitor.hpp"
-
+#include "access/table/Oid.hpp"
 #include <cstring>
 
 using namespace mi::access::heap::undo;
@@ -15,7 +12,8 @@ UpdateUndoRecord::UpdateUndoRecord(Oid tableId, TupleId oldLocation, TupleId new
       NewLocation(newLocation), TupleData(std::move(tupleData)) {}
 
 size_t UpdateUndoRecord::CalculateSize() const {
-    return sizeof(this->TableId) + sizeof(this->OldLocation) + sizeof(this->NewLocation) + this->TupleData.size();
+    return sizeof(this->TableId) + sizeof(this->OldLocation) + sizeof(this->NewLocation) +
+           this->TupleData.size();
 }
 
 void UpdateUndoRecord::Serialize(std::byte *buffer) {
@@ -33,6 +31,4 @@ void UpdateUndoRecord::Serialize(std::byte *buffer) {
     std::memcpy(cursor, this->TupleData.data(), this->TupleData.size());
 }
 
-void UpdateUndoRecord::Accept(IHeapUndoRecordVisitor &visitor) {
-    visitor.Visit(*this);
-}
+void UpdateUndoRecord::Accept(IHeapUndoRecordVisitor &visitor) { visitor.Visit(*this); }

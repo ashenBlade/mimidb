@@ -1,16 +1,12 @@
+#include "access/heap/HeapTupleSerializer.hpp"
+#include "access/heap/HeapPageTupleHeader.hpp"
+#include "access/table/AttrNumber.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "mimidb.hpp"
-
-#include "access/heap/HeapPageTupleHeader.hpp"
-#include "access/heap/HeapTupleSerializer.hpp"
-#include "access/table/AttrNumber.hpp"
-#include "trans/TransactionId.hpp"
 #include "utils/BitUtils.hpp"
-
 #include <bitset>
 #include <cstddef>
 #include <cstring>
-#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -48,9 +44,9 @@ uint16_t HeapTupleSerializer::CalculateSize(const HeapPageTuple &tuple,
     return totalSize;
 }
 
-std::vector<std::byte>
-HeapTupleSerializer::Serialize(const HeapPageTuple &tuple, const table::TupleDescriptor &desc,
-                               size_t size) {
+std::vector<std::byte> HeapTupleSerializer::Serialize(const HeapPageTuple &tuple,
+                                                      const table::TupleDescriptor &desc,
+                                                      size_t size) {
     auto isnull = tuple.Nulls();
     auto values = tuple.Values();
     auto maxAttno = desc.GetMaxAttrNumber();

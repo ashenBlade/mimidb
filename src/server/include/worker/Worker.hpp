@@ -1,10 +1,8 @@
 #pragma once
 
-#include <unistd.h>
-
-#include <thread>
-
 #include "worker/WorkerId.hpp"
+#include <thread>
+#include <unistd.h>
 
 namespace mi::worker {
 class Worker {
@@ -34,7 +32,7 @@ class Worker {
 
     // Copying is not allowed
     Worker(const Worker &worker) = delete;
-    Worker &operator=(const Worker& other) = delete;
+    Worker &operator=(const Worker &other) = delete;
 
     WorkerId GetId() const;
 

@@ -1,17 +1,19 @@
 #include "mimidb.hpp"
-#include "access/table/Oid.hpp"
-#include "storage/buffer/BufferManager.hpp"
-#include "storage/buffer/BufferPin.hpp"
-#include "storage/buffer/RelFile.hpp"
-#include "storage/buffer/PageTag.hpp"
 
-#include <array>
+#include "storage/buffer/BufferManager.hpp"
+
+#include "access/table/Oid.hpp"
+#include "storage/buffer/BufferPin.hpp"
+#include "storage/buffer/PageTag.hpp"
+#include "storage/buffer/RelFile.hpp"
+
+#include <fcntl.h>
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
-#include <fcntl.h>
 
 using namespace mi::storage;
 using namespace mi;
@@ -57,7 +59,7 @@ void BufferManager::FlushBuffer([[maybe_unused]] BufferPin &pin) {
 
 BufferPin BufferManager::ExtendRelation(Oid relid) {
     // For now for this operation use single lock for whole buffer manager.
-    // This locks both internal map and 
+    // This locks both internal map and
     auto lock = std::lock_guard{this->_mutex};
     auto file = RelFile::Open(relid, O_WRONLY);
 

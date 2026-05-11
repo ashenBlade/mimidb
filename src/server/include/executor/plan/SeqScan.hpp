@@ -1,10 +1,9 @@
 #pragma once
 
-#include <memory>
-
 #include "access/table/ITable.hpp"
 #include "access/table/ITableScan.hpp"
 #include "executor/plan/IPlanNode.hpp"
+#include <memory>
 
 namespace mi::executor::plan {
 class SeqScan : public IPlanNode {

@@ -1,5 +1,3 @@
-#include "mimidb.hpp"
-
 #include "access/heap/HeapResourceManager.hpp"
 #include "access/heap/undo/DeleteUndoRecord.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
@@ -12,14 +10,13 @@
 #include "storage/wal/IWalRecord.hpp"
 #include "storage/wal/LogSeqNumber.hpp"
 #include "trans/ResourceManagerId.hpp"
-
+#include <assert.h>
 #include <cstddef>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
 
 using namespace mi::access::heap;
 
@@ -38,55 +35,57 @@ void HeapResourceManager::ApplyRedo([[maybe_unused]] mi::transam::IWalRecord &re
 
 HeapResourceManager *HeapResourceManager::Create() { return new HeapResourceManager(); }
 
-std::unique_ptr<mi::transam::IUndoRecord> HeapResourceManager::ParseUndo(uint8_t t, std::byte *data, size_t length) {
+std::unique_ptr<mi::transam::IUndoRecord> HeapResourceManager::ParseUndo(uint8_t t, std::byte *data,
+                                                                         size_t length) {
     auto type = static_cast<undo::HeapUndoRecordType>(t);
     switch (type) {
-        case mi::access::heap::undo::HeapUndoRecordType::Delete: {
-            if (length != undo::DeleteUndoRecord::Size) {
-                throw std::runtime_error("record size does not match");
-            }
-
-            auto cursor = data;
-
-            auto tableId = *reinterpret_cast<Oid *>(cursor);
-            cursor += sizeof(Oid);
-            auto tupleId = *reinterpret_cast<TupleId *>(cursor);
-
-            return std::make_unique<undo::DeleteUndoRecord>(tableId, tupleId);
+    case mi::access::heap::undo::HeapUndoRecordType::Delete: {
+        if (length != undo::DeleteUndoRecord::Size) {
+            throw std::runtime_error("record size does not match");
         }
-        case mi::access::heap::undo::HeapUndoRecordType::Update: {
-            auto cursor = data;
-            auto tableId = *reinterpret_cast<Oid *>(cursor);
-            cursor += sizeof(Oid);
 
-            auto oldLocation = *reinterpret_cast<TupleId *>(cursor);
-            cursor += sizeof(TupleId);
+        auto cursor = data;
 
-            auto newLocation = *reinterpret_cast<TupleId *>(cursor);
-            cursor += sizeof(TupleId);
+        auto tableId = *reinterpret_cast<Oid *>(cursor);
+        cursor += sizeof(Oid);
+        auto tupleId = *reinterpret_cast<TupleId *>(cursor);
 
-            // Calculate serialized tuple length
-            length -= sizeof(Oid) + sizeof(TupleId) + sizeof(TupleId);
+        return std::make_unique<undo::DeleteUndoRecord>(tableId, tupleId);
+    }
+    case mi::access::heap::undo::HeapUndoRecordType::Update: {
+        auto cursor = data;
+        auto tableId = *reinterpret_cast<Oid *>(cursor);
+        cursor += sizeof(Oid);
 
-            auto tupleData = std::vector<std::byte>(length);
-            std::memcpy(tupleData.data(), cursor, length);
+        auto oldLocation = *reinterpret_cast<TupleId *>(cursor);
+        cursor += sizeof(TupleId);
 
-            return std::make_unique<undo::UpdateUndoRecord>(tableId, oldLocation, newLocation, std::move(tupleData));
-        }
-        case mi::access::heap::undo::HeapUndoRecordType::Insert: {
-            auto cursor = data;
+        auto newLocation = *reinterpret_cast<TupleId *>(cursor);
+        cursor += sizeof(TupleId);
 
-            auto tableId = *reinterpret_cast<Oid *>(cursor);
-            cursor += sizeof(Oid);
+        // Calculate serialized tuple length
+        length -= sizeof(Oid) + sizeof(TupleId) + sizeof(TupleId);
 
-            auto location = *reinterpret_cast<TupleId *>(cursor);
-            cursor += sizeof(TupleId);
+        auto tupleData = std::vector<std::byte>(length);
+        std::memcpy(tupleData.data(), cursor, length);
 
-            auto buffer = std::vector<std::byte>(length - sizeof(Oid) - sizeof(TupleId));
-            std::memcpy(buffer.data(), cursor, buffer.size());
+        return std::make_unique<undo::UpdateUndoRecord>(tableId, oldLocation, newLocation,
+                                                        std::move(tupleData));
+    }
+    case mi::access::heap::undo::HeapUndoRecordType::Insert: {
+        auto cursor = data;
 
-            return std::make_unique<undo::InsertUndoRecord>(tableId, location, std::move(buffer));
-        }
+        auto tableId = *reinterpret_cast<Oid *>(cursor);
+        cursor += sizeof(Oid);
+
+        auto location = *reinterpret_cast<TupleId *>(cursor);
+        cursor += sizeof(TupleId);
+
+        auto buffer = std::vector<std::byte>(length - sizeof(Oid) - sizeof(TupleId));
+        std::memcpy(buffer.data(), cursor, buffer.size());
+
+        return std::make_unique<undo::InsertUndoRecord>(tableId, location, std::move(buffer));
+    }
     }
 
     throw std::runtime_error("unknown heap record type: " + std::to_string(t));

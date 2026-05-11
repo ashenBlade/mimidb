@@ -1,31 +1,22 @@
+#include "access/heap/HeapPage.hpp"
+#include "access/heap/HeapPageHeader.hpp"
 #include "access/heap/ItemId.hpp"
 #include "mimidb.hpp"
-
+#include "storage/wal/LogSeqNumber.hpp"
 #include <cassert>
 #include <cstring>
-#include <stdexcept>
-
-#include "access/heap/HeapPageHeader.hpp"
-#include "storage/wal/LogSeqNumber.hpp"
-#include "access/heap/HeapPage.hpp"
 
 using namespace mi::access::heap;
 
-HeapPage::HeapPage(std::byte *buffer): _buffer(buffer) {
-    assert(buffer != nullptr);
-};
+HeapPage::HeapPage(std::byte *buffer) : _buffer(buffer) { assert(buffer != nullptr); };
 
 static HeapPageHeader *cast_header(std::byte *bytes) {
     return reinterpret_cast<HeapPageHeader *>(bytes);
 }
 
-const HeapPageHeader& HeapPage::GetHeader() const {
-    return *cast_header(_buffer);
-};
+const HeapPageHeader &HeapPage::GetHeader() const { return *cast_header(_buffer); };
 
-HeapPageHeader& HeapPage::GetHeader() {
-    return *cast_header(_buffer);
-};
+HeapPageHeader &HeapPage::GetHeader() { return *cast_header(_buffer); };
 
 static uint16_t page_nitems(HeapPageHeader *header) {
     auto length = header->lower - SizeOfHeapPageHeader;
@@ -38,7 +29,8 @@ uint16_t HeapPage::ItemsCount() const {
 }
 
 static ItemId *header_get_itemid(HeapPageHeader *header, int index) {
-    ItemId *array = reinterpret_cast<ItemId *>(reinterpret_cast<char *>(header) + SizeOfHeapPageHeader);
+    ItemId *array =
+        reinterpret_cast<ItemId *>(reinterpret_cast<char *>(header) + SizeOfHeapPageHeader);
     return &array[index];
 }
 

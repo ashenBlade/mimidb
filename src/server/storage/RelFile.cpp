@@ -35,7 +35,7 @@ void RelFile::Write(const std::byte *buffer, PageNumber pageno) {
 }
 
 void RelFile::Extend(PageNumber pageno) {
-    std::array<std::byte, PAGESIZE> buffer {};
+    std::array<std::byte, PAGESIZE> buffer{};
     buffer.fill(std::byte{0});
     this->Write(buffer.data(), pageno);
 }
@@ -68,4 +68,3 @@ RelFile RelFile::Open(Oid relid, int mode) {
     auto filepath = std::format("data/{}", relid.value);
     return RelFile{File::Open(filepath, mode)};
 }
-

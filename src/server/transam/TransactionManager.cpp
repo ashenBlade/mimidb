@@ -1,16 +1,13 @@
-#include "mimidb.hpp"
-
+#include "trans/TransactionManager.hpp"
 #include "lock/Spin.hpp"
+#include "mimidb.hpp"
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionId.hpp"
-#include "worker_state.hpp"
 #include <atomic>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
-
-#include "trans/TransactionManager.hpp"
 
 using namespace mi::transam;
 
@@ -36,7 +33,7 @@ CommitSeqNumber TransactionManager::GetTransactionCsn(TransactionId xid) {
 
 Transaction *TransactionManager::BeginNewTransaction() {
     auto xid = std::atomic_fetch_add(&this->_xid, 1);
-    
+
     auto lock = std::lock_guard{this->_mutex};
     // Create transaction object only in the lock, because otherwise there may be race condition
     auto transaction = std::make_unique<Transaction>(xid);
@@ -47,16 +44,16 @@ Transaction *TransactionManager::BeginNewTransaction() {
 
 CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
     // First mark transaction as committing
-    WITH (auto lock = std::lock_guard{this->_mutex}) {
+    WITH(auto lock = std::lock_guard{this->_mutex}) {
         this->_history[xid] = CommitSeqNumber::Committing;
     }
 
     // Then obtain it's CSN and mark as committed
     auto csn = std::atomic_fetch_add(&this->_csn, 1);
 
-    WITH (auto lock = std::lock_guard{this->_mutex}) {
+    WITH(auto lock = std::lock_guard{this->_mutex}) {
         this->_history[xid] = csn;
-        
+
         // And finally, remove transaction object
         auto it = this->_state.find(xid);
         if (it == this->_state.end()) {

@@ -4,7 +4,7 @@
 
 using namespace mi::lock;
 
-LWLatch::LWLatch(): _mutex() {};
+LWLatch::LWLatch() : _mutex() {};
 
 void LWLatch::Lock(LockMode mode) {
     if (mode == LockMode::Exclusive) {

@@ -21,28 +21,19 @@ struct AttrNumber {
     operator std::size_t() const { return value; };
     operator uint16_t() const { return value; }
 
-    template<class T>
-    bool operator==(T other) {
-        return this->value == other;
-    }
+    template <class T> bool operator==(T other) { return this->value == other; }
 
-    bool operator==(const AttrNumber &other) {
-        return this->value == other.value;
-    }
+    bool operator==(const AttrNumber &other) { return this->value == other.value; }
 
-    bool operator<=(const AttrNumber &other) const {
-        return this->value <= other.value;
-    }
-    
-    bool operator<(const AttrNumber &other) const {
-        return this->value < other.value;
-    }
+    bool operator<=(const AttrNumber &other) const { return this->value <= other.value; }
+
+    bool operator<(const AttrNumber &other) const { return this->value < other.value; }
 
     AttrNumber &operator++() {
         this->value++;
         return *this;
     }
-    
+
     AttrNumber operator++(int) {
         auto copy = *this;
         this->value++;

@@ -12,11 +12,11 @@ struct PageTag {
     PageNumber PageNo;
 
     PageTag() : Relid(Oid::Invalid), PageNo(PageNumber::Invalid) {};
-    PageTag(Oid relid, PageNumber pageno): Relid(relid), PageNo(pageno) {};
+    PageTag(Oid relid, PageNumber pageno) : Relid(relid), PageNo(pageno) {};
 
     PageTag(const PageTag &other) = default;
     PageTag &operator=(const PageTag &other) = default;
-    
+
     PageTag(PageTag &&other) = default;
     PageTag &operator=(PageTag &&other) = default;
 

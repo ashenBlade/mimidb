@@ -1,21 +1,22 @@
 #pragma once
 
-#include <optional>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace mi::interface::libmimi {
 class MimiClient final {
-private:
+  private:
     // Socket for communication
     int _socket;
 
     void sendBuffer(const std::byte *buffer, size_t length);
     void recvBuffer(std::byte *buffer, size_t length);
     bool recvBufferOpt(std::byte *buffer, size_t length);
-public:
+
+  public:
     MimiClient(int sock);
-    
+
     MimiClient(const MimiClient &) = delete;
     MimiClient &operator=(const MimiClient &) = delete;
 
@@ -38,7 +39,7 @@ public:
     int64_t ReceiveInt64();
     void ReceiveBuffer(std::byte *buffer, size_t length);
     std::string ReceiveString();
-    
+
     // Close connection
     void Close();
 

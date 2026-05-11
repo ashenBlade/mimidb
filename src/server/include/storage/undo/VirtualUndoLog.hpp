@@ -1,10 +1,9 @@
 #pragma once
 
-#include <vector>
-
-#include "storage/undo/UndoSeqNumber.hpp"
 #include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
 #include "utils/NonCopyable.hpp"
+#include <vector>
 
 namespace mi::transam {
 class VirtualUndoLog : public NonCopyable {

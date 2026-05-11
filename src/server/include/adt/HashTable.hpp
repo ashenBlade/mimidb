@@ -5,7 +5,8 @@
 #include <unordered_map>
 
 namespace mi::adt {
-template <class TKey, class TValue, class THash = std::hash<TKey>, class TKeyEqual = std::equal_to<TKey>>
+template <class TKey, class TValue, class THash = std::hash<TKey>,
+          class TKeyEqual = std::equal_to<TKey>>
 class HashTable {
   private:
     /// @brief lock to protect contents during operations

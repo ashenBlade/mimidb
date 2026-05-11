@@ -1,9 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "lock/Barrier.hpp"
 #include "storage/buffer/Buffer.hpp"
+#include <memory>
 
 namespace mi::storage {
 

@@ -1,30 +1,25 @@
-#include "mimidb.hpp"
-
+#include "access/heap/HeapTableScan.hpp"
+#include "access/heap/HeapPage.hpp"
 #include "access/heap/HeapPageTupleHeader.hpp"
+#include "access/heap/HeapTuple.hpp"
 #include "access/heap/HeapTupleSerializer.hpp"
 #include "access/heap/undo/HeapUndoRecord.hpp"
 #include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "access/table/TupleDescriptor.hpp"
-
+#include "cluster_state.hpp"
+#include "storage/buffer/BufferLock.hpp"
+#include "storage/buffer/PageNumber.hpp"
+#include "trans/CommitSeqNumber.hpp"
+#include "trans/ResourceManagerId.hpp"
+#include "trans/Snapshot.hpp"
+#include "trans/TransactionId.hpp"
 #include <cstddef>
 #include <cstring>
 #include <fcntl.h>
 #include <memory>
 #include <stdexcept>
 #include <unistd.h>
-
-#include "access/heap/HeapPage.hpp"
-#include "access/heap/HeapTableScan.hpp"
-#include "access/heap/HeapTuple.hpp"
-#include "storage/buffer/BufferLock.hpp"
-#include "storage/buffer/PageNumber.hpp"
-
-#include "cluster_state.hpp"
-#include "trans/CommitSeqNumber.hpp"
-#include "trans/ResourceManagerId.hpp"
-#include "trans/Snapshot.hpp"
-#include "trans/TransactionId.hpp"
 
 using namespace mi::access::heap;
 
@@ -69,9 +64,10 @@ static bool tuple_is_visible(const mi::transam::Snapshot &snapshot, HeapPageTupl
     return false;
 }
 
-static std::unique_ptr<HeapTuple> find_visible_tuple_page(HeapPageTupleHeader *header,
-                                                          const mi::access::table::TupleDescriptor *descriptor,
-                                                          mi::transam::Snapshot &snapshot) {
+static std::unique_ptr<HeapTuple>
+find_visible_tuple_page(HeapPageTupleHeader *header,
+                        const mi::access::table::TupleDescriptor *descriptor,
+                        mi::transam::Snapshot &snapshot) {
     auto usn = header->undo;
     std::unique_ptr<HeapTuple> tuple = nullptr;
     while (usn.IsValid()) {
@@ -87,14 +83,14 @@ static std::unique_ptr<HeapTuple> find_visible_tuple_page(HeapPageTupleHeader *h
         case undo::HeapUndoRecordType::Update: {
             auto updateRecord = dynamic_cast<undo::UpdateUndoRecord *>(record.get());
 
-            // We find visible version only at the same location, because if tuple is not visible, then
-            // we can find another visible version during scan.
+            // We find visible version only at the same location, because if tuple is not visible,
+            // then we can find another visible version during scan.
             if (updateRecord->NewLocation != updateRecord->OldLocation) {
                 return nullptr;
             }
 
             auto tuple = reinterpret_cast<HeapPageTupleHeader *>(updateRecord->TupleData.data());
-            
+
             auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(tuple->xid);
             assert(!csn.IsCommitting());
 
@@ -161,7 +157,8 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
             tuple = build_heap_tuple(this->_table->GetDescriptor(), header,
                                      TupleId{pagetag.PageNo, index});
         } else {
-            tuple = find_visible_tuple_page(header, this->_table->GetDescriptor(), *this->_snapshot);
+            tuple =
+                find_visible_tuple_page(header, this->_table->GetDescriptor(), *this->_snapshot);
         }
 
         if (tuple) {

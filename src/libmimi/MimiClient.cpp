@@ -1,18 +1,17 @@
 #include "MimiClient.hpp"
-
 #include <cstddef>
 #include <cstring>
 #include <endian.h>
 #include <netinet/in.h>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <sstream>
 
 using namespace mi::interface::libmimi;
 
-extern MimiClient::MimiClient(int sock): _socket(sock) {};
+extern MimiClient::MimiClient(int sock) : _socket(sock){};
 
 extern void MimiClient::sendBuffer(const std::byte *buffer, size_t length) {
     auto left = static_cast<ssize_t>(length);
@@ -80,7 +79,7 @@ bool MimiClient::recvBufferOpt(std::byte *buffer, size_t length) {
         if (ret == 0) {
             return false;
         } else if (ret < 0) {
-            std::stringstream str {"could not recv: "};
+            std::stringstream str{"could not recv: "};
             str << strerror(errno);
             throw std::runtime_error(str.str());
         }
@@ -139,12 +138,10 @@ extern void MimiClient::Close() {
     if (this->_socket == -1) {
         return;
     }
-    
+
     shutdown(this->_socket, SHUT_RDWR);
     close(this->_socket);
     this->_socket = -1;
 }
 
-extern MimiClient::~MimiClient() {
-    this->Close();
-}
+extern MimiClient::~MimiClient() { this->Close(); }

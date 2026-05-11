@@ -1,21 +1,17 @@
-#include "mimidb.hpp"
-
+#include "worker/Handler.hpp"
 #include "MimiClient.hpp"
-
 #include "access/table/AttrNumber.hpp"
 #include "access/table/Datum.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
+#include "cluster_state.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "executor/VirtualTuple.hpp"
-
-#include "cluster_state.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionManager.hpp"
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
-
 #include <algorithm>
 #include <cstring>
 #include <exception>
@@ -26,8 +22,6 @@
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#include "worker/Handler.hpp"
 
 using namespace mi::worker;
 using AttrNumber = mi::access::table::AttrNumber;
@@ -209,10 +203,8 @@ static void handle_update(SocketServer &server) {
 
     auto val1 = server.ReadInt32();
     auto val2 = server.ReadInt16();
-    auto newTuple = mi::executor::VirtualTuple{
-        std::vector{mi::Datum{val1}, mi::Datum{val2}},
-        std::vector{false, false}
-    };
+    auto newTuple = mi::executor::VirtualTuple{std::vector{mi::Datum{val1}, mi::Datum{val2}},
+                                               std::vector{false, false}};
 
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::MainTableId);
 

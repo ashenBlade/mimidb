@@ -1,12 +1,11 @@
 #pragma once
 
-#include <memory>
-#include <mutex>
-#include <sys/types.h>
-
 #include "storage/undo/IUndoRecord.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
 #include "utils/NonCopyable.hpp"
+#include <memory>
+#include <mutex>
+#include <sys/types.h>
 
 namespace mi::transam {
 
@@ -20,10 +19,10 @@ class UndoLog : private NonCopyable {
     off64_t _size;
 
     UndoLog(std::string path, off64_t size);
-    
-    UndoSeqNumber getCurrentUSN() const;
-  public:
 
+    UndoSeqNumber getCurrentUSN() const;
+
+  public:
     /// @brief Insert new undo record
     UndoSeqNumber InsertUndoRecord(IUndoRecord &record);
 
@@ -33,10 +32,11 @@ class UndoLog : private NonCopyable {
     /// @brief Read record from undo loc for specified transaction and CSN
     /// @param xid Transaction Id to which record belong
     /// @param usn Number of target undo record
-    /// @param length Out parameter to which total record length is saved (for debugging and assertions)
+    /// @param length Out parameter to which total record length is saved (for debugging and
+    /// assertions)
     /// @return Pointer to byte array of this record
     std::unique_ptr<IUndoRecord> GetRecord(UndoSeqNumber usn);
-    
+
     static UndoLog *Open(std::string path);
 };
 

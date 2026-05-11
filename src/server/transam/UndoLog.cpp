@@ -1,7 +1,12 @@
-#include "mimidb.hpp"
-
+#include "storage/undo/UndoLog.hpp"
+#include "cluster_state.hpp"
 #include "storage/io/File.hpp"
-
+#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/UndoLogRecordHeader.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
+#include "trans/TransactionId.hpp"
+#include "utils/BitUtils.hpp"
+#include "worker_state.hpp"
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -11,18 +16,9 @@
 #include <stdexcept>
 #include <vector>
 
-#include "storage/undo/UndoLog.hpp"
-#include "storage/undo/IUndoRecord.hpp"
-#include "storage/undo/UndoLogRecordHeader.hpp"
-#include "storage/undo/UndoSeqNumber.hpp"
-#include "trans/TransactionId.hpp"
-#include "utils/BitUtils.hpp"
-#include "worker_state.hpp"
-#include "cluster_state.hpp"
-
 using namespace mi::transam;
 
-UndoLog::UndoLog(std::string path, off64_t size): _path(path), _size(size) {};
+UndoLog::UndoLog(std::string path, off64_t size) : _path(path), _size(size) {};
 
 UndoLog *UndoLog::Open(std::string path) {
     auto file = storage::File::Open(path, O_RDONLY | O_CREAT);
@@ -32,7 +28,8 @@ UndoLog *UndoLog::Open(std::string path) {
 
 static UndoLogRecordHeader read_header(mi::storage::File &file, off64_t offset) {
     UndoLogRecordHeader header;
-    auto read = file.Read(reinterpret_cast<std::byte *>(&header), sizeof(UndoLogRecordHeader), offset);
+    auto read =
+        file.Read(reinterpret_cast<std::byte *>(&header), sizeof(UndoLogRecordHeader), offset);
     if (read != sizeof(UndoLogRecordHeader)) {
         throw std::runtime_error("could not read UndoLogRecordHeader");
     }
@@ -67,7 +64,7 @@ static std::vector<std::byte> format_undo_record(TransactionId xid, IUndoRecord 
     auto size = record.CalculateSize();
     auto fullSize = sizeof(UndoLogRecordHeader) + mi::MaxAlign(size);
     auto buffer = std::vector<std::byte>(fullSize);
-    auto header = UndoLogRecordHeader{xid,record.GetRMgrId(), record.GetType(), size};
+    auto header = UndoLogRecordHeader{xid, record.GetRMgrId(), record.GetType(), size};
 
     auto cursor = buffer.data();
 
@@ -88,7 +85,7 @@ UndoSeqNumber UndoLog::getCurrentUSN() const {
 UndoSeqNumber UndoLog::InsertUndoRecord(IUndoRecord &record) {
     auto file = storage::File::Open(this->_path, O_WRONLY);
     auto xid = MyTransaction->GetXID();
-    
+
     auto buffer = format_undo_record(xid, record);
     auto guard = std::lock_guard{this->_writeMutex};
 

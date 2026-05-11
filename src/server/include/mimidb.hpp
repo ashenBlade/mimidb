@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include <cassert>
+#include <cstdint>
 
 namespace mi {
 
@@ -10,7 +10,6 @@ constexpr int PAGESIZE = 8192;
 
 constexpr uint32_t BITS_PER_BYTE = 8;
 
-};
+}; // namespace mi
 
-
-#define WITH(expr)      if (expr; true)
+#define WITH(expr) if (expr; true)

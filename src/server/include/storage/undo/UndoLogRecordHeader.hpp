@@ -1,9 +1,8 @@
 #pragma once
 
-#include <cstdint>
-
 #include "trans/ResourceManagerId.hpp"
 #include "trans/TransactionId.hpp"
+#include <cstdint>
 
 namespace mi::transam {
 
@@ -18,4 +17,4 @@ struct UndoLogRecordHeader {
     uint64_t DataLength;
 };
 
-}
+} // namespace mi::transam

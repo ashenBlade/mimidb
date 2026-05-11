@@ -1,11 +1,10 @@
 #pragma once
 
-#include <memory>
-
 #include "access/table/ITable.hpp"
 #include "access/table/Oid.hpp"
 #include "db/Schema.hpp"
 #include "utils/NonCopyable.hpp"
+#include <memory>
 
 namespace mi::db {
 class Database : private NonCopyable {
@@ -24,11 +23,7 @@ class Database : private NonCopyable {
     std::shared_ptr<mi::access::table::ITable> OpenTable(mi::Oid tableId);
 
     /// @brief Get database schema
-    Schema *GetSchema() {
-      return this->_schema.get();
-    }
-    const Schema *GetSchema() const {
-      return this->_schema.get();
-    }
+    Schema *GetSchema() { return this->_schema.get(); }
+    const Schema *GetSchema() const { return this->_schema.get(); }
 };
 }; // namespace mi::db

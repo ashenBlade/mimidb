@@ -1,7 +1,4 @@
-#include "mimidb.hpp"
-
 #include "access/heap/HeapResourceManager.hpp"
-
 #include "access/table/Oid.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
@@ -13,16 +10,15 @@
 #include "db/catalog/TypeId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "storage/buffer/BufferManager.hpp"
+#include "storage/undo/UndoLog.hpp"
+#include "storage/wal/WriteAheadLog.hpp"
 #include "trans/ResourceManagerId.hpp"
 #include "trans/ResourceManagerRegistry.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionManager.hpp"
-#include "storage/undo/UndoLog.hpp"
-#include "storage/wal/WriteAheadLog.hpp"
 #include "worker/Worker.hpp"
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
-
 #include <cerrno>
 #include <csignal>
 #include <cstring>
@@ -240,7 +236,7 @@ static void setupStorage() {
         exit(1);
     }
     close(fd);
-    
+
     fd = creat("wal", 0666);
     if (fd < 0) {
         std::cerr << "could not open wal: " << strerror(errno) << std::endl;

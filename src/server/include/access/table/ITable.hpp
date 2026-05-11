@@ -1,11 +1,10 @@
 #pragma once
 
-#include <memory>
-
 #include "access/table/ITableScan.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "trans/Snapshot.hpp"
+#include <memory>
 
 namespace mi::access::table {
 
@@ -21,7 +20,8 @@ class ITable {
     /// @param tuple Tuple to insert
     virtual void InsertTuple(ITuple &tuple) = 0;
     /// @brief Update existing tuple with new one
-    /// @param oldTuple Tuple to update. Type must be exactly the same as one's that returned by scan
+    /// @param oldTuple Tuple to update. Type must be exactly the same as one's that returned by
+    /// scan
     /// @param newTuple New tuple contents
     virtual void UpdateTuple(ITuple &oldTuple, ITuple &newTuple) = 0;
     /// @brief Delete existing tuple

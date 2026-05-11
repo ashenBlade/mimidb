@@ -1,12 +1,9 @@
-#include "mimidb.hpp"
-
+#include "worker/Worker.hpp"
+#include "cluster_state.hpp"
+#include "worker/Handler.hpp"
 #include <exception>
 #include <iostream>
 #include <stdexcept>
-
-#include "cluster_state.hpp"
-#include "worker/Worker.hpp"
-#include "worker/Handler.hpp"
 
 using namespace mi::worker;
 
@@ -16,9 +13,7 @@ Worker::Worker(WorkerId id) : _id(id) { assert(id.IsValid()); };
 
 Worker::Worker(Worker &&other) noexcept { this->swap(other); }
 
-void Worker::swap(Worker &other) noexcept {
-    std::swap(this->_id, other._id);
-}
+void Worker::swap(Worker &other) noexcept { std::swap(this->_id, other._id); }
 
 Worker &Worker::operator=(Worker &&other) noexcept {
     this->swap(other);
@@ -27,9 +22,7 @@ Worker &Worker::operator=(Worker &&other) noexcept {
 
 WorkerId Worker::GetId() const { return this->_id; }
 
-bool Worker::IsBusy() const {
-    return this->_busy;
-}
+bool Worker::IsBusy() const { return this->_busy; }
 
 void Worker::HandleUserConnectionGuts(WorkerId id, int sock) {
     try {
@@ -46,7 +39,7 @@ void Worker::Submit(int sock) {
     if (this->_busy) {
         throw std::logic_error("Can not submit handler because worker already running");
     }
-    
+
     // There already was some execution earlier
     if (this->_thread.joinable()) {
         this->_thread.join();

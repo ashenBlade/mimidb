@@ -2,6 +2,7 @@
 
 #include "trans/ResourceManagerId.hpp"
 #include "trans/TransactionId.hpp"
+
 namespace mi::transam {
 
 struct WALRecordHeader {
@@ -13,4 +14,4 @@ struct WALRecordHeader {
     size_t Length;
 };
 
-};
+}; // namespace mi::transam

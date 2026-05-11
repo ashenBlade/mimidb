@@ -4,7 +4,7 @@
 
 namespace mi::transam {
 
-enum ResourceManagerId: int32_t {
+enum ResourceManagerId : int32_t {
     Invalid = 0,
     Heap = 1,
 };

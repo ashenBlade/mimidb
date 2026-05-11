@@ -1,9 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "storage/buffer/Buffer.hpp"
 #include "storage/buffer/PageTag.hpp"
+#include <memory>
 
 namespace mi::storage {
 

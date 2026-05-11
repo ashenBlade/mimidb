@@ -4,12 +4,8 @@
 
 using namespace mi::lock;
 
-Semaphore::Semaphore(): _sema(1) {};
+Semaphore::Semaphore() : _sema(1) {};
 
-void Semaphore::Lock() {
-    this->_sema.acquire();
-}
+void Semaphore::Lock() { this->_sema.acquire(); }
 
-void Semaphore::Unlock() {
-    this->_sema.release();
-}
+void Semaphore::Unlock() { this->_sema.release(); }

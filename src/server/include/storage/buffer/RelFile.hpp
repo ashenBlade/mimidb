@@ -12,7 +12,7 @@ class RelFile {
 
   public:
     RelFile(File &&file);
-    
+
     // Copying is not supported
     RelFile(const RelFile &other) = delete;
     RelFile &operator=(File &other) = delete;
@@ -24,22 +24,22 @@ class RelFile {
 
     // Write single page
     void Write(const std::byte *buffer, PageNumber pageno);
-    
+
     // Extend relation file up to specified page (including) with zeroes
     void Extend(PageNumber pageno);
 
     // Read single page
     void Read(std::byte *buffer, PageNumber pageno);
-    
+
     // Perform fsync
     void Flush();
-    
+
     // Get number of pages in given relation
     PageNumber GetPagesCount();
 
     // Close this RelFile releasing all resources
     void Close();
-    
+
     /// Open new relation file in specified mode
     /// @param mode File mode to open file with
     static RelFile Open(Oid relid, int mode);

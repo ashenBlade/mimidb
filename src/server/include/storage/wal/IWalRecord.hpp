@@ -2,7 +2,7 @@
 
 #include "trans/ResourceManagerId.hpp"
 #include <cstddef>
-#include <vector>
+
 namespace mi::transam {
 
 // Interface for representing custom WAL record

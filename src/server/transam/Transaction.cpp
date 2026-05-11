@@ -1,7 +1,5 @@
-#include "cluster_state.hpp"
-#include "mimidb.hpp"
-
 #include "trans/Transaction.hpp"
+#include "cluster_state.hpp"
 
 using namespace mi::transam;
 
@@ -11,4 +9,3 @@ void Transaction::BeginNewStatement() {
 
     this->_snapshot = std::move(snapshot);
 }
- 

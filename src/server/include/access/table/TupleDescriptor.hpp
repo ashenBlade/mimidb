@@ -1,9 +1,8 @@
 #pragma once
 
-#include <vector>
-
 #include "access/table/AttrNumber.hpp"
 #include "access/table/Oid.hpp"
+#include <vector>
 
 namespace mi::access::table {
 class AttributeDescriptor {
@@ -30,13 +29,14 @@ class TupleDescriptor {
     std::vector<AttributeDescriptor> _attributes;
 
   public:
-    TupleDescriptor(const std::vector<AttributeDescriptor> &attributes) : _attributes(attributes) {};
+    TupleDescriptor(const std::vector<AttributeDescriptor> &attributes)
+        : _attributes(attributes) {};
     TupleDescriptor(std::vector<AttributeDescriptor> &&attributes)
         : _attributes(std::move(attributes)) {};
     std::vector<AttributeDescriptor> &Attributes() { return this->_attributes; }
     const std::vector<AttributeDescriptor> &Attributes() const { return this->_attributes; }
     AttrNumber GetMaxAttrNumber() const {
-      return AttrNumber{static_cast<AttrNumber::type>(this->_attributes.size())};
+        return AttrNumber{static_cast<AttrNumber::type>(this->_attributes.size())};
     }
 };
 

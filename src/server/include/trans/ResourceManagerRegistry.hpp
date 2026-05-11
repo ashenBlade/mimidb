@@ -1,10 +1,9 @@
 #pragma once
 
-#include <array>
-#include <stdexcept>
-
 #include "trans/IResourceManager.hpp"
 #include "trans/ResourceManagerId.hpp"
+#include <array>
+#include <stdexcept>
 
 namespace mi::transam {
 class ResourceManagerRegistry {
@@ -28,7 +27,7 @@ class ResourceManagerRegistry {
         if (this->_managers[static_cast<uint32_t>(rmgrId)]) {
             throw std::runtime_error("Resource manager already exists");
         }
-        
+
         this->_managers[static_cast<uint32_t>(rmgrId)] = manager;
     }
 };

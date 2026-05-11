@@ -1,19 +1,13 @@
-#include "mimidb.hpp"
-
-#include <exception>
-#include <mutex>
-#include <algorithm>
-#include <iostream>
-
 #include "worker/WorkerManager.hpp"
-#include "worker/Handler.hpp"
+#include <algorithm>
+#include <mutex>
 
 using namespace mi::worker;
 
 WorkerManager::WorkerManager(int workersCount) : _workers() {
     for (int i = 0; i < workersCount; i++) {
         _workers.emplace_back(Worker{i});
-    }    
+    }
 };
 
 bool WorkerManager::StartNewSession(int sock) {
@@ -24,7 +18,8 @@ bool WorkerManager::StartNewSession(int sock) {
         }
     }
 
-    auto worker = std::find_if(this->_workers.begin(), this->_workers.end(), [](const Worker &worker) { return !worker.IsBusy();});
+    auto worker = std::find_if(this->_workers.begin(), this->_workers.end(),
+                               [](const Worker &worker) { return !worker.IsBusy(); });
     if (worker == this->_workers.end()) {
         return false;
     }

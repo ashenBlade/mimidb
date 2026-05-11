@@ -1,14 +1,13 @@
 #pragma once
 
-#include <atomic>
-#include <memory>
-#include <shared_mutex>
-#include <unordered_map>
-
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionId.hpp"
 #include "utils/NonCopyable.hpp"
+#include <atomic>
+#include <memory>
+#include <shared_mutex>
+#include <unordered_map>
 
 namespace mi::transam {
 class TransactionManager : private NonCopyable {

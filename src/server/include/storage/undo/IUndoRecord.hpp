@@ -1,8 +1,7 @@
 #pragma once
 
-#include <cstddef>
-
 #include "trans/ResourceManagerId.hpp"
+#include <cstddef>
 
 namespace mi::transam {
 

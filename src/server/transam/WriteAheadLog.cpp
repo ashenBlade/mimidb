@@ -1,5 +1,4 @@
-#include "mimidb.hpp"
-
+#include "storage/wal/WriteAheadLog.hpp"
 #include "storage/io/File.hpp"
 #include "storage/wal/IWalRecord.hpp"
 #include "storage/wal/LogSeqNumber.hpp"
@@ -9,11 +8,11 @@
 #include <cstdio>
 #include <fcntl.h>
 #include <mutex>
-#include "storage/wal/WriteAheadLog.hpp"
 
 using namespace mi::transam;
 
-WriteAheadLog::WriteAheadLog(std::string path, off64_t size, storage::File file): _path(path), _file(std::move(file)), _size(size) {};
+WriteAheadLog::WriteAheadLog(std::string path, off64_t size, storage::File file)
+    : _path(path), _file(std::move(file)), _size(size) {};
 
 LogSeqNumber WriteAheadLog::WriteLogRecord(const IWalRecord &record) {
     auto xid = MyTransaction->GetXID();

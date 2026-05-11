@@ -1,14 +1,13 @@
 #pragma once
 
-#include <memory>
-
 #include "access/table/ITuple.hpp"
+#include <memory>
 
 namespace mi::access::table {
 
 /// @brief Access method specific table iterator state
 class ITableScan {
-public:
+  public:
     /// @brief Start iteration and prepare state
     virtual void BeginScan() = 0;
     /// @brief Get next tuple from underlying table
@@ -20,4 +19,4 @@ public:
     virtual ~ITableScan() = default;
 };
 
-};
+}; // namespace mi::access::table

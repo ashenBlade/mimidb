@@ -1,21 +1,21 @@
 #include "mimidb.hpp"
 
-#include "storage/io/File.hpp"
-
+#include <fcntl.h>
+#include <unistd.h>
 #include <cstdio>
+#include <format>
 #include <stdexcept>
 #include <system_error>
-#include <unistd.h>
-#include <fcntl.h>
-#include <format>
+
+#include "storage/io/File.hpp"
 
 using namespace mi::storage;
 
 constexpr const int InvalidFd = -1;
 
-File::File(): _fd(InvalidFd) {};
+File::File() : _fd(InvalidFd) {};
 
-File::File(int fd): _fd(fd) {};
+File::File(int fd) : _fd(fd) {};
 
 File::File(File &&other) noexcept {
     assert(this != &other);
@@ -47,7 +47,7 @@ size_t File::Read(std::byte *buffer, size_t size, off64_t offset) {
     if (ret < 0) {
         throw_error("read");
     }
-    
+
     return static_cast<size_t>(ret);
 }
 
@@ -74,9 +74,7 @@ void File::Close() {
     }
 }
 
-File::~File() {
-    this->Close();
-}
+File::~File() { this->Close(); }
 
 File File::Open(const std::string &path, int mode) {
     auto fd = open(path.c_str(), mode, 0666);
