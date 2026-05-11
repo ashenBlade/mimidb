@@ -5,9 +5,9 @@
 #include "access/heap/undo/UndoApplierVisitor.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
 #include "executor/Oid.hpp"
-#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/IRMgrUndoRecord.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
-#include "storage/wal/IWalRecord.hpp"
+#include "storage/wal/IRMgrWalRecord.hpp"
 #include "storage/wal/LogSeqNumber.hpp"
 #include "trans/ResourceManagerId.hpp"
 #include <assert.h>
@@ -20,7 +20,7 @@
 
 using namespace mi::access::heap;
 
-void HeapResourceManager::ApplyUndo(mi::storage::undo::IUndoRecord &record,
+void HeapResourceManager::ApplyUndo(mi::storage::undo::IRMgrUndoRecord &record,
                                     storage::undo::UndoSeqNumber usn) {
     assert(record.GetRMgrId() == storage::trans::ResourceManagerId::Heap);
 
@@ -29,14 +29,14 @@ void HeapResourceManager::ApplyUndo(mi::storage::undo::IUndoRecord &record,
     rec.Accept(visitor);
 }
 
-void HeapResourceManager::ApplyRedo([[maybe_unused]] mi::storage::wal::IWalRecord &record,
+void HeapResourceManager::ApplyRedo([[maybe_unused]] mi::storage::wal::IRMgrWalRecord &record,
                                     [[maybe_unused]] storage::wal::LogSeqNumber lsn) {
     throw std::runtime_error("not implemented");
 }
 
 HeapResourceManager *HeapResourceManager::Create() { return new HeapResourceManager(); }
 
-std::unique_ptr<mi::storage::undo::IUndoRecord>
+std::unique_ptr<mi::storage::undo::IRMgrUndoRecord>
 HeapResourceManager::ParseUndo(uint8_t t, std::byte *data, size_t length) {
     auto type = static_cast<undo::HeapUndoRecordType>(t);
     switch (type) {

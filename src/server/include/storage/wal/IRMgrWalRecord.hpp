@@ -3,21 +3,21 @@
 #include "trans/ResourceManagerId.hpp"
 #include <cstddef>
 
-namespace mi::storage::undo {
+namespace mi::storage::wal {
 
-class IUndoRecord {
+// Resource manager specific WAL record
+class IRMgrWalRecord {
   public:
-    // Get resource manager for this record
+    // Get Resource Manager Id for this record
     virtual trans::ResourceManagerId GetRMgrId() const = 0;
     // Get type of record specific for resource manager
     virtual uint8_t GetType() const = 0;
-    // Calculate all size required for this record
+    // Get size of serialized record
     virtual size_t CalculateSize() const = 0;
     // Serialize record and store it into passed buffer.
     // Size of buffer is at least what CalculateSize() returns.
-    virtual void Serialize(std::byte *buffer) = 0;
-
-    virtual ~IUndoRecord() = default;
+    virtual void Serialize(std::byte *buffer) const = 0;
+    virtual ~IRMgrWalRecord() = default;
 };
 
 } // namespace mi::transam

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/IRMgrUndoRecord.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
 #include "utils/NonCopyable.hpp"
 #include <vector>
@@ -13,7 +13,7 @@ class VirtualUndoLog : public NonCopyable {
 
   public:
     // Insert new record into global undo log
-    UndoSeqNumber InsertRecord(IUndoRecord &record);
+    UndoSeqNumber InsertRecord(IRMgrUndoRecord &record);
     // Perform undo of all written entries for this virtual log
     void UndoAllRecords();
 };

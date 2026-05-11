@@ -1,6 +1,6 @@
 #include "storage/wal/WriteAheadLog.hpp"
 #include "storage/io/File.hpp"
-#include "storage/wal/IWalRecord.hpp"
+#include "storage/wal/IRMgrWalRecord.hpp"
 #include "storage/wal/LogSeqNumber.hpp"
 #include "storage/wal/WALRecordHeader.hpp"
 #include "worker_state.hpp"
@@ -14,7 +14,7 @@ using namespace mi::storage::wal;
 WriteAheadLog::WriteAheadLog(std::string path, off64_t size, io::File file)
     : _path(path), _file(std::move(file)), _size(size) {};
 
-LogSeqNumber WriteAheadLog::WriteLogRecord(const IWalRecord &record) {
+LogSeqNumber WriteAheadLog::WriteLogRecord(const IRMgrWalRecord &record) {
     auto xid = MyTransaction->GetXID();
     auto header = WALRecordHeader{xid, record.GetRMgrId(), record.CalculateSize()};
 

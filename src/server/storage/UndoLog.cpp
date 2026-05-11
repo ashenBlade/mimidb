@@ -1,7 +1,7 @@
 #include "storage/undo/UndoLog.hpp"
 #include "cluster_state.hpp"
 #include "storage/io/File.hpp"
-#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/IRMgrUndoRecord.hpp"
 #include "storage/undo/UndoLogRecordHeader.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
 #include "trans/TransactionId.hpp"
@@ -37,7 +37,7 @@ static UndoLogRecordHeader read_header(mi::storage::io::File &file, off64_t offs
     return header;
 }
 
-std::unique_ptr<IUndoRecord> UndoLog::GetRecord(UndoSeqNumber usn) {
+std::unique_ptr<IRMgrUndoRecord> UndoLog::GetRecord(UndoSeqNumber usn) {
     assert(usn.IsValid());
 
     // Открываем UndoLog файл
@@ -59,7 +59,7 @@ std::unique_ptr<IUndoRecord> UndoLog::GetRecord(UndoSeqNumber usn) {
     return manager.ParseUndo(header.RecordType, buffer.data(), buffer.size());
 }
 
-static std::vector<std::byte> format_undo_record(mi::storage::trans::TransactionId xid, IUndoRecord &record) {
+static std::vector<std::byte> format_undo_record(mi::storage::trans::TransactionId xid, IRMgrUndoRecord &record) {
     // Align data
     auto size = record.CalculateSize();
     auto fullSize = sizeof(UndoLogRecordHeader) + mi::BitUtils::MaxAlign(size);
@@ -82,7 +82,7 @@ UndoSeqNumber UndoLog::getCurrentUSN() const {
     return UndoSeqNumber{this->_size + 1};
 }
 
-UndoSeqNumber UndoLog::InsertUndoRecord(IUndoRecord &record) {
+UndoSeqNumber UndoLog::InsertUndoRecord(IRMgrUndoRecord &record) {
     auto file = io::File::Open(this->_path, O_WRONLY);
     auto xid = MyTransaction->GetXID();
 

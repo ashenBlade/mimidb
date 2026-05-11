@@ -1,6 +1,6 @@
 #pragma once
 
-#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/IRMgrUndoRecord.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
 #include "utils/NonCopyable.hpp"
 #include <memory>
@@ -24,7 +24,7 @@ class UndoLog : private NonCopyable {
 
   public:
     /// @brief Insert new undo record
-    UndoSeqNumber InsertUndoRecord(IUndoRecord &record);
+    UndoSeqNumber InsertUndoRecord(IRMgrUndoRecord &record);
 
     /// @brief Undo record at given location
     void PerformUndo(UndoSeqNumber usn);
@@ -35,7 +35,7 @@ class UndoLog : private NonCopyable {
     /// @param length Out parameter to which total record length is saved (for debugging and
     /// assertions)
     /// @return Pointer to byte array of this record
-    std::unique_ptr<IUndoRecord> GetRecord(UndoSeqNumber usn);
+    std::unique_ptr<IRMgrUndoRecord> GetRecord(UndoSeqNumber usn);
 
     static UndoLog *Open(std::string path);
 };

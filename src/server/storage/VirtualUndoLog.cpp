@@ -3,7 +3,7 @@
 
 using namespace mi::storage::undo;
 
-UndoSeqNumber VirtualUndoLog::InsertRecord(IUndoRecord &record) {
+UndoSeqNumber VirtualUndoLog::InsertRecord(IRMgrUndoRecord &record) {
     auto usn = UndoLogGlobal->InsertUndoRecord(record);
     this->_history.push_back(usn);
     return usn;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "storage/io/File.hpp"
-#include "storage/wal/IWalRecord.hpp"
+#include "storage/wal/IRMgrWalRecord.hpp"
 #include "storage/wal/LogSeqNumber.hpp"
 #include <mutex>
 #include <string>
@@ -24,7 +24,7 @@ class WriteAheadLog {
   public:
     /// @brief Durable write record to WAL
     /// @return LSN at which record is written
-    LogSeqNumber WriteLogRecord(const IWalRecord &record);
+    LogSeqNumber WriteLogRecord(const IRMgrWalRecord &record);
 
     static WriteAheadLog *Open(std::string path);
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "storage/wal/IWalRecord.hpp"
+#include "storage/wal/IRMgrWalRecord.hpp"
 #include "trans/ResourceManagerId.hpp"
 #include <cstdint>
 
@@ -12,7 +12,7 @@ enum HeapWALRecordType : uint8_t {
 };
 
 // Base class for HEAP WAL records
-class HeapWALRecord : public storage::wal::IWalRecord {
+class HeapWALRecord : public storage::wal::IRMgrWalRecord {
   protected:
     HeapWALRecordType _type;
 

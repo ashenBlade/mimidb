@@ -1,7 +1,7 @@
 #pragma once
 
 #include "access/heap/undo/HeapUndoRecord.hpp"
-#include "storage/undo/IUndoRecord.hpp"
+#include "storage/undo/IRMgrUndoRecord.hpp"
 #include "trans/ResourceManagerId.hpp"
 
 namespace mi::access::heap::undo {
@@ -15,7 +15,7 @@ enum HeapUndoRecordType : uint8_t {
 class IHeapUndoRecordVisitor;
 
 // Base class for all heap undo records
-class HeapUndoRecord : public storage::undo::IUndoRecord {
+class HeapUndoRecord : public storage::undo::IRMgrUndoRecord {
   protected:
     HeapUndoRecordType _type;
 
