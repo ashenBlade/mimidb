@@ -2,7 +2,7 @@
 #include "access/heap/HeapPageTupleHeader.hpp"
 #include "access/table/AttrNumber.hpp"
 #include "access/table/TupleDescriptor.hpp"
-#include "mimidb.hpp"
+#include "mi_config.hpp"
 #include "utils/BitUtils.hpp"
 #include <bitset>
 #include <cstddef>
@@ -64,12 +64,13 @@ std::vector<std::byte> HeapTupleSerializer::Serialize(const HeapPageTuple &tuple
     if (tuple.Header().flags & HeapTupleFlags::HasNulls) {
         uint8_t *bitmap = reinterpret_cast<uint8_t *>(cursor);
 
-        auto nfullbytes = isnull.size() / BITS_PER_BYTE;
+        auto nfullbytes = isnull.size() / Config::BitsPerByte;
         auto nbytes = BitmapSize(isnull.size());
         auto byte = 0U;
         for (; byte < nbytes; byte++) {
-            auto set = std::bitset<BITS_PER_BYTE>{0};
-            auto maxBits = byte == nfullbytes ? isnull.size() % BITS_PER_BYTE : BITS_PER_BYTE;
+            auto set = std::bitset<Config::BitsPerByte>{0};
+            auto maxBits =
+                byte == nfullbytes ? isnull.size() % Config::BitsPerByte : Config::BitsPerByte;
 
             for (auto bit = 0U; bit < maxBits; ++bit) {
                 set.set(bit, !isnull[byte * 8 + bit]);

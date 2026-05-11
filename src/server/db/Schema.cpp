@@ -1,13 +1,13 @@
+#include "db/Schema.hpp"
 #include "access/table/Oid.hpp"
 #include "db/catalog/TableInfo.hpp"
-#include "mimidb.hpp"
 #include <stdexcept>
-
-#include "db/Schema.hpp"
 
 using namespace mi::db;
 
-Schema::Schema(std::unordered_map<Oid, catalog::TableInfo> &&tables, std::unordered_map<Oid, catalog::TypeInfo> &&types): _tables(std::move(tables)), _types(std::move(types)) {};
+Schema::Schema(std::unordered_map<Oid, catalog::TableInfo> &&tables,
+               std::unordered_map<Oid, catalog::TypeInfo> &&types)
+    : _tables(std::move(tables)), _types(std::move(types)) {};
 
 template <class T>
 static const T &map_get_entry(mi::Oid id, const std::unordered_map<mi::Oid, T> &map) {

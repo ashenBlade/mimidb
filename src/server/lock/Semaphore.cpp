@@ -1,5 +1,3 @@
-#include "mimidb.hpp"
-
 #include "lock/Semaphore.hpp"
 
 using namespace mi::lock;

@@ -1,5 +1,3 @@
-#include "mimidb.hpp"
-
 #include "db/bulitin/int.hpp"
 
 using namespace mi::db::builtin;

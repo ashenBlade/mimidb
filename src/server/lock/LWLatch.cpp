@@ -1,5 +1,3 @@
-#include "mimidb.hpp"
-
 #include "lock/LWLatch.hpp"
 
 using namespace mi::lock;

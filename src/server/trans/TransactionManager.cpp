@@ -1,10 +1,10 @@
 #include "trans/TransactionManager.hpp"
 #include "lock/Spin.hpp"
-#include "mimidb.hpp"
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionId.hpp"
 #include <atomic>
+#include <assert.h>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
@@ -44,14 +44,16 @@ Transaction *TransactionManager::BeginNewTransaction() {
 
 CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
     // First mark transaction as committing
-    WITH(auto lock = std::lock_guard{this->_mutex}) {
+    {
+        auto lock = std::lock_guard{this->_mutex};
         this->_history[xid] = CommitSeqNumber::Committing;
     }
 
     // Then obtain it's CSN and mark as committed
     auto csn = std::atomic_fetch_add(&this->_csn, 1);
 
-    WITH(auto lock = std::lock_guard{this->_mutex}) {
+    {
+        auto lock = std::lock_guard{this->_mutex};
         this->_history[xid] = csn;
 
         // And finally, remove transaction object

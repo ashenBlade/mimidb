@@ -16,7 +16,7 @@
 #include "access/table/ITableScan.hpp"
 #include "access/table/ITuple.hpp"
 #include "cluster_state.hpp"
-#include "mimidb.hpp"
+#include "mi_config.hpp"
 #include "storage/buffer/BufferLock.hpp"
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageNumber.hpp"
@@ -27,6 +27,7 @@
 #include "trans/TransactionId.hpp"
 #include "utils/BitUtils.hpp"
 #include "worker_state.hpp"
+#include <assert.h>
 #include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
@@ -57,7 +58,8 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) con
         flags = HeapTupleFlags::HasNulls;
 
         uint32_t bitmapSize =
-            (this->_tupleDescriptor->GetMaxAttrNumber().value + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+            (this->_tupleDescriptor->GetMaxAttrNumber().value + Config::BitsPerByte - 1) /
+            Config::BitsPerByte;
         dataStart = static_cast<uint8_t>(sizeof(HeapPageTupleHeader) + bitmapSize);
         dataStart = MaxAlign(dataStart);
     } else {
@@ -80,8 +82,9 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) con
 mi::storage::buffer::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) const {
     auto file = storage::buffer::RelFile::Open(this->_tableId, O_RDONLY);
     auto npages = file.GetPagesCount();
-    for (storage::buffer::PageNumber attno = storage::buffer::PageNumber::Min; attno < npages; ++attno) {
-        auto tag = storage::buffer::PageTag{this->_tableId, attno};
+    for (storage::buffer::PageNumber pageno = storage::buffer::PageNumber::Min; pageno < npages;
+         ++pageno) {
+        auto tag = storage::buffer::PageTag{this->_tableId, pageno};
         auto buffer = BufferPoolGlobal->GetBuffer(tag);
         auto page = HeapPage{buffer.GetContents()};
         auto lock = storage::buffer::BufferSharedLock{buffer.GetBuffer()};
@@ -116,52 +119,52 @@ void HeapTable::InsertTuple(ITuple &tuple) {
         auto pin = this->searchPageFreeSpace(freeSpace);
 
         // update S -> X, so we can change page contents
-        WITH(auto lock = storage::buffer::BufferLock{pin.GetBuffer()}) {
-            auto page = HeapPage{pin.GetBuffer()->GetContents()};
+        auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
 
-            // Check we still have free space
-            if (page.GetFreeSpace() < freeSpace) {
-                continue;
-            }
+        auto page = HeapPage{pin.GetBuffer()->GetContents()};
 
-            // TupleId of newly inserted tuple (always last)
-            auto tupleId = TupleId{pin.GetPageTag().PageNo, page.ItemsCount()};
-
-            // First, create and insert undo record
-            auto undoRec = undo::DeleteUndoRecord{this->_tableId, tupleId};
-            auto usn = MyTransaction->GetUndoLog().InsertRecord(undoRec);
-
-            // Now we have USN, so set it to tuple and actually insert
-            heapPageTuple.Header().undo = usn;
-            auto serializedTuple =
-                HeapTupleSerializer::Serialize(heapPageTuple, *this->_tupleDescriptor, tupleSize);
-
-            // Make WAL entry before writing to disk
-            auto walRec = wal::InsertHeapWALRecord{tupleId, serializedTuple};
-            auto lsn = WALGlobal->WriteLogRecord(walRec);
-
-            // Now perform changes itself
-            auto &header = page.GetHeader();
-            header.lsn = lsn;
-            auto lp = page.GetLinePointerArray();
-            auto &itemId = lp[page.ItemsCount()];
-
-            // Update it's ItemId
-            auto offset = static_cast<uint16_t>(page.GetHeader().upper - MaxAlign(tupleSize));
-            itemId.flags = ItemState::Normal;
-            itemId.setLength(static_cast<uint16_t>(tupleSize));
-            itemId.setOffset(offset);
-
-            // Insert tuple itself
-            auto ptr = reinterpret_cast<std::byte *>(page.GetTuple(itemId));
-            std::memcpy(ptr, serializedTuple.data(), tupleSize);
-
-            // Update lower/upper
-            header.lower += sizeof(ItemId);
-            header.upper -= MaxAlign(tupleSize);
-
-            inserted = true;
+        // Check we still have free space
+        if (page.GetFreeSpace() < freeSpace) {
+            continue;
         }
+
+        // TupleId of newly inserted tuple (always last)
+        auto tupleId = TupleId{pin.GetPageTag().PageNo, page.ItemsCount()};
+
+        // First, create and insert undo record
+        auto undoRec = undo::DeleteUndoRecord{this->_tableId, tupleId};
+        auto usn = MyTransaction->GetUndoLog().InsertRecord(undoRec);
+
+        // Now we have USN, so set it to tuple and actually insert
+        heapPageTuple.Header().undo = usn;
+        auto serializedTuple =
+            HeapTupleSerializer::Serialize(heapPageTuple, *this->_tupleDescriptor, tupleSize);
+
+        // Make WAL entry before writing to disk
+        auto walRec = wal::InsertHeapWALRecord{tupleId, serializedTuple};
+        auto lsn = WALGlobal->WriteLogRecord(walRec);
+
+        // Now perform changes itself
+        auto &header = page.GetHeader();
+        header.lsn = lsn;
+        auto lp = page.GetLinePointerArray();
+        auto &itemId = lp[page.ItemsCount()];
+
+        // Update it's ItemId
+        auto offset = static_cast<uint16_t>(page.GetHeader().upper - MaxAlign(tupleSize));
+        itemId.flags = ItemState::Normal;
+        itemId.setLength(static_cast<uint16_t>(tupleSize));
+        itemId.setOffset(offset);
+
+        // Insert tuple itself
+        auto ptr = reinterpret_cast<std::byte *>(page.GetTuple(itemId));
+        std::memcpy(ptr, serializedTuple.data(), tupleSize);
+
+        // Update lower/upper
+        header.lower += sizeof(ItemId);
+        header.upper -= MaxAlign(tupleSize);
+
+        inserted = true;
     } while (!inserted);
 }
 

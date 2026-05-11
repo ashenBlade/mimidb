@@ -1,7 +1,5 @@
-#include "mimidb.hpp"
-
-#include "cluster_state.hpp"
 #include "storage/buffer/BufferPin.hpp"
+#include "cluster_state.hpp"
 #include "storage/buffer/PageTag.hpp"
 
 using namespace mi::storage::buffer;

@@ -1,8 +1,8 @@
 #include "access/heap/HeapPage.hpp"
 #include "access/heap/HeapPageHeader.hpp"
 #include "access/heap/ItemId.hpp"
-#include "mimidb.hpp"
 #include "storage/wal/LogSeqNumber.hpp"
+#include "mi_config.hpp"
 #include <cassert>
 #include <cstring>
 
@@ -57,7 +57,7 @@ const ItemId *HeapPage::GetLinePointerArray() const {
 static HeapPageTupleHeader *header_get_tuple(std::byte *buffer, const ItemId &itemId) {
     assert(itemId.isNormal());
     auto offset = itemId.getOffset();
-    assert(offset < mi::PAGESIZE);
+    assert(offset < mi::Config::PageSize);
     assert(sizeof(HeapPageHeader) < offset);
     return reinterpret_cast<HeapPageTupleHeader *>(buffer + offset);
 }
@@ -84,5 +84,5 @@ void HeapPage::Init(HeapPage &page) {
     auto &header = page.GetHeader();
     header.lsn = 0;
     header.lower = SizeOfHeapPageHeader;
-    header.upper = mi::PAGESIZE;
+    header.upper = Config::PageSize;
 }

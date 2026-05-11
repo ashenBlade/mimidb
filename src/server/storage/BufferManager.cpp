@@ -1,16 +1,14 @@
-#include "mimidb.hpp"
-
 #include "storage/buffer/BufferManager.hpp"
-
 #include "access/table/Oid.hpp"
+#include "mi_config.hpp"
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageTag.hpp"
 #include "storage/buffer/RelFile.hpp"
-
-#include <fcntl.h>
 #include <algorithm>
 #include <array>
+#include <assert.h>
 #include <cstddef>
+#include <fcntl.h>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -34,12 +32,12 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
 
     // Open file and read page into stack allocated buffer
     auto file = RelFile::Open(tag.Relid, O_RDONLY);
-    auto data = std::array<std::byte, PAGESIZE>{};
+    auto data = std::array<std::byte, Config::PageSize>{};
     file.Read(data.data(), tag.PageNo);
 
     // Success. Allocate byte array in heap and create Buffer
-    auto d = new std::byte[PAGESIZE];
-    std::copy(data.data(), data.data() + PAGESIZE, d);
+    auto d = new std::byte[Config::PageSize];
+    std::copy(data.data(), data.data() + Config::PageSize, d);
     auto buffer = std::make_shared<Buffer>(d);
 
     // Add new entry
@@ -70,7 +68,7 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
     file.Extend(newPageno);
 
     // Now on disk page exists and zeroed - create Buffer for it
-    auto data = new std::array<std::byte, PAGESIZE>{};
+    auto data = new std::array<std::byte, Config::PageSize>{};
     std::fill(data->begin(), data->end(), static_cast<std::byte>(0));
     auto buffer = std::make_shared<Buffer>(data->data());
 
