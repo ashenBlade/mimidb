@@ -4,7 +4,6 @@
 #include "transam/TransactionId.hpp"
 #include "transam/VirtualUndoLog.hpp"
 #include <memory>
-#include <optional>
 
 namespace mi::transam {
 enum class TransactionStatus {
@@ -17,19 +16,25 @@ class Transaction {
   private:
     /// @brief Assigned XID for this transaction
     TransactionId _xid;
-    /// @brief Snapshot for this transaction
-    Snapshot _snapshot;
+    /// @brief Snapshot for current statement
+    std::unique_ptr<Snapshot> _snapshot;
     /// @brief Status of current transaction
     TransactionStatus _status;
     /// @brief Undo Log for this transaction
     std::unique_ptr<VirtualUndoLog> _undoLog;
 
   public:
-    Transaction(TransactionId xid, Snapshot snapshot)
-        : _xid(xid), _snapshot(snapshot), _status(TransactionStatus::RUNNING) {}
+    Transaction(TransactionId xid)
+        : _xid(xid), _snapshot(nullptr), _status(TransactionStatus::RUNNING), _undoLog(nullptr) {}
+
+    // Begin execution of new statement in transaction.
+    // For now only new snapshot is being established.
+    void BeginNewStatement();
+
     TransactionId GetXID() const { return this->_xid; }
-    Snapshot *GetSnapshot() { return &this->_snapshot; }
-    const Snapshot *GetSnapshot() const { return &this->_snapshot; }
+
+    Snapshot *GetSnapshot() { return this->_snapshot.get(); }
+    const Snapshot *GetSnapshot() const { return this->_snapshot.get(); }
 
     TransactionStatus GetStatus() const { return this->_status; }
     void SetStatus(TransactionStatus status) { this->_status = status; }

@@ -20,7 +20,7 @@ class Worker {
     bool _busy;
 
     void swap(Worker &other) noexcept;
-    
+
     static void HandleUserConnectionGuts(WorkerId id, int sock);
 
   public:

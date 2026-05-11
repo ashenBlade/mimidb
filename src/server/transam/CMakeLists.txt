@@ -4,4 +4,5 @@ target_sources(
     UndoLog.cpp
     WriteAheadLog.cpp
     VirtualUndoLog.cpp
+    Transaction.cpp
 )

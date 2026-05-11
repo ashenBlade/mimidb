@@ -190,8 +190,9 @@ static void handle_select(SocketServer &server) {
     verify_transaction_ok();
 
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
-    auto scan = std::make_shared<mi::access::heap::HeapTableScan>(
-        mi::MyTransaction->GetSnapshot(), dynamic_cast<mi::access::heap::HeapTable *>(table.get()));
+    mi::MyTransaction->BeginNewStatement();
+
+    auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
 
     scan->BeginScan();
 
@@ -218,6 +219,8 @@ static void handle_update(SocketServer &server) {
 
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::MainTableId);
 
+    mi::MyTransaction->BeginNewStatement();
+
     auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
 
     scan->BeginScan();
@@ -235,6 +238,8 @@ static void handle_delete(SocketServer &server) {
     verify_transaction_ok();
 
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
+
+    mi::MyTransaction->BeginNewStatement();
 
     auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
 
@@ -261,6 +266,8 @@ static void handle_insert(SocketServer &server) {
 
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
 
+    mi::MyTransaction->BeginNewStatement();
+
     table->InsertTuple(tuple);
 
     server.SendOk();
@@ -271,21 +278,14 @@ static void handle_begin(SocketServer &server) {
         throw std::runtime_error("Transaction already exists");
     }
 
-    auto xid = mi::TransactionManagerGlobal->BeginNewTransaction();
-    auto csn = mi::TransactionManagerGlobal->GetCurrentCSN();
-    auto snapshot = mi::transam::Snapshot{csn};
-
-    mi::MyTransaction = new mi::transam::Transaction(xid, snapshot);
-
+    mi::MyTransaction = mi::TransactionManagerGlobal->BeginNewTransaction();
     server.SendOk();
 }
 
 static void handle_commit(SocketServer &server) {
     mi::TransactionManagerGlobal->CommitTransaction(mi::MyTransaction->GetXID());
 
-    delete mi::MyTransaction;
     mi::MyTransaction = nullptr;
-
     server.SendOk();
 }
 
