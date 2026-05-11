@@ -168,6 +168,10 @@ class SocketServer {
     }
 };
 
+// worker_state
+thread_local mi::worker::Worker *mi::MyWorker;
+thread_local mi::storage::trans::Transaction *mi::MyTransaction;
+
 static void verify_transaction_ok() {
     if (mi::MyTransaction == nullptr) {
         throw std::runtime_error("There is no transaction");
@@ -321,7 +325,7 @@ static void handle_loop(SocketServer &server, WorkerId id) {
             } else if (command == CommandType::DELETE) {
                 handle_delete(server);
             } else {
-                server.SendStringResult("Only SELECT/INSERT/UPDATE are supported for now");
+                server.SendStringResult("Only SELECT/INSERT/UPDATE/DELETE are supported for now");
             }
         } catch (std::exception &ex) {
             server.SendStringResult(std::string("ERROR: ") + ex.what());

@@ -1,5 +1,7 @@
 # Сам исполняемый файл БД
-add_executable(${SERVER_EXEC_NAME} main.cpp)
+add_executable(${SERVER_EXEC_NAME}
+    main.cpp
+    cluster_state.cpp)
 
 # Заголовки
 target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
