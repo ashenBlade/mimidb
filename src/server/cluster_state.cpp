@@ -26,7 +26,7 @@ static void setupDatabase() {
     auto desc = mi::access::table::TupleDescriptor{std::vector{
         mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int32, sizeof(int32_t),
                                                true},
-        mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int16, sizeof(int32_t),
+        mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int16, sizeof(int16_t),
                                                true},
 
     }};
