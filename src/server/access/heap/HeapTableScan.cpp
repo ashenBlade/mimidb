@@ -31,7 +31,7 @@ void HeapTableScan::BeginScan() {
     assert(this->_lastPageNumber.IsValid());
     // Start iterating from first page. Note that BufferWrapper is initialized with Invalid, so we
     // will read buffer at first scan call
-    this->_tupleId = TupleId{storage::buffer::PageNumber::Min, 0};
+    this->_tupleId = TupleId{storage::buffer::PageNumber::Min(), 0};
 
     // If relation is empty, then no scan is needed
     if (this->_lastPageNumber == 0U) {

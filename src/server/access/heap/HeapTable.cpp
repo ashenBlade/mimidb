@@ -42,7 +42,7 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) con
     auto values = std::vector<Datum>(maxAttr);
     auto isnull = std::vector<bool>(maxAttr);
     auto anyNull = false;
-    for (table::AttrNumber attno = table::AttrNumber::Min; attno <= maxAttr; attno++) {
+    for (auto attno = table::AttrNumber::Min(); attno <= maxAttr; attno++) {
         auto datum = tuple.GetAttribute(attno);
         if (datum.has_value()) {
             values[attno.ToIndex()] = datum.value();
@@ -82,8 +82,7 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) con
 mi::storage::buffer::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) const {
     auto file = storage::buffer::RelFile::Open(this->_tableId, O_RDONLY);
     auto npages = file.GetPagesCount();
-    for (storage::buffer::PageNumber pageno = storage::buffer::PageNumber::Min; pageno < npages;
-         ++pageno) {
+    for (auto pageno = storage::buffer::PageNumber::Min(); pageno < npages; ++pageno) {
         auto tag = storage::buffer::PageTag{this->_tableId, pageno};
         auto buffer = BufferPoolGlobal->GetBuffer(tag);
         auto page = HeapPage{buffer.GetContents()};

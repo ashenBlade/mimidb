@@ -11,7 +11,7 @@ struct TupleId final {
     // Index of item in page directory
     uint16_t itemid;
 
-    TupleId() : pageno(storage::buffer::PageNumber::Invalid), itemid(0) {};
+    TupleId() : pageno(storage::buffer::PageNumber::Invalid()), itemid(0) {};
     TupleId(storage::buffer::PageNumber pageno, uint16_t itemid) : pageno(pageno), itemid(itemid) {};
     
     TupleId(const TupleId &other) = default;

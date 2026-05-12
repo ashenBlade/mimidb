@@ -19,7 +19,7 @@ uint16_t HeapTupleSerializer::CalculateSize(const HeapPageTuple &tuple,
     auto &isnull = tuple.Nulls();
     auto &values = tuple.Values();
     auto &attrs = desc.Attributes();
-    for (table::AttrNumber attno = table::AttrNumber::Min; attno <= maxAttno; attno++) {
+    for (auto attno = table::AttrNumber::Min(); attno <= maxAttno; attno++) {
         if (isnull[attno.ToIndex()]) {
             // NULLs are not written
             continue;
@@ -87,7 +87,7 @@ std::vector<std::byte> HeapTupleSerializer::Serialize(const HeapPageTuple &tuple
 
     // Serialize data itself
     cursor = buffer.data() + tuple.Header().dataStartOffset;
-    for (table::AttrNumber attno = table::AttrNumber::Min; attno <= maxAttno; ++attno) {
+    for (auto attno = table::AttrNumber::Min(); attno <= maxAttno; ++attno) {
         // NULL is not written
         if (isnull[attno.ToIndex()]) {
             continue;
@@ -182,7 +182,7 @@ HeapPageTuple HeapTupleSerializer::Deserialize(const std::byte *array,
     auto hasnulls = header->flags & HeapTupleFlags::HasNulls;
     if (hasnulls) {
         auto bitmap = reinterpret_cast<const uint8_t *>(array + sizeof(HeapPageTupleHeader));
-        for (auto attno = table::AttrNumber{table::AttrNumber::Min}; attno <= natts; attno++) {
+        for (auto attno = table::AttrNumber::Min(); attno <= natts; attno++) {
             auto num = attno.ToIndex();
             isnull[num] = !(bitmap[num >> 3] & (1 << (num & 0x07)));
         }
@@ -193,7 +193,7 @@ HeapPageTuple HeapTupleSerializer::Deserialize(const std::byte *array,
     // Now parse actual data
     auto tupdata = array + header->dataStartOffset;
     auto attributes = desc.Attributes();
-    for (auto attno = table::AttrNumber{table::AttrNumber::Min}; attno <= natts; attno++) {
+    for (auto attno = table::AttrNumber::Min(); attno <= natts; attno++) {
         auto num = attno.ToIndex();
         if (hasnulls && isnull[num]) {
             continue;

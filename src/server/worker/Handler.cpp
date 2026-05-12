@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <cstring>
 #include <exception>
-#include <iostream>
 #include <netinet/in.h>
 #include <optional>
 #include <stdexcept>
@@ -125,7 +124,7 @@ class SocketServer {
         // Attribute values
         auto maxAttno = desc.GetMaxAttrNumber();
         auto &outputs = this->getOutputFunctions(desc);
-        for (AttrNumber attno = AttrNumber::Min; attno <= maxAttno; attno++) {
+        for (auto attno = AttrNumber::Min(); attno <= maxAttno; ++attno) {
             auto datum = tuple.GetAttribute(attno);
             if (datum.has_value()) {
                 this->_client.SendInt8('1');

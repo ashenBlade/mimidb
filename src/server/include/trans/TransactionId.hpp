@@ -16,9 +16,6 @@ struct TransactionId final {
     TransactionId(uint64_t xid) : value(xid) {};
     operator uint64_t() const { return value; }
 
-    // TransactionId is not Invalid value
-    bool isValid() const { return value != TransactionId::Invalid; }
-
     // TransactionId value is in valid range, between Min and Max
     bool isNormal() const { return TransactionId::Min <= value && value <= TransactionId::Max; }
 
