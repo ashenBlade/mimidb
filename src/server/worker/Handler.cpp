@@ -1,13 +1,14 @@
 #include "worker/Handler.hpp"
 #include "MimiClient.hpp"
 #include "access/table/AttrNumber.hpp"
-#include "executor/Datum.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
+#include "executor/Datum.hpp"
 #include "executor/VirtualTuple.hpp"
+#include "logger.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionManager.hpp"
 #include "worker/WorkerManager.hpp"
@@ -309,6 +310,7 @@ static void handle_loop(SocketServer &server, WorkerId id) {
 
     // Handle connection itself
     while (auto command = server.ReadNextCommand()) {
+        mi::LoggerGlobal->Debug("got command %i", command.value());
         try {
             if (command == CommandType::BEGIN) {
                 handle_begin(server);
@@ -325,6 +327,7 @@ static void handle_loop(SocketServer &server, WorkerId id) {
             } else if (command == CommandType::DELETE) {
                 handle_delete(server);
             } else {
+                mi::LoggerGlobal->Error("command %i is not supported", command.value());
                 server.SendStringResult("Only SELECT/INSERT/UPDATE/DELETE are supported for now");
             }
         } catch (std::exception &ex) {
@@ -337,10 +340,10 @@ static void handle_loop(SocketServer &server, WorkerId id) {
 
 void mi::worker::HandleUserConnection(WorkerId workerId, int sock) {
     auto server = SocketServer{sock, workerId};
-    std::cerr << "starting processing client for worker " << workerId << std::endl;
+    mi::LoggerGlobal->Info("starting processing client for worker %i", workerId.value);
     try {
         handle_loop(server, workerId);
     } catch (std::exception &ex) {
-        std::cerr << "something went wrong: " << ex.what() << std::endl;
+        mi::LoggerGlobal->Error("something went wrong: %s", ex.what());
     }
 }

@@ -3,7 +3,9 @@
 #include "db/bulitin/int.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeId.hpp"
+#include "logger/Logger.hpp"
 #include "mi_config.hpp"
+#include "logger.hpp"
 #include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
@@ -18,6 +20,7 @@ mi::storage::undo::UndoLog *mi::UndoLogGlobal;
 mi::storage::trans::TransactionManager *mi::TransactionManagerGlobal;
 mi::storage::wal::WriteAheadLog *mi::WALGlobal;
 mi::storage::trans::ResourceManagerRegistry *mi::RMgrRegistryGlobal;
+mi::logger::Logger *mi::LoggerGlobal;
 
 static void setupDatabase() {
     // CREATE TABLE tbl(a int4, b int2);
@@ -28,7 +31,6 @@ static void setupDatabase() {
                                                true},
         mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int16, sizeof(int16_t),
                                                true},
-
     }};
     auto tables = std::unordered_map<mi::Oid, mi::db::catalog::TableInfo>{
         {mi::schema::catalog::TableId::MainTableId,
@@ -118,4 +120,5 @@ void setupCluster() {
     mi::TransactionManagerGlobal = new mi::storage::trans::TransactionManager();
     mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");
     mi::WALGlobal = mi::storage::wal::WriteAheadLog::Open("wal");
+    mi::LoggerGlobal = new mi::logger::Logger();
 }

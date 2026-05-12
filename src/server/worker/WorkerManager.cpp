@@ -4,7 +4,7 @@
 
 using namespace mi::worker;
 
-WorkerManager::WorkerManager(int workersCount) : _workers() {
+WorkerManager::WorkerManager(int workersCount) : _workers(), _lock() {
     for (int i = 0; i < workersCount; i++) {
         _workers.emplace_back(Worker{i});
     }

@@ -102,6 +102,7 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
             }
 
             usn = tuple->undo;
+            break;
         }
         case undo::HeapUndoRecordType::Insert: {
             auto insertRecord = dynamic_cast<undo::InsertUndoRecord *>(record.get());
@@ -117,6 +118,7 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
             }
 
             usn = tuple->undo;
+            break;
         }
         default:
             throw std::runtime_error("unknown heap undo record type");

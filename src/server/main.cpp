@@ -1,7 +1,9 @@
 #include "cluster_state.hpp"
+#include "logger.hpp"
 #include "mi_config.hpp"
 #include "worker/WorkerManager.hpp"
 #include <cerrno>
+#include <cmath>
 #include <csignal>
 #include <cstring>
 #include <fcntl.h>
@@ -75,9 +77,9 @@ static int main_loop() {
         auto clientSock = accept(server, nullptr, nullptr);
         if (clientSock < 0) {
             if (errno == EINTR && stop_requested) {
-                std::cerr << "got SIGINT, stop working" << std::endl;
+                mi::LoggerGlobal->Info("got SIGINT, stop working");
             } else {
-                std::cerr << "error accepting client, stop working" << std::endl;
+                mi::LoggerGlobal->Error("error accepting client, stop working: %m");
             }
             break;
         }
@@ -123,8 +125,12 @@ static void processArguments(int argc, char **argv) {
     }
 }
 
+extern void setupCluster();
+
 int main(int argc, char **argv) {
     processArguments(argc, argv);
+
+    setupCluster();
 
     // Register simple handler to stop processing
     struct sigaction sa;
@@ -132,14 +138,14 @@ int main(int argc, char **argv) {
     sa.sa_flags = 0;
     sa.sa_handler = sigint_handler;
     if (sigaction(SIGINT, &sa, nullptr) < 0) {
-        std::cerr << "could not setup sigint handler" << std::endl;
+        mi::LoggerGlobal->Error("could not setup SIGINT handler");
         return 1;
     }
 
     // Create new server socket
     auto ret = main_loop();
     if (ret != 0) {
-        std::cerr << "invalid return code " << ret << std::endl;
+        mi::LoggerGlobal->Error("invalid return code: %i", ret);
     }
 
     return ret;

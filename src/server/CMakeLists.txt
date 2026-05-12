@@ -14,5 +14,6 @@ add_subdirectory(lock)
 add_subdirectory(storage)
 add_subdirectory(trans)
 add_subdirectory(worker)
+add_subdirectory(logger)
 
 target_link_libraries(${SERVER_EXEC_NAME} PRIVATE ${LIBMIMI_IFACE_NAME})

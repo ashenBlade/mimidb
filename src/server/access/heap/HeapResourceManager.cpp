@@ -23,7 +23,6 @@ using namespace mi::access::heap;
 void HeapResourceManager::ApplyUndo(mi::storage::undo::IRMgrUndoRecord &record,
                                     storage::undo::UndoSeqNumber usn) {
     assert(record.GetRMgrId() == storage::trans::ResourceManagerId::Heap);
-
     auto &rec = dynamic_cast<undo::HeapUndoRecord &>(record);
     auto visitor = undo::UndoApplierVisitor{usn};
     rec.Accept(visitor);
