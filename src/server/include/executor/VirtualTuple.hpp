@@ -22,6 +22,36 @@ class VirtualTuple : public access::table::ITuple {
             return this->_values[attno.ToIndex()];
         }
     }
-    ~VirtualTuple() override {};
+    void SetAttribute(access::table::AttrNumber attno, std::optional<Datum> value) {
+        if (value.has_value()) {
+            this->_values[attno.ToIndex()] = value.value();
+            this->_isnull[attno.ToIndex()] = false;
+        } else {
+            this->_values[attno.ToIndex()] = Datum{};
+            this->_isnull[attno.ToIndex()] = true;
+        }
+    }
+    access::table::AttrNumber GetMaxAttno() override {
+        return access::table::AttrNumber{static_cast<uint16_t>(this->_values.size())};
+    }
+    ~VirtualTuple() override = default;
+
+    static VirtualTuple Copy(access::table::ITuple &tuple) {
+        auto natts = tuple.GetMaxAttno();
+        auto values = std::vector<Datum>(natts);
+        auto isnull = std::vector<bool>(natts);
+        for (auto attno = access::table::AttrNumber::Min(); attno <= natts; ++attno) {
+            auto attr = tuple.GetAttribute(attno);
+            if (attr.has_value()) {
+                values[attno.ToIndex()] = attr.value();
+                isnull[attno.ToIndex()] = false;
+            } else {
+                values[attno.ToIndex()] = Datum{0};
+                isnull[attno.ToIndex()] = true;
+            }
+        }
+
+        return VirtualTuple{std::move(values), std::move(isnull)};
+    }
 };
 } // namespace mi::executor

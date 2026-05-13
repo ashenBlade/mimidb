@@ -14,6 +14,9 @@ class ITuple {
     /// @return Value of attribute or nullopt if it is null
     virtual std::optional<Datum> GetAttribute(AttrNumber attrNumber) = 0;
 
+    /// @brief Add amount of attributes in this tuple
+    virtual AttrNumber GetMaxAttno() = 0;
+
     virtual ~ITuple() = default;
 };
 

@@ -24,6 +24,7 @@ class HeapTuple : public table::ITuple {
     ~HeapTuple() = default;
 
     std::optional<Datum> GetAttribute(table::AttrNumber attrNumber) override;
+    table::AttrNumber GetMaxAttno() override;
 
     TupleId GetTID() const { return this->_tid; }
 

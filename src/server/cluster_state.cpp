@@ -103,7 +103,6 @@ static void setupResourceManagers() {
     // Heap
     manager->RegisterManager(mi::storage::trans::ResourceManagerId::Heap,
                              mi::access::heap::HeapResourceManager::Create());
-
     mi::RMgrRegistryGlobal = manager;
 }
 

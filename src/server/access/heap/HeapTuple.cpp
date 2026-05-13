@@ -20,5 +20,10 @@ std::optional<mi::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
     }
 }
 
+table::AttrNumber HeapTuple::GetMaxAttno() {
+    return this->_descriptor->GetMaxAttrNumber();
+}
+
 HeapTuple::HeapTuple(const table::TupleDescriptor *descriptor, HeapPageTuple &&tuple, TupleId tid)
     : _descriptor(descriptor), _tuple(std::move(tuple)), _tid(tid) {};
+
