@@ -4,13 +4,19 @@
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
+#include "db/bulitin/intop.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "executor/Datum.hpp"
 #include "executor/VirtualTuple.hpp"
+#include "executor/expr/FunctionExpressionNode.hpp"
+#include "executor/expr/IExpressionNode.hpp"
+#include "executor/func/FunctionContext.hpp"
+#include "executor/plan/SeqScan.hpp"
 #include "logger.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionManager.hpp"
+#include "utils/DatumArray.hpp"
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
 #include <algorithm>
@@ -181,24 +187,39 @@ static void verify_transaction_ok() {
     }
 }
 
+static std::unique_ptr<mi::executor::IExpressionNode> create_tuple_predicate() {
+    // tuple.a = 1
+    auto fctx = mi::executor::FunctionContext{mi::db::builtin::Int32Eq, true, 2};
+    
+    // '1' is on right side
+    auto constants = mi::DatumArray{{mi::Datum{1}}, {false}};
+    auto constantMapping = std::vector{1UL};
+
+    // 'tuple.a' attribute is on left side
+    auto attrMapping = std::vector{std::make_pair<AttrNumber, size_t>(AttrNumber::Min(), 0)};
+    auto node = std::make_unique<mi::executor::FunctionExpressionNode>(std::move(fctx), std::move(constants), std::move(constantMapping), std::move(attrMapping));
+
+    return node;
+}
+
 static void handle_select(SocketServer &server) {
     verify_transaction_ok();
 
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
     mi::MyTransaction->BeginNewStatement();
 
-    auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
+    auto node = mi::executor::plan::SeqScan{table.get(), mi::MyTransaction->GetSnapshot(), create_tuple_predicate()};
 
-    scan->BeginScan();
+    node.Start();
 
     auto &desc = *table->GetDescriptor();
     server.SendTupleDescriptor(desc);
 
-    while (auto tuple = scan->GetNextTuple()) {
+    while (auto tuple = node.Execute()) {
         server.SendTuple(desc, *tuple);
     }
 
-    scan->EndScan();
+    node.End();
     server.SendOk();
 }
 

@@ -11,7 +11,7 @@ class IPlanNode {
     virtual void End() = 0;
     virtual std::unique_ptr<mi::access::table::ITuple> Execute() = 0;
 
-    virtual ~IPlanNode() = 0;
+    virtual ~IPlanNode() = default;
 };
 
 }; // namespace mi::executor::plan

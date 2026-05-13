@@ -9,6 +9,7 @@ target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DI
 
 # Все поддиректории
 add_subdirectory(access)
+add_subdirectory(executor)
 add_subdirectory(db)
 add_subdirectory(lock)
 add_subdirectory(storage)
