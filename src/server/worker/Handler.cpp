@@ -4,7 +4,7 @@
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
-#include "db/bulitin/intop.hpp"
+#include "db/bulitin/int.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "executor/Datum.hpp"
@@ -12,7 +12,10 @@
 #include "executor/expr/FunctionExpressionNode.hpp"
 #include "executor/expr/IExpressionNode.hpp"
 #include "executor/func/FunctionContext.hpp"
+#include "executor/plan/DeleteNode.hpp"
+#include "executor/plan/InsertNode.hpp"
 #include "executor/plan/SeqScan.hpp"
+#include "executor/plan/UpdateNode.hpp"
 #include "logger.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionManager.hpp"
@@ -22,12 +25,14 @@
 #include <algorithm>
 #include <cstring>
 #include <exception>
+#include <memory>
 #include <netinet/in.h>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
 
 using namespace mi::worker;
 using AttrNumber = mi::access::table::AttrNumber;
@@ -187,17 +192,18 @@ static void verify_transaction_ok() {
     }
 }
 
-static std::unique_ptr<mi::executor::IExpressionNode> create_tuple_predicate() {
+static std::unique_ptr<mi::executor::IExpressionNode> create_tuple_predicate(int32_t value) {
     // tuple.a = 1
     auto fctx = mi::executor::FunctionContext{mi::db::builtin::Int32Eq, true, 2};
-    
-    // '1' is on right side
-    auto constants = mi::DatumArray{{mi::Datum{1}}, {false}};
+
+    // value is on right side
+    auto constants = mi::DatumArray{{mi::Datum{value}}, {false}};
     auto constantMapping = std::vector{1UL};
 
     // 'tuple.a' attribute is on left side
     auto attrMapping = std::vector{std::make_pair<AttrNumber, size_t>(AttrNumber::Min(), 0)};
-    auto node = std::make_unique<mi::executor::FunctionExpressionNode>(std::move(fctx), std::move(constants), std::move(constantMapping), std::move(attrMapping));
+    auto node = std::make_unique<mi::executor::FunctionExpressionNode>(
+        std::move(fctx), std::move(constants), std::move(constantMapping), std::move(attrMapping));
 
     return node;
 }
@@ -208,7 +214,8 @@ static void handle_select(SocketServer &server) {
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
     mi::MyTransaction->BeginNewStatement();
 
-    auto node = mi::executor::plan::SeqScan{table.get(), mi::MyTransaction->GetSnapshot(), create_tuple_predicate()};
+    auto node = mi::executor::plan::SeqScan{table.get(), mi::MyTransaction->GetSnapshot(),
+                                            create_tuple_predicate(2)};
 
     node.Start();
 
@@ -223,27 +230,51 @@ static void handle_select(SocketServer &server) {
     server.SendOk();
 }
 
+static std::vector<std::pair<AttrNumber, std::unique_ptr<mi::executor::IExpressionNode>>>
+create_tuple_update_expr() {
+    // UPDATE tbl SET a = a + 1
+
+    // a + 1
+    auto fctx = mi::executor::FunctionContext{mi::db::builtin::Int32Add, true, 2};
+
+    auto constants = mi::DatumArray{{mi::Datum{1}}, {false}};
+    auto constantMapping = std::vector{1UL};
+
+    // 'tbl.a' - is first attribute (AttrNumber::Min())
+    auto attrMapping = std::vector{std::make_pair(AttrNumber::Min(), 0UL)};
+
+    auto expr = std::make_unique<mi::executor::FunctionExpressionNode>(
+        std::move(fctx), std::move(constants), std::move(constantMapping), std::move(attrMapping));
+
+    auto vec = std::vector<std::pair<AttrNumber, std::unique_ptr<mi::executor::IExpressionNode>>>{};
+    vec.emplace_back(AttrNumber::Min(), std::move(expr));
+    return vec;
+}
+
 static void handle_update(SocketServer &server) {
     verify_transaction_ok();
 
-    auto val1 = server.ReadInt32();
-    auto val2 = server.ReadInt16();
-    auto newTuple = mi::executor::VirtualTuple{std::vector{mi::Datum{val1}, mi::Datum{val2}},
-                                               std::vector{false, false}};
+    // auto val1 = server.ReadInt32();
+    // auto val2 = server.ReadInt16();
+    // auto newTuple = mi::executor::VirtualTuple{std::vector{mi::Datum{val1}, mi::Datum{val2}},
+    //                                            std::vector{false, false}};
 
+    // UPDATE tbl SET a = a + 1
+    auto updateExpr = create_tuple_update_expr();
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::MainTableId);
+    auto qual = create_tuple_predicate(1);
 
     mi::MyTransaction->BeginNewStatement();
 
-    auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
+    auto node = mi::executor::plan::UpdateNode{
+        table.get(), std::move(qual), mi::MyTransaction->GetSnapshot(), std::move(updateExpr)};
 
-    scan->BeginScan();
+    node.Start();
 
-    while (auto tuple = scan->GetNextTuple()) {
-        table->UpdateTuple(*tuple, newTuple);
-    }
+    // Does not return anything
+    (void)node.Execute();
 
-    scan->EndScan();
+    node.End();
 
     server.SendOk();
 }
@@ -255,15 +286,16 @@ static void handle_delete(SocketServer &server) {
 
     mi::MyTransaction->BeginNewStatement();
 
-    auto scan = table->StartScan(mi::MyTransaction->GetSnapshot());
+    auto qual = create_tuple_predicate(2);
+    auto node = mi::executor::plan::DeleteNode{table.get(), std::move(qual),
+                                               mi::MyTransaction->GetSnapshot()};
 
-    scan->BeginScan();
+    node.Start();
 
-    while (auto tuple = scan->GetNextTuple()) {
-        table->DeleteTuple(*tuple);
-    }
+    // Does not return anything
+    (void)node.Execute();
 
-    scan->EndScan();
+    node.End();
 
     server.SendOk();
 }
@@ -275,14 +307,24 @@ static void handle_insert(SocketServer &server) {
     // For now only 1 table exists and schema is fixed - tuple is known.
     auto val1 = server.ReadInt32();
     auto val2 = server.ReadInt16();
-    auto tuple = mi::executor::VirtualTuple{std::vector{mi::Datum{val1}, mi::Datum{val2}},
-                                            std::vector{false, false}};
-
-    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
+    std::unique_ptr<mi::access::table::ITuple> tuple = std::make_unique<mi::executor::VirtualTuple>(
+        std::vector{mi::Datum{val1}, mi::Datum{val2}}, 
+        std::vector{false, false});
 
     mi::MyTransaction->BeginNewStatement();
 
-    table->InsertTuple(tuple);
+    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
+
+    auto placeholder = std::vector<std::unique_ptr<mi::access::table::ITuple>>{};
+    placeholder.emplace_back(std::move(tuple));
+    auto node = mi::executor::plan::InsertNode{table.get(), std::move(placeholder)};
+
+    node.Start();
+
+    // Does not return anything
+    (void)node.Execute();
+
+    node.End();
 
     server.SendOk();
 }

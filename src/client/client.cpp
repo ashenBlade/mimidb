@@ -146,14 +146,14 @@ void sendInsert(mi::interface::libmimi::MimiClient &client) {
 
 void sendUpdate(mi::interface::libmimi::MimiClient &client) {
     // Пока только 2 числа есть в кортеже
-    int32_t first;
-    int16_t second;
+    // int32_t first;
+    // int16_t second;
 
-    std::cin >> first >> second;
+    // std::cin >> first >> second;
 
     client.SendInt8('U');
-    client.SendInt32(first);
-    client.SendInt16(second);
+    // client.SendInt32(first);
+    // client.SendInt16(second);
 
     auto ret = client.ReceiveInt8();
     if (ret == 'O') {

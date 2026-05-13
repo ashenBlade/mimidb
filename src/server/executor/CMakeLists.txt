@@ -1,9 +1,9 @@
 target_sources(
     ${PROJECT_NAME} PRIVATE
-    SeqScan.cpp
-    InsertNode.cpp
-    DeleteNode.cpp
-    UpdateNode.cpp
+    plan/SeqScan.cpp
+    plan/InsertNode.cpp
+    plan/DeleteNode.cpp
+    plan/UpdateNode.cpp
 
     expr/BoolExpressionNode.cpp
     expr/FunctionExpressionNode.cpp

@@ -7,6 +7,7 @@ using namespace mi::db;
 
 Database::Database(std::unique_ptr<Schema> schema) : _schema(std::move(schema)) {}
 
+// TODO: возвращать обычный указатель
 std::shared_ptr<mi::access::table::ITable> Database::OpenTable(mi::Oid relid) {
     assert(relid.IsValid());
 

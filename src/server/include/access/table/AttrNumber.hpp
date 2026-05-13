@@ -23,6 +23,11 @@ struct AttrNumber {
         assert(this->value != InvalidValue);
         return static_cast<std::size_t>(this->value - 1);
     }
+    
+    AttrNumber(const AttrNumber &other) = default;
+    AttrNumber &operator =(const AttrNumber &other) = default;
+    AttrNumber(AttrNumber &&other) = default;
+    AttrNumber &operator =(AttrNumber &&other) = default;
 
     operator std::size_t() const { return value; };
     operator uint16_t() const { return value; }

@@ -4,5 +4,4 @@ target_sources(
     Schema.cpp
 
     builtin/int.cpp
-    builtin/intop.cpp
 )
