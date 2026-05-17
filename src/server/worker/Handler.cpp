@@ -1,5 +1,7 @@
 #include "worker/Handler.hpp"
 #include "MimiClient.hpp"
+#include "SQLParser.h"
+#include "SQLParserResult.h"
 #include "access/table/AttrNumber.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
@@ -17,6 +19,17 @@
 #include "executor/plan/SeqScan.hpp"
 #include "executor/plan/UpdateNode.hpp"
 #include "logger.hpp"
+#include "packets/CommandCompletePacket.hpp"
+#include "packets/DataRowPacket.hpp"
+#include "packets/ErrorResponsePacket.hpp"
+#include "packets/IPacket.hpp"
+#include "packets/PacketType.hpp"
+#include "packets/QueryPacket.hpp"
+#include "packets/TupleDescriptionPacket.hpp"
+#include "parser/SQLParser.hpp"
+#include "planner/Planner.hpp"
+#include "sql/SQLStatement.h"
+#include "sql/TransactionStatement.h"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionManager.hpp"
 #include "utils/DatumArray.hpp"
@@ -81,101 +94,47 @@ class SocketServer {
   public:
     SocketServer(int socket, WorkerId id) : _id(id), _client(socket) {}
 
-    std::optional<CommandType> ReadNextCommand() {
-        auto type = this->_client.ReceiveInt8Opt();
-        if (!type.has_value()) {
-            return std::nullopt;
-        }
+    std::unique_ptr<mi::interface::libmimi::IPacket> ReadNextPacket() {
+        return this->_client.ReceivePacket();
+    }
 
-        switch (type.value()) {
-        case 'S':
-            return CommandType::SELECT;
-        case 'I':
-            return CommandType::INSERT;
-        case 'U':
-            return CommandType::UPDATE;
-        case 'D':
-            return CommandType::DELETE;
-        case 'B':
-            return CommandType::BEGIN;
-        case 'C':
-            return CommandType::COMMIT;
-        case 'R':
-            return CommandType::ROLLBACK;
-        default:
-            throw std::runtime_error("operation not supported: " + std::to_string(type.value()));
-        }
-    };
-
-    int32_t ReadInt32() { return this->_client.ReceiveInt32(); }
-
-    int16_t ReadInt16() { return this->_client.ReceiveInt16(); }
-
-    void SendTupleDescriptor(const mi::access::table::TupleDescriptor &desc) {
-        this->_client.SendInt8('D');
-
-        auto natts = static_cast<size_t>(desc.GetMaxAttrNumber());
-        this->_client.SendInt32(static_cast<int32_t>(natts));
-
-        for (size_t i = 0; i < natts; i++) {
-            auto &att = desc.Attributes()[i];
-            if (att.ByVal()) {
-                this->_client.SendInt32(att.Length());
-            } else {
-                this->_client.SendInt32(-1);
-            }
-        }
+    void SendTupleDescriptor([[maybe_unused]] const mi::access::table::TupleDescriptor &desc) {
+        // Пока только 1 таблица, поэтому ок
+        auto attrs = std::vector<mi::interface::libmimi::AttributeDescription>{
+            mi::interface::libmimi::AttributeDescription{"a"},
+            mi::interface::libmimi::AttributeDescription{"b"},
+        };
+        auto packet = mi::interface::libmimi::TupleDescriptionPacket{std::move(attrs)};
+        this->_client.SendPacket(packet);
     }
 
     void SendTuple(const mi::access::table::TupleDescriptor &desc,
                    mi::access::table::ITuple &tuple) {
-        // 'T'uple
-        this->_client.SendInt8('T');
-
-        // Attribute values
         auto maxAttno = desc.GetMaxAttrNumber();
         auto &outputs = this->getOutputFunctions(desc);
+        auto attrs = std::vector<std::optional<std::string>>{};
         for (auto attno = AttrNumber::Min(); attno <= maxAttno; ++attno) {
             auto datum = tuple.GetAttribute(attno);
             if (datum.has_value()) {
-                this->_client.SendInt8('1');
-                const auto &att = desc.Attributes()[attno.ToIndex()];
-                if (att.ByVal()) {
-                    switch (att.Length()) {
-                    case 8:
-                        this->_client.SendInt64(datum.value().getScalar<int64_t>());
-                        break;
-                    case 4:
-                        this->_client.SendInt32(datum.value().getScalar<int32_t>());
-                        break;
-                    case 2:
-                        this->_client.SendInt16(datum.value().getScalar<int16_t>());
-                        break;
-                    case 1:
-                        this->_client.SendInt8(datum.value().getScalar<int8_t>());
-                        break;
-                    default:
-                        throw std::runtime_error("unknown length");
-                    }
-                } else {
-                    auto value = outputs[attno.ToIndex()](datum.value());
-                    this->_client.SendString(value);
-                }
+                auto value = outputs[attno.ToIndex()](datum.value());
+                attrs.emplace_back(std::move(value));
             } else {
-                this->_client.SendInt8('0');
+                attrs.emplace_back(std::nullopt);
             }
         }
+
+        auto packet = mi::interface::libmimi::DataRowPacket{std::move(attrs)};
+        this->_client.SendPacket(packet);
     }
 
-    void SendOk() {
-        // 'O'k
-        this->_client.SendInt8('O');
+    void SendCommandComplete() {
+        auto packet = mi::interface::libmimi::CommandCompletePacket{};
+        this->_client.SendPacket(packet);
     }
 
-    void SendStringResult(const std::string &message) {
-        // 'S'tring
-        this->_client.SendInt8('S');
-        this->_client.SendString(message);
+    void SendError(const std::string &message) {
+        auto packet = mi::interface::libmimi::ErrorResponsePacket{message};
+        this->_client.SendPacket(packet);
     }
 };
 
@@ -183,7 +142,7 @@ class SocketServer {
 thread_local mi::worker::Worker *mi::MyWorker;
 thread_local mi::storage::trans::Transaction *mi::MyTransaction;
 
-static void verify_transaction_ok() {
+[[maybe_unused]] static void verify_transaction_ok() {
     if (mi::MyTransaction == nullptr) {
         throw std::runtime_error("There is no transaction");
     }
@@ -192,157 +151,28 @@ static void verify_transaction_ok() {
     }
 }
 
-static std::unique_ptr<mi::executor::IExpressionNode> create_tuple_predicate(int32_t value) {
-    // tuple.a = 1
-    auto fctx = mi::executor::FunctionContext{mi::db::builtin::Int32Eq, true, 2};
-
-    // value is on right side
-    auto constants = mi::DatumArray{{mi::Datum{value}}, {false}};
-    auto constantMapping = std::vector{1UL};
-
-    // 'tuple.a' attribute is on left side
-    auto attrMapping = std::vector{std::make_pair<AttrNumber, size_t>(AttrNumber::Min(), 0)};
-    auto node = std::make_unique<mi::executor::FunctionExpressionNode>(
-        std::move(fctx), std::move(constants), std::move(constantMapping), std::move(attrMapping));
-
-    return node;
-}
-
-static void handle_select(SocketServer &server) {
-    verify_transaction_ok();
-
-    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
-    mi::MyTransaction->BeginNewStatement();
-
-    auto node = mi::executor::plan::SeqScan{table.get(), mi::MyTransaction->GetSnapshot(),
-                                            create_tuple_predicate(2)};
-
-    node.Start();
-
-    auto &desc = *table->GetDescriptor();
-    server.SendTupleDescriptor(desc);
-
-    while (auto tuple = node.Execute()) {
-        server.SendTuple(desc, *tuple);
-    }
-
-    node.End();
-    server.SendOk();
-}
-
-static std::vector<std::pair<AttrNumber, std::unique_ptr<mi::executor::IExpressionNode>>>
-create_tuple_update_expr() {
-    // UPDATE tbl SET a = a + 1
-
-    // a + 1
-    auto fctx = mi::executor::FunctionContext{mi::db::builtin::Int32Add, true, 2};
-
-    auto constants = mi::DatumArray{{mi::Datum{1}}, {false}};
-    auto constantMapping = std::vector{1UL};
-
-    // 'tbl.a' - is first attribute (AttrNumber::Min())
-    auto attrMapping = std::vector{std::make_pair(AttrNumber::Min(), 0UL)};
-
-    auto expr = std::make_unique<mi::executor::FunctionExpressionNode>(
-        std::move(fctx), std::move(constants), std::move(constantMapping), std::move(attrMapping));
-
-    auto vec = std::vector<std::pair<AttrNumber, std::unique_ptr<mi::executor::IExpressionNode>>>{};
-    vec.emplace_back(AttrNumber::Min(), std::move(expr));
-    return vec;
-}
-
-static void handle_update(SocketServer &server) {
-    verify_transaction_ok();
-
-    // auto val1 = server.ReadInt32();
-    // auto val2 = server.ReadInt16();
-    // auto newTuple = mi::executor::VirtualTuple{std::vector{mi::Datum{val1}, mi::Datum{val2}},
-    //                                            std::vector{false, false}};
-
-    // UPDATE tbl SET a = a + 1
-    auto updateExpr = create_tuple_update_expr();
-    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::MainTableId);
-    auto qual = create_tuple_predicate(1);
-
-    mi::MyTransaction->BeginNewStatement();
-
-    auto node = mi::executor::plan::UpdateNode{
-        table.get(), std::move(qual), mi::MyTransaction->GetSnapshot(), std::move(updateExpr)};
-
-    node.Start();
-
-    // Does not return anything
-    (void)node.Execute();
-
-    node.End();
-
-    server.SendOk();
-}
-
-static void handle_delete(SocketServer &server) {
-    verify_transaction_ok();
-
-    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
-
-    mi::MyTransaction->BeginNewStatement();
-
-    auto qual = create_tuple_predicate(2);
-    auto node = mi::executor::plan::DeleteNode{table.get(), std::move(qual),
-                                               mi::MyTransaction->GetSnapshot()};
-
-    node.Start();
-
-    // Does not return anything
-    (void)node.Execute();
-
-    node.End();
-
-    server.SendOk();
-}
-
-static void handle_insert(SocketServer &server) {
-    verify_transaction_ok();
-
-    // Read tuple we want to insert.
-    // For now only 1 table exists and schema is fixed - tuple is known.
-    auto val1 = server.ReadInt32();
-    auto val2 = server.ReadInt16();
-    std::unique_ptr<mi::access::table::ITuple> tuple = std::make_unique<mi::executor::VirtualTuple>(
-        std::vector{mi::Datum{val1}, mi::Datum{val2}}, 
-        std::vector{false, false});
-
-    mi::MyTransaction->BeginNewStatement();
-
-    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
-
-    auto placeholder = std::vector<std::unique_ptr<mi::access::table::ITuple>>{};
-    placeholder.emplace_back(std::move(tuple));
-    auto node = mi::executor::plan::InsertNode{table.get(), std::move(placeholder)};
-
-    node.Start();
-
-    // Does not return anything
-    (void)node.Execute();
-
-    node.End();
-
-    server.SendOk();
-}
-
-static void handle_begin(SocketServer &server) {
+static void start_new_transaction_command() {
     if (mi::MyTransaction != nullptr) {
-        throw std::runtime_error("Transaction already exists");
+        // Ok, BEGIN; can be called multiple times
+        return;
     }
 
     mi::MyTransaction = mi::TransactionManagerGlobal->BeginNewTransaction();
-    server.SendOk();
+}
+
+static void handle_begin(SocketServer &server) {
+    start_new_transaction_command();
+    server.SendCommandComplete();
+}
+
+static void commit_transaction_command() {
+    mi::TransactionManagerGlobal->CommitTransaction(mi::MyTransaction->GetXID());
+    mi::MyTransaction = nullptr;
 }
 
 static void handle_commit(SocketServer &server) {
-    mi::TransactionManagerGlobal->CommitTransaction(mi::MyTransaction->GetXID());
-
-    mi::MyTransaction = nullptr;
-    server.SendOk();
+    commit_transaction_command();
+    server.SendCommandComplete();
 }
 
 static void rollback_state() {
@@ -353,17 +183,101 @@ static void rollback_state() {
     }
 }
 
-static void handle_rollback(SocketServer &server) {
+static void abort_transaction_command() {
     if (mi::MyTransaction == nullptr) {
         throw std::runtime_error("There is no transaction");
     }
-
+    
     rollback_state();
-
-    delete mi::MyTransaction;
     mi::MyTransaction = nullptr;
+}
 
-    server.SendOk();
+static void handle_rollback(SocketServer &server) {
+    abort_transaction_command();
+    server.SendCommandComplete();
+}
+
+static void exec_tcl_query(SocketServer &server, hsql::SQLStatement &statement) {
+    hsql::TransactionStatement &stmt = dynamic_cast<hsql::TransactionStatement &>(statement);
+    switch (stmt.command) {
+    case hsql::TransactionCommand::kBeginTransaction:
+        handle_begin(server);
+        break;
+    case hsql::TransactionCommand::kRollbackTransaction:
+        handle_rollback(server);
+        break;
+    case hsql::TransactionCommand::kCommitTransaction:
+        handle_commit(server);
+        break;
+    }
+}
+
+class ImplicitTransactionGuard {
+  private:
+    bool _inImplicitTnx;
+
+  public:
+    ImplicitTransactionGuard() {
+        auto tnxIsRunning = mi::MyTransaction != nullptr;
+        this->_inImplicitTnx = !tnxIsRunning;
+        if (tnxIsRunning) { 
+            return;
+        }
+
+        start_new_transaction_command();
+    }
+
+    void Commit() {
+        if (!this->_inImplicitTnx) {
+            return;
+        }
+
+        commit_transaction_command();
+        this->_inImplicitTnx = false;
+    }
+    
+    void Abort() {
+        if (!this->_inImplicitTnx) {
+            return;
+        }
+
+        abort_transaction_command();
+        this->_inImplicitTnx = false;
+    }
+
+    ~ImplicitTransactionGuard() {
+        // This is called at the end, if exception was thrown - we must cleanup state
+        // so user will not have to send abort manually
+        this->Abort();
+    }
+};
+
+static void exec_plannable_query(SocketServer &server, hsql::SQLStatement &statement) {
+    auto node = mi::planner::Planner::Plan(statement);
+
+    // Start implicit transaction if not started one yet
+    auto tnxBlock = ImplicitTransactionGuard{};
+
+    // Begin new statement
+    mi::MyTransaction->BeginNewStatement();
+    auto snapshot = mi::MyTransaction->GetSnapshot();
+
+    // Пока я знаю, что только 1 таблица есть, поэтому не надо возиться с дескриптором
+    auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
+    const auto &descriptor = *table->GetDescriptor();
+    server.SendTupleDescriptor(descriptor);
+
+    node->Start(snapshot);
+
+    while (auto tuple = node->Execute()) {
+        server.SendTuple(descriptor, *tuple);
+    }
+
+    node->End();
+
+    server.SendCommandComplete();
+
+    tnxBlock.Commit();
 }
 
 static void handle_loop(SocketServer &server, WorkerId id) {
@@ -371,29 +285,35 @@ static void handle_loop(SocketServer &server, WorkerId id) {
     mi::MyWorker = mi::WorkerGlobal->GetWorker(id);
 
     // Handle connection itself
-    while (auto command = server.ReadNextCommand()) {
-        mi::LoggerGlobal->Debug("got command %i", command.value());
+    while (auto packet = server.ReadNextPacket()) {
+        mi::LoggerGlobal->Debug("got command %i", packet->Type());
+        if (packet->Type() != mi::interface::libmimi::PacketType::Query) {
+            server.SendError("Packet type " + std::to_string(static_cast<int>(packet->Type())) +
+                             " is not supported");
+            continue;
+        }
+
+        auto queryPacket = dynamic_cast<mi::interface::libmimi::QueryPacket *>(packet.get());
+
+        mi::LoggerGlobal->Debug("got query: %s", queryPacket->Query().c_str());
+        hsql::SQLParserResult result;
+        auto statement = mi::parser::SQLParser::ParseStatement(queryPacket->Query());
+
+        // Only 1 types of statements are supported: TCL and simple SQL crud
         try {
-            if (command == CommandType::BEGIN) {
-                handle_begin(server);
-            } else if (command == CommandType::COMMIT) {
-                handle_commit(server);
-            } else if (command == CommandType::ROLLBACK) {
-                handle_rollback(server);
-            } else if (command == CommandType::SELECT) {
-                handle_select(server);
-            } else if (command == CommandType::INSERT) {
-                handle_insert(server);
-            } else if (command == CommandType::UPDATE) {
-                handle_update(server);
-            } else if (command == CommandType::DELETE) {
-                handle_delete(server);
+            if (statement->type() == hsql::kStmtTransaction) {
+                exec_tcl_query(server, *statement);
+            } else if (mi::planner::Planner::IsPlannableStatement(*statement)) {
+                exec_plannable_query(server, *statement);
             } else {
-                mi::LoggerGlobal->Error("command %i is not supported", command.value());
-                server.SendStringResult("Only SELECT/INSERT/UPDATE/DELETE are supported for now");
+                server.SendError("Statement " +
+                                 std::to_string(static_cast<int>(statement->type())) +
+                                 " is not supported");
             }
         } catch (std::exception &ex) {
-            server.SendStringResult(std::string("ERROR: ") + ex.what());
+            server.SendError(ex.what());
+
+            // All errors abort transaction (if exists)
             if (mi::MyTransaction != nullptr)
                 mi::MyTransaction->SetStatus(mi::storage::trans::TransactionStatus::ABORTED);
         }

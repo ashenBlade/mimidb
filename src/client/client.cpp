@@ -1,183 +1,72 @@
 #include "MimiClient.hpp"
+#include "packets/DataRowPacket.hpp"
+#include "packets/ErrorResponsePacket.hpp"
+#include "packets/PacketType.hpp"
+#include "packets/QueryPacket.hpp"
+#include "packets/TupleDescriptionPacket.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <iostream>
 #include <locale>
 #include <netinet/in.h>
-#include <stdexcept>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <vector>
 
-void sendTcl(mi::interface::libmimi::MimiClient &client, char command) {
-    client.SendInt8(command);
+using namespace mi::interface::libmimi;
 
-    command = client.ReceiveInt8();
-
-    if (command == 'O') {
-        // Success
-        return;
-    }
-
-    if (command == 'S') {
-        auto str = client.ReceiveString();
-        std::cout << str << std::endl;
-        return;
-    }
-
-    throw std::runtime_error("unknown result");
-}
-
-static std::vector<int> recvTupleDescriptor(mi::interface::libmimi::MimiClient &client) {
-    auto byte = client.ReceiveInt8();
-    if (byte == 'S') {
-        auto err = client.ReceiveString();
-        std::cerr << "error: " << err << std::endl;
-        throw std::runtime_error("");
-    }
-
-    if (byte != 'D') {
-        std::cerr << "unknown byte " << byte << std::endl;
-        throw std::runtime_error("");
-    }
-
-    auto natts = client.ReceiveInt32();
-    auto lengths = std::vector<int>{};
-    for (auto i = 0; i < natts; i++) {
-        lengths.push_back(client.ReceiveInt32());
-    }
-
-    return lengths;
-}
-
-void handleTuple(mi::interface::libmimi::MimiClient &client, const std::vector<int> &lengths) {
-    std::vector<std::string> attrs{lengths.size()};
-    for (const auto length : lengths) {
-        auto byte = client.ReceiveInt8();
-        if (byte == '0') {
-            attrs.push_back("NULL");
-            continue;
+static bool handleResponse(MimiClient &client) {
+    // XXX: тут можно создать стейт машину, чтобы проверять разные шняги, например, что мне всегда
+    // приходит TupleDescr перед DataRow
+    while (auto response = client.ReceivePacket()) {
+        auto stop = false;
+        switch (response->Type()) {
+        case PacketType::TupleDescription: {
+            TupleDescriptionPacket *descr = dynamic_cast<TupleDescriptionPacket *>(response.get());
+            for (const auto &att : descr->Attributes()) {
+                std::cout << att.Name() << "\t";
+            }
+            std::cout << std::endl;
+            break;
         }
-        assert(byte == '1');
-
-        std::string val;
-        switch (length) {
-        case 8:
-            val = std::to_string(client.ReceiveInt64());
+        case PacketType::DataRow: {
+            DataRowPacket *drow = dynamic_cast<DataRowPacket *>(response.get());
+            for (const auto &val : drow->Values()) {
+                if (val.has_value()) {
+                    std::cout << val.value() << "\t";
+                } else {
+                    std::cout << "NULL" << "\t";
+                }
+            }
+            std::cout << std::endl;
             break;
-        case 4:
-            val = std::to_string(client.ReceiveInt32());
-            break;
-        case 2:
-            val = std::to_string(client.ReceiveInt16());
-            break;
-        case 1:
-            val = std::to_string(client.ReceiveInt8());
-            break;
-        case -1:
-            val = client.ReceiveString();
-            break;
-        default:
-            throw std::runtime_error("invalid length");
         }
-        attrs.push_back(val);
-    }
-
-    for (const auto &attr : attrs) {
-        std::cout << attr << " ";
-    }
-
-    std::cout << std::endl;
-}
-
-void sendSelect(mi::interface::libmimi::MimiClient &client) {
-    client.SendInt8('S');
-
-    auto attrs = recvTupleDescriptor(client);
-
-    auto stop = false;
-    while (!stop) {
-        auto byte = client.ReceiveInt8();
-
-        switch (byte) {
-        case 'T':
-            handleTuple(client, attrs);
-            break;
-        case 'O':
-            stop = true;
-            break;
-        case 'S': {
-            auto s = client.ReceiveString();
-            std::cout << "error: " << s << std::endl;
+        case PacketType::CommandComplete: {
             stop = true;
             break;
         }
-        default:
+        case PacketType::ErrorResponse: {
+            ErrorResponsePacket *err = dynamic_cast<ErrorResponsePacket *>(response.get());
+            std::cerr << "ERROR: " << err->Message() << std::endl;
             stop = true;
-            std::cout << "unknown command " << byte << std::endl;
             break;
         }
+        case PacketType::Query: {
+            std::cerr << "Must not receive QUERY packet at client" << std::endl;
+            exit(1);
+            break;
+        }
+        }
+
+        if (stop) {
+            // Success
+            return true;
+        }
     }
-}
 
-void sendInsert(mi::interface::libmimi::MimiClient &client) {
-    // Пока только 2 числа есть в кортеже
-    int32_t first;
-    int16_t second;
-
-    std::cin >> first >> second;
-
-    client.SendInt8('I');
-    client.SendInt32(first);
-    client.SendInt16(second);
-
-    auto ret = client.ReceiveInt8();
-    if (ret == 'O') {
-        // OK
-    } else if (ret == 'S') {
-        auto str = client.ReceiveString();
-        std::cerr << "ERROR: " << str << std::endl;
-    } else {
-        std::cerr << "Unknown result byte " << ret << std::endl;
-    }
-}
-
-void sendUpdate(mi::interface::libmimi::MimiClient &client) {
-    // Пока только 2 числа есть в кортеже
-    // int32_t first;
-    // int16_t second;
-
-    // std::cin >> first >> second;
-
-    client.SendInt8('U');
-    // client.SendInt32(first);
-    // client.SendInt16(second);
-
-    auto ret = client.ReceiveInt8();
-    if (ret == 'O') {
-        // OK
-    } else if (ret == 'S') {
-        auto str = client.ReceiveString();
-        std::cerr << "ERROR: " << str << std::endl;
-    } else {
-        std::cerr << "Unknown result byte " << ret << std::endl;
-    }
-}
-
-void sendDelete(mi::interface::libmimi::MimiClient &client) {
-    client.SendInt8('D');
-
-    auto ret = client.ReceiveInt8();
-    if (ret == 'O') {
-        // OK
-    } else if (ret == 'S') {
-        auto str = client.ReceiveString();
-        std::cerr << "ERROR: " << str << std::endl;
-    } else {
-        std::cerr << "Unknown result byte " << ret << std::endl;
-    }
+    // If we are here it means that connection lost
+    return false;
 }
 
 int main() {
@@ -197,45 +86,32 @@ int main() {
         return -1;
     }
 
-    auto client = mi::interface::libmimi::MimiClient{sock};
+    auto client = MimiClient{sock};
 
     while (true) {
         std::string input;
 
         std::cout << "=> " << std::flush;
-        std::cin >> input;
-
-        if (!input.size()) {
-            std::cerr << "ending" << std::endl;
-            break;
-        }
+        std::getline(std::cin, input);
 
         // To lower case
         std::transform(input.begin(), input.end(), input.begin(),
                        [](char c) { return std::tolower(c, std::locale()); });
 
-        try {
-            if (input == "begin") {
-                sendTcl(client, 'B');
-            } else if (input == "commit") {
-                sendTcl(client, 'C');
-            } else if (input == "rollback") {
-                sendTcl(client, 'R');
-            } else if (input == "select") {
-                sendSelect(client);
-            } else if (input == "insert") {
-                sendInsert(client);
-            } else if (input == "update") {
-                sendUpdate(client);
-            } else if (input == "delete") {
-                sendDelete(client);
-            } else if (input == "quit" || input == "\\q" || input == "q") {
-                break;
-            } else {
-                std::cerr << "unknown command" << std::endl;
-            }
-        } catch (std::runtime_error &ex) {
-            // ...
+        if (!input.size()) {
+            // Just continue
+            continue;
+        }
+        if (input == "\\q" || input == "q") {
+            break;
+        }
+
+        auto packet = QueryPacket{std::move(input)};
+        client.SendPacket(packet);
+
+        if (!handleResponse(client)) {
+            std::cout << "CONNECTION LOST" << std::endl;
+            break;
         }
     }
 

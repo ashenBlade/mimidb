@@ -2,14 +2,15 @@
 
 namespace mi::executor::plan {
 
-SeqScan::SeqScan(mi::access::table::ITable *table, mi::storage::trans::Snapshot *snapshot,
+SeqScan::SeqScan(mi::access::table::ITable *table,
                  std::unique_ptr<IExpressionNode> qual)
-    : _scan(nullptr), _table(table), _snapshot(snapshot), _qual(std::move(qual)) {};
+    : _scan(nullptr), _table(table), _qual(std::move(qual)) {};
 
-void SeqScan::Start() {
-    auto scan = _table->StartScan(this->_snapshot);
+void SeqScan::Start(mi::storage::trans::Snapshot *snapshot) {
+    auto scan = _table->StartScan(snapshot);
     scan->BeginScan();
     this->_scan = std::move(scan);
+    this->_snapshot = snapshot;
 }
 
 void SeqScan::End() { _scan->EndScan(); }

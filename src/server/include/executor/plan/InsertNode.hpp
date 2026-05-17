@@ -15,7 +15,7 @@ class InsertNode : public IPlanNode {
 
   public:
     InsertNode(access::table::ITable *table, std::vector<std::unique_ptr<access::table::ITuple>> tuple);
-    void Start() override;
+    void Start(storage::trans::Snapshot *snapshot) override;
     void End() override;
     std::unique_ptr<access::table::ITuple> Execute() override;
 };

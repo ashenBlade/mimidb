@@ -1,13 +1,28 @@
 #include "MimiClient.hpp"
+#include "NetworkReader.hpp"
+#include "packets/CommandCompletePacket.hpp"
+#include "packets/DataRowPacket.hpp"
+#include "packets/ErrorResponsePacket.hpp"
+#include "packets/IPacket.hpp"
+#include "packets/PacketDeserializer.hpp"
+#include "packets/PacketType.hpp"
+#include "packets/QueryPacket.hpp"
+#include "packets/SerializerPacketVisitor.hpp"
+#include "packets/TupleDescriptionPacket.hpp"
+#include <array>
+#include <assert.h>
 #include <cstddef>
 #include <cstring>
 #include <endian.h>
+#include <memory>
 #include <netinet/in.h>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
 
 using namespace mi::interface::libmimi;
 
@@ -142,6 +157,80 @@ extern void MimiClient::Close() {
     shutdown(this->_socket, SHUT_RDWR);
     close(this->_socket);
     this->_socket = -1;
+}
+
+extern void MimiClient::SendPacket(const IPacket &packet) {
+    auto serializer = SerializerPacketVisitor{};
+    packet.Accept(serializer);
+
+    auto buffer = std::move(serializer._buffer);
+    if (buffer.size() <= 1) {
+        throw std::runtime_error("could not serialize packet");
+    }
+
+    this->sendBuffer(buffer.data(), buffer.size());
+}
+
+extern std::unique_ptr<IPacket> MimiClient::ReceivePacket() {
+    // Check header is valid
+    auto byte = this->ReceiveInt8Opt();
+    if (!byte.has_value()) {
+        return nullptr;
+    }
+
+    auto type = static_cast<PacketType>(byte.value());
+    switch (type) {
+    case PacketType::DataRow:
+    case PacketType::ErrorResponse:
+    case PacketType::Query:
+    case PacketType::TupleDescription:
+    case PacketType::CommandComplete:
+        // valid
+        break;
+    default:
+        throw std::runtime_error("Unknown packet type: " + std::to_string(static_cast<int>(type)));
+    }
+
+    auto length = static_cast<uint32_t>(this->ReceiveInt32());
+    // Length of 'length' field is included
+    if (length < sizeof(uint32_t)) {
+        throw std::runtime_error("invalid length field value in packet: " + std::to_string(length));
+    }
+
+    auto buffer = std::vector<std::byte>(length - sizeof(uint32_t));
+    this->ReceiveBuffer(buffer.data(), buffer.size());
+
+    std::unique_ptr<IPacket> packet = nullptr;
+    switch (type) {
+    case PacketType::DataRow: {
+        packet = std::make_unique<DataRowPacket>(
+            PacketDeserializer::DeserializeDataRow(buffer.data(), buffer.size()));
+        break;
+    }
+    case PacketType::ErrorResponse: {
+        packet = std::make_unique<ErrorResponsePacket>(
+            PacketDeserializer::DeserializeErrorResponse(buffer.data(), buffer.size()));
+        break;
+    }
+    case PacketType::Query: {
+        packet = std::make_unique<QueryPacket>(
+            PacketDeserializer::DeserializeQuery(buffer.data(), buffer.size()));
+        break;
+    }
+    case PacketType::TupleDescription: {
+        packet = std::make_unique<TupleDescriptionPacket>(
+            PacketDeserializer::DeserializeTupleDescription(buffer.data(), buffer.size()));
+        break;
+    }
+    case PacketType::CommandComplete: {
+        packet = std::make_unique<CommandCompletePacket>(
+            PacketDeserializer::DeserializeCommandComplete(buffer.data(), buffer.size()));
+        break;
+    }
+    }
+
+    assert(packet != nullptr);
+    return packet;
 }
 
 extern MimiClient::~MimiClient() { this->Close(); }

@@ -3,6 +3,7 @@
 #include "executor/Datum.hpp"
 #include <optional>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 namespace mi {
 class DatumArray {
@@ -43,6 +44,14 @@ class DatumArray {
         this->_isnull.push_back(true);
         _size++;
     }
+    
+    void Add(std::optional<Datum> value) {
+        if (value.has_value()) {
+            this->AddValue(value.value());
+        } else {
+            this->AddNull();
+        }
+    }
 
     void SetValue(size_t index, Datum value) {
         this->_values[index] = value;
@@ -75,5 +84,9 @@ class DatumArray {
     }
 
     size_t Size() const { return this->_values.size(); };
+
+    std::pair<std::vector<Datum>, std::vector<bool>> Decompose() const {
+        return std::make_pair(this->_values, this->_isnull);
+    }
 };
 } // namespace mi

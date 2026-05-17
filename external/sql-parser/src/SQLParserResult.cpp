@@ -29,6 +29,13 @@ const SQLStatement* SQLParserResult::getStatement(size_t index) const { return s
 
 SQLStatement* SQLParserResult::getMutableStatement(size_t index) { return statements_[index]; }
 
+SQLStatement* SQLParserResult::extractStatement(size_t index) {
+  auto it = statements_.begin() + static_cast<ssize_t>(index);
+  auto ptr = *it;
+  statements_.erase(it);
+  return ptr;
+}
+
 size_t SQLParserResult::size() const { return statements_.size(); }
 
 bool SQLParserResult::isValid() const { return isValid_; }

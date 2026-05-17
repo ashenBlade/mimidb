@@ -34,8 +34,8 @@
 
 using namespace mi::access::heap;
 
-HeapTable::HeapTable(Oid tableId, const TupleDescriptor *descriptor)
-    : _tableId(tableId), _tupleDescriptor(descriptor) {}
+HeapTable::HeapTable(Oid tableId, std::unique_ptr<TupleDescriptor> descriptor)
+    : _tableId(tableId), _tupleDescriptor(std::move(descriptor)) {}
 
 HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) const {
     auto maxAttr = this->_tupleDescriptor->GetMaxAttrNumber();

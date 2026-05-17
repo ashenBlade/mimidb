@@ -88,5 +88,5 @@ HeapResourceManager::ParseUndo(uint8_t t, std::byte *data, size_t length) {
     }
     }
 
-    throw std::runtime_error("unknown heap record type: " + std::to_string(t));
+    throw std::runtime_error("unknown heap record type: " + std::to_string(static_cast<int>(t)));
 }

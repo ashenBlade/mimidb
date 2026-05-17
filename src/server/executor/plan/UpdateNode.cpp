@@ -8,19 +8,17 @@ using namespace mi::executor::plan;
 
 UpdateNode::UpdateNode(
     access::table::ITable *table, std::unique_ptr<IExpressionNode> qual,
-    storage::trans::Snapshot *snapshot,
     std::vector<std::pair<access::table::AttrNumber, std::unique_ptr<IExpressionNode>>> updates)
-    : _table(table), _qual(std::move(qual)), _updates(std::move(updates)), _snapshot(snapshot),
-      _scan(nullptr) {
+    : _table(table), _qual(std::move(qual)), _updates(std::move(updates)), _scan(nullptr) {
     if (this->_qual == nullptr) {
         throw std::runtime_error("qual is null");
     }
 }
 
-void UpdateNode::Start() {
+void UpdateNode::Start(mi::storage::trans::Snapshot *snapshot) {
     assert(this->_scan == nullptr);
 
-    auto scan = this->_table->StartScan(this->_snapshot);
+    auto scan = this->_table->StartScan(snapshot);
     scan->BeginScan();
     this->_scan = std::move(scan);
 }

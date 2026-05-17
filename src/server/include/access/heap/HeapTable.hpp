@@ -22,7 +22,7 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     Oid _tableId;
 
     // Table schema descriptor
-    const TupleDescriptor *_tupleDescriptor;
+    std::unique_ptr<TupleDescriptor> _tupleDescriptor;
 
     // Amount of pages in given relation so far. If Invalid, then unknown
     mi::storage::buffer::PageNumber _pageCountCached;
@@ -31,11 +31,11 @@ class HeapTable : public mi::access::table::ITable, private NonCopyable {
     storage::buffer::BufferPin searchPageFreeSpace(size_t freeSpace) const;
 
   public:
-    HeapTable(Oid tableId, const TupleDescriptor *descriptor);
+    HeapTable(Oid tableId, std::unique_ptr<TupleDescriptor> descriptor);
     ~HeapTable() = default;
 
     Oid GetOid() const { return this->_tableId; }
-    const TupleDescriptor *GetDescriptor() const override { return this->_tupleDescriptor; }
+    const TupleDescriptor *GetDescriptor() const override { return this->_tupleDescriptor.get(); }
 
     std::unique_ptr<mi::access::table::ITableScan>
     StartScan(storage::trans::Snapshot *snapshot) override;

@@ -21,8 +21,8 @@ class DeleteNode : public IPlanNode {
     std::unique_ptr<access::table::ITableScan> _scan;
 
   public:
-    DeleteNode(access::table::ITable *table, std::unique_ptr<IExpressionNode> qual, storage::trans::Snapshot *snapshot);
-    void Start() override;
+    DeleteNode(access::table::ITable *table, std::unique_ptr<IExpressionNode> qual);
+    void Start(storage::trans::Snapshot *snapshot) override;
     void End() override;
     std::unique_ptr<access::table::ITuple> Execute() override;
 };

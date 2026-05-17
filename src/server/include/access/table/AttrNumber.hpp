@@ -23,16 +23,18 @@ struct AttrNumber {
         assert(this->value != InvalidValue);
         return static_cast<std::size_t>(this->value - 1);
     }
-    
+
     AttrNumber(const AttrNumber &other) = default;
-    AttrNumber &operator =(const AttrNumber &other) = default;
+    AttrNumber &operator=(const AttrNumber &other) = default;
     AttrNumber(AttrNumber &&other) = default;
-    AttrNumber &operator =(AttrNumber &&other) = default;
+    AttrNumber &operator=(AttrNumber &&other) = default;
 
     operator std::size_t() const { return value; };
     operator uint16_t() const { return value; }
 
     template <class T> bool operator==(T other) { return this->value == other; }
+    template <class T> AttrNumber operator+(T other) { return AttrNumber{static_cast<uint16_t>(this->value + other)}; };
+    AttrNumber operator+(const AttrNumber &other) { return AttrNumber{static_cast<uint16_t>(this->value + other.value)}; };
     bool operator==(const AttrNumber &other) { return this->value == other.value; }
     bool operator<=(const AttrNumber &other) const { return this->value <= other.value; }
     bool operator<(const AttrNumber &other) const { return this->value < other.value; }

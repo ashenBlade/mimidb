@@ -54,6 +54,9 @@ class SQLParserResult {
   // Gets the non const SQL statement with the given index.
   SQLStatement* getMutableStatement(size_t index);
 
+  // Extracts (and removes) statement from result and returns. Also transfers ownership of pointer.
+  SQLStatement* extractStatement(size_t index);
+
   // Get the list of all statements.
   const std::vector<SQLStatement*>& getStatements() const;
 

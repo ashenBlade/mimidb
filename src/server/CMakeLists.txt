@@ -6,6 +6,7 @@ add_executable(${SERVER_EXEC_NAME}
 # Заголовки
 target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../libmimi/include")
+target_include_directories(${SERVER_EXEC_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../external/sql-parser/src")
 
 # Все поддиректории
 add_subdirectory(access)
@@ -16,5 +17,11 @@ add_subdirectory(storage)
 add_subdirectory(trans)
 add_subdirectory(worker)
 add_subdirectory(logger)
+add_subdirectory(parser)
+add_subdirectory(planner)
 
+# Network client
 target_link_libraries(${SERVER_EXEC_NAME} PRIVATE ${LIBMIMI_IFACE_NAME})
+
+# SQL parser
+target_link_libraries(${SERVER_EXEC_NAME} PRIVATE ${SQLPARSER_LIB_NAME})

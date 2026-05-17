@@ -1,16 +1,29 @@
 #include "cluster_state.hpp"
 #include "access/heap/HeapResourceManager.hpp"
+#include "access/heap/HeapTable.hpp"
+#include "access/table/AttrNumber.hpp"
+#include "access/table/ITable.hpp"
+#include "access/table/TupleDescriptor.hpp"
 #include "db/bulitin/int.hpp"
+#include "db/catalog/ColumnInfo.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeId.hpp"
+#include "include/db/bulitin/int.hpp"
+#include "include/db/catalog/OperatorId.hpp"
+#include "include/db/catalog/OperatorInfo.hpp"
+#include "include/db/catalog/TableInfo.hpp"
+#include "include/db/catalog/TypeId.hpp"
+#include "include/executor/Oid.hpp"
+#include "logger.hpp"
 #include "logger/Logger.hpp"
 #include "mi_config.hpp"
-#include "logger.hpp"
 #include <cstring>
 #include <fcntl.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <iostream>
+#include <memory>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <unordered_map>
 
 // Global variables
 mi::db::Database *mi::DatabaseGlobal;
@@ -26,31 +39,64 @@ static void setupDatabase() {
     // CREATE TABLE tbl(a int4, b int2);
 
     // Tuple with 2 attributes, both ints
-    auto desc = mi::access::table::TupleDescriptor{std::vector{
+    auto tupDesc = std::make_unique<mi::access::table::TupleDescriptor>(std::vector{
         mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int32, sizeof(int32_t),
                                                true},
         mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int16, sizeof(int16_t),
                                                true},
-    }};
-    auto tables = std::unordered_map<mi::Oid, mi::db::catalog::TableInfo>{
-        {mi::schema::catalog::TableId::MainTableId,
-         mi::db::catalog::TableInfo{mi::schema::catalog::TableId::MainTableId, std::move(desc)}}};
+    });
+    auto table = std::make_unique<mi::access::heap::HeapTable>(
+        mi::schema::catalog::TableId::MainTableId, std::move(tupDesc));
 
-    // Only scalar ints are supported now
-    auto types = std::unordered_map<mi::Oid, mi::db::catalog::TypeInfo>{
-        {mi::schema::catalog::TypeId::Int16,
-         mi::db::catalog::TypeInfo{mi::schema::catalog::TypeId::Int16, sizeof(int16_t),
-                                   mi::db::builtin::Int16Output}},
-        {mi::schema::catalog::TypeId::Int32,
-         mi::db::catalog::TypeInfo{mi::schema::catalog::TypeId::Int32, sizeof(int32_t),
-                                   mi::db::builtin::Int32Output}},
-        {mi::schema::catalog::TypeId::Int64,
-         mi::db::catalog::TypeInfo{mi::schema::catalog::TypeId::Int64, sizeof(int64_t),
-                                   mi::db::builtin::Int64Output}},
-    };
+    auto columns =
+        std::vector<mi::db::catalog::ColumnInfo>{mi::db::catalog::ColumnInfo{
+                                                     mi::schema::catalog::TypeId::Int32,
+                                                     "a",
+                                                     mi::access::table::AttrNumber::Min(),
+                                                 },
+                                                 mi::db::catalog::ColumnInfo{
+                                                     mi::schema::catalog::TypeId::Int16,
+                                                     "b",
+                                                     mi::access::table::AttrNumber::Min() + 1U,
+                                                 }};
 
-    auto schema = std::make_unique<mi::db::Schema>(std::move(tables), std::move(types));
-    mi::DatabaseGlobal = new mi::db::Database(std::move(schema));
+    // Table info
+    auto tables = std::unordered_map<mi::Oid, std::unique_ptr<mi::db::catalog::TableInfo>>{};
+    tables.emplace(
+        mi::schema::catalog::TableId::MainTableId,
+        std::make_unique<mi::db::catalog::TableInfo>(mi::schema::catalog::TableId::MainTableId,
+                                                     table->GetDescriptor(), std::move(columns)));
+
+    // Type info
+    auto types = std::unordered_map<mi::Oid, std::unique_ptr<mi::db::catalog::TypeInfo>>{};
+    types.emplace(mi::schema::catalog::TypeId::Int16,
+                  std::make_unique<mi::db::catalog::TypeInfo>(mi::schema::catalog::TypeId::Int16,
+                                                              sizeof(int16_t),
+                                                              mi::db::builtin::Int16Output));
+    types.emplace(mi::schema::catalog::TypeId::Int32,
+                  std::make_unique<mi::db::catalog::TypeInfo>(mi::schema::catalog::TypeId::Int32,
+                                                              sizeof(int32_t),
+                                                              mi::db::builtin::Int32Output));
+    types.emplace(mi::schema::catalog::TypeId::Int64,
+                  std::make_unique<mi::db::catalog::TypeInfo>(mi::schema::catalog::TypeId::Int64,
+                                                              sizeof(int64_t),
+                                                              mi::db::builtin::Int64Output));
+
+    // Operator info
+    auto operators = std::unordered_map<mi::Oid, std::unique_ptr<mi::db::catalog::OperatorInfo>>{};
+    operators.emplace(mi::db::catalog::OperatorId::EqInt32Int32,
+                      std::make_unique<mi::db::catalog::OperatorInfo>(
+                          mi::db::catalog::OperatorId::EqInt32Int32,
+                          mi::schema::catalog::TypeId::Int32, mi::schema::catalog::TypeId::Int32,
+                          mi::db::catalog::OperatorStrategy::Equal, mi::db::builtin::Int32Eq));
+
+    auto schema =
+        std::make_unique<mi::db::Schema>(std::move(tables), std::move(types), std::move(operators));
+
+    auto itables = std::unordered_map<mi::Oid, std::unique_ptr<mi::access::table::ITable>>{};
+    itables.emplace(mi::schema::catalog::TableId::MainTableId, std::move(table));
+
+    mi::DatabaseGlobal = new mi::db::Database(std::move(schema), std::move(itables));
 }
 
 static void setupStorage() {

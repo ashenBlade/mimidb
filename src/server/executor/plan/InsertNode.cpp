@@ -1,5 +1,6 @@
 #include "executor/plan/InsertNode.hpp"
 #include "access/table/ITuple.hpp"
+#include "trans/Snapshot.hpp"
 #include <memory>
 
 using namespace mi::executor::plan;
@@ -7,7 +8,7 @@ using namespace mi::executor::plan;
 InsertNode::InsertNode(access::table::ITable *table, std::vector<std::unique_ptr<access::table::ITuple>> tuple)
     : _table(table), _tuples(std::move(tuple)) {}
 
-void InsertNode::Start() {
+void InsertNode::Start([[maybe_unused]] mi::storage::trans::Snapshot *snapshot) {
     // nothing to do
 }
 

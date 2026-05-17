@@ -43,6 +43,9 @@ endif()
 set(SERVER_EXEC_NAME mimidb)
 set(LIBMIMI_IFACE_NAME mimi)
 set(CLIENT_EXEC_NAME miclient)
+set(COMMON_LIB_NAME micommon)
+set(SQLPARSER_LIB_NAME hyrisesql)
 
 # Рекурсивно собираем все
 add_subdirectory(src)
+add_subdirectory(external/sql-parser)

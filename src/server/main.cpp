@@ -79,7 +79,7 @@ static int main_loop() {
             if (errno == EINTR && stop_requested) {
                 mi::LoggerGlobal->Info("got SIGINT, stop working");
             } else {
-                mi::LoggerGlobal->Error("error accepting client, stop working: %m");
+                mi::LoggerGlobal->Error("error accepting client, stop working: %s", strerror(errno));
             }
             break;
         }

@@ -4,6 +4,7 @@
 #include "access/table/ITableScan.hpp"
 #include "executor/expr/IExpressionNode.hpp"
 #include "executor/plan/IPlanNode.hpp"
+#include "trans/Snapshot.hpp"
 #include <memory>
 
 namespace mi::executor::plan {
@@ -19,10 +20,9 @@ class SeqScan : public IPlanNode {
     std::unique_ptr<IExpressionNode> _qual;
 
   public:
-    SeqScan(mi::access::table::ITable *table, mi::storage::trans::Snapshot *snapshot,
-            std::unique_ptr<IExpressionNode> qual);
+    SeqScan(mi::access::table::ITable *table, std::unique_ptr<IExpressionNode> qual);
 
-    void Start() override;
+    void Start(storage::trans::Snapshot *snapshot) override;
     void End() override;
     std::unique_ptr<mi::access::table::ITuple> Execute() override;
     ~SeqScan() override = default;

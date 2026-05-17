@@ -25,10 +25,9 @@ class UpdateNode : public IPlanNode {
 
   public:
     UpdateNode(access::table::ITable *table, std::unique_ptr<IExpressionNode> qual,
-               storage::trans::Snapshot *snapshot,
                std::vector<std::pair<access::table::AttrNumber, std::unique_ptr<IExpressionNode>>>
                    updates);
-    void Start() override;
+    void Start(storage::trans::Snapshot *snapshot) override;
     void End() override;
     std::unique_ptr<access::table::ITuple> Execute() override;
 };
