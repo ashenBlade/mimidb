@@ -5,6 +5,7 @@ target_include_directories(${LIBMIMI_IFACE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE
 target_sources(${LIBMIMI_IFACE_NAME} PRIVATE 
     src/MimiClient.cpp
     src/NetworkReader.cpp
+    src/NetworkWriter.cpp
     src/serialization.cpp
 
     src/packets/QueryPacket.cpp

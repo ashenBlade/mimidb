@@ -1,10 +1,12 @@
 #include "NetworkReader.hpp"
+#include "NetworkWriter.hpp"
 #include "packets/CommandCompletePacket.hpp"
 #include "packets/DataRowPacket.hpp"
 #include "packets/SerializerPacketVisitor.hpp"
 #include "packets/PacketDeserializer.hpp"
 #include "packets/ErrorResponsePacket.hpp"
 #include "packets/TupleDescriptionPacket.hpp"
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -12,7 +14,6 @@
 
 using namespace mi::interface::libmimi;
 
-// TODO: переделать на NetworkWriter
 static size_t calculate_payload_size(const QueryPacket &packet) {
     // common header
     size_t size = 0;
@@ -80,33 +81,27 @@ static size_t calculate_payload_size([[maybe_unused]]const CommandCompletePacket
 }
 
 template<class TPacket>
-std::vector<std::byte> visit_base(const TPacket &packet, std::byte **cursor_out) {
+std::vector<std::byte> visit_base(const TPacket &packet, NetworkWriter *writer_out) {
     auto size = calculate_payload_size(packet);
     auto buffer = std::vector<std::byte>(size + sizeof(std::byte) + sizeof(uint32_t));
 
-    auto cursor = buffer.data();
-    
-    *reinterpret_cast<std::byte *>(cursor) = static_cast<std::byte>(packet.Type());
-    cursor += sizeof(std::byte);
+    auto writer = NetworkWriter{buffer.data(), buffer.size()};
 
-    *reinterpret_cast<uint32_t *>(cursor) = be32toh(static_cast<uint32_t>(size + sizeof(uint32_t)));
-    cursor += sizeof(uint32_t);
+    // Common header: type + length
+    writer.WriteUint8(static_cast<uint8_t>(packet.Type()));
+    // Length include payload and 'length' field itself (4 bytes)
+    writer.WriteUint32(static_cast<uint32_t>(size + sizeof(uint32_t)));
 
-    *cursor_out = cursor;
-
+    *writer_out = writer;
     return buffer;
 }
 
 void SerializerPacketVisitor::Visit(const QueryPacket &packet) {
     // Calculate payload size
-    std::byte *cursor;
-    auto buffer = visit_base(packet, &cursor);
+    NetworkWriter writer;
+    auto buffer = visit_base(packet, &writer);
 
-    *reinterpret_cast<uint32_t *>(cursor) = be32toh(static_cast<uint32_t>(packet.Query().size()));
-    cursor += sizeof(uint32_t);
-
-    std::memcpy(cursor, packet.Query().c_str(), packet.Query().size());
-
+    writer.WriteString(packet.Query());
     this->_buffer = std::move(buffer);
 }
 
@@ -119,19 +114,14 @@ QueryPacket PacketDeserializer::DeserializeQuery(std::byte *buffer, size_t lengt
 
 void SerializerPacketVisitor::Visit(const TupleDescriptionPacket &packet) {
     // Calculate payload size
-    std::byte *cursor;
-    auto buffer = visit_base(packet, &cursor);
+    NetworkWriter writer;
+    auto buffer = visit_base(packet, &writer);
 
     // Number of attributes
-    *reinterpret_cast<uint32_t *>(cursor) = be32toh(static_cast<uint32_t>(packet.Attributes().size()));
-    cursor += sizeof(uint32_t);
+    writer.WriteUint32(static_cast<uint32_t>(packet.Attributes().size()));
 
     for (const auto &att : packet.Attributes()) {
-        *reinterpret_cast<uint32_t *>(cursor) = be32toh(static_cast<uint32_t>(att.Name().size()));
-        cursor += sizeof(uint32_t);
-
-        std::memcpy(cursor, att.Name().data(), att.Name().size());
-        cursor += att.Name().size();
+        writer.WriteString(att.Name());
     }
 
     this->_buffer = std::move(buffer);
@@ -150,26 +140,21 @@ TupleDescriptionPacket PacketDeserializer::DeserializeTupleDescription(std::byte
 };
 
 void SerializerPacketVisitor::Visit(const DataRowPacket &packet) {
-    std::byte *cursor;
-    auto buffer = visit_base(packet, &cursor);
+    NetworkWriter writer;
+    auto buffer = visit_base(packet, &writer);
 
     // Number of attributes
-    *reinterpret_cast<uint32_t *>(cursor) = htobe32(static_cast<uint32_t>(packet.Values().size()));
-    cursor += sizeof(uint32_t);
+    writer.WriteUint32(static_cast<uint32_t>(packet.Values().size()));
 
     for (const auto &att : packet.Values()) {
         if (!att.has_value()) {
-            *reinterpret_cast<uint32_t *>(cursor) = static_cast<uint32_t>(-1);
-            cursor += sizeof(uint32_t);
+            writer.WriteUint32(static_cast<uint32_t>(-1));
             continue;
         }
 
         const auto &val = att.value();
-        *reinterpret_cast<uint32_t *>(cursor) = htobe32(static_cast<uint32_t>(val.size()));
-        cursor += sizeof(uint32_t);
-
-        std::memcpy(cursor, val.data(), val.size());
-        cursor += val.size();
+        writer.WriteString(val);
+        assert(static_cast<uint32_t>(val.size()) != static_cast<uint32_t>(-1));
     }
 
     this->_buffer = std::move(buffer);
@@ -196,13 +181,10 @@ DataRowPacket PacketDeserializer::DeserializeDataRow(std::byte *buffer, size_t l
 };
 
 void SerializerPacketVisitor::Visit(const ErrorResponsePacket &packet) {
-    std::byte *cursor;
-    auto buffer = visit_base(packet, &cursor);
+    NetworkWriter writer;
+    auto buffer = visit_base(packet, &writer);
 
-    *reinterpret_cast<uint32_t *>(cursor) = htobe32(static_cast<uint32_t>(packet.Message().size()));
-    cursor += sizeof(uint32_t);
-
-    std::memcpy(cursor, packet.Message().data(), packet.Message().size());
+    writer.WriteString(packet.Message());
 
     this->_buffer = std::move(buffer);
 }
@@ -214,11 +196,11 @@ ErrorResponsePacket PacketDeserializer::DeserializeErrorResponse(std::byte *buff
 };
 
 void SerializerPacketVisitor::Visit(const CommandCompletePacket &packet) {
-    std::byte *cursor;
-    auto buffer = visit_base(packet, &cursor);
+    NetworkWriter writer;
+    auto buffer = visit_base(packet, &writer);
+    // No fields
     this->_buffer = std::move(buffer);
 }
-
 
 CommandCompletePacket PacketDeserializer::DeserializeCommandComplete([[maybe_unused]] std::byte *buffer, [[maybe_unused]] size_t length) {
     return CommandCompletePacket{};
