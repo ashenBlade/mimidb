@@ -297,17 +297,10 @@ static void handle_loop(SocketServer &server, WorkerId id) {
         auto queryPacket = dynamic_cast<mi::interface::libmimi::QueryPacket *>(packet.get());
 
         mi::LoggerGlobal->Debug("got query: %s", queryPacket->Query().c_str());
-        hsql::SQLParserResult result;
-        std::unique_ptr<hsql::SQLStatement> statement;
-        try {
-            statement = mi::parser::SQLParser::ParseStatement(queryPacket->Query());
-        } catch (const mi::parser::ParserError &err) {
-            server.SendError("failed to parse query: " + std::string{err.what()});
-            continue;
-        }
-
+        
         // Only 1 types of statements are supported: TCL and simple SQL crud
         try {
+            auto statement = mi::parser::SQLParser::ParseStatement(queryPacket->Query());
             if (statement->type() == hsql::kStmtTransaction) {
                 exec_tcl_query(server, *statement);
             } else if (mi::planner::Planner::IsPlannableStatement(*statement)) {
@@ -319,6 +312,7 @@ static void handle_loop(SocketServer &server, WorkerId id) {
             }
         } catch (std::exception &ex) {
             server.SendError(ex.what());
+            mi::LoggerGlobal->Error("could not execute query \"%s\": %s", queryPacket->Query().c_str(), ex.what());
 
             // All errors abort transaction (if exists)
             if (mi::MyTransaction != nullptr)
