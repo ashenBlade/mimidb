@@ -10,10 +10,12 @@
 #include "cluster_state.hpp"
 #include "storage/buffer/BufferLock.hpp"
 #include "storage/buffer/PageNumber.hpp"
+#include "storage/undo/UndoSeqNumber.hpp"
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/ResourceManagerId.hpp"
 #include "trans/Snapshot.hpp"
 #include "trans/TransactionId.hpp"
+#include "worker_state.hpp"
 #include <cstddef>
 #include <cstring>
 #include <fcntl.h>
@@ -49,22 +51,36 @@ static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::Tupl
 
 static bool tuple_is_visible(const mi::storage::trans::Snapshot &snapshot,
                              HeapPageTupleHeader *header) {
+    if (header->xid == mi::MyTransaction->GetXID()) {
+        // This tuple is created by me
+        if (snapshot.CommandId() <= header->undo) {
+            // Tuple is created in this scan, so invisible to current scan
+            return false;
+        }
+
+        // All tuples created by me are visible, otherwise they will be deleted
+        return true;
+    }
+
+    // Get CSN for given XID - this shows tnx status
     auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(header->xid);
 
-    assert(!csn.IsInvalid());
-
-    if (csn.IsInProgress() || csn.IsAborted() || csn.IsCommitting()) {
-        // XXX: not sure if committing means we do not see tuple
+    // GetTransactionCsn must return valid CSN value
+    assert(!(csn.IsInvalid() || csn.IsCommitting()));
+    if (csn.IsInProgress() || csn.IsAborted()) {
         return false;
     }
 
-    if (csn.IsFrozen() || snapshot.IsVisibleFor(csn)) {
+    assert(csn.IsFrozen() || csn.IsNormal());
+    if (csn.IsFrozen() || csn < snapshot.CSN()) {
         return true;
     }
 
     return false;
 }
 
+// Найти видимую версию кортежа, но только на этой странице и на этом же месте (т.е. если UPDATE,
+// который перемещал кортеж, то уже становится невидимым)
 static std::unique_ptr<HeapTuple>
 find_visible_tuple_page(HeapPageTupleHeader *header,
                         const mi::access::table::TupleDescriptor *descriptor,
@@ -80,6 +96,7 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
         switch (static_cast<undo::HeapUndoRecordType>(record->GetType())) {
         case undo::HeapUndoRecordType::Delete:
             // Tuple does not exist anymore
+            usn = mi::storage::undo::UndoSeqNumber::Invalid;
             break;
         case undo::HeapUndoRecordType::Update: {
             auto updateRecord = dynamic_cast<undo::UpdateUndoRecord *>(record.get());
@@ -91,14 +108,8 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
             }
 
             auto tuple = reinterpret_cast<HeapPageTupleHeader *>(updateRecord->TupleData.data());
-
-            auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(tuple->xid);
-            assert(!csn.IsCommitting());
-
-            if (csn.IsNormal() || csn.IsFrozen()) {
-                if (snapshot.IsVisibleFor(csn)) {
-                    return build_heap_tuple(descriptor, tuple, updateRecord->NewLocation);
-                }
+            if (tuple_is_visible(snapshot, tuple)) {
+                return build_heap_tuple(descriptor, tuple, updateRecord->NewLocation);
             }
 
             usn = tuple->undo;
@@ -108,13 +119,8 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
             auto insertRecord = dynamic_cast<undo::InsertUndoRecord *>(record.get());
 
             auto tuple = reinterpret_cast<HeapPageTupleHeader *>(insertRecord->TupleData.data());
-            auto csn = mi::TransactionManagerGlobal->GetTransactionCsn(tuple->xid);
-            assert(!csn.IsCommitting());
-
-            if (csn.IsNormal() || csn.IsFrozen()) {
-                if (snapshot.IsVisibleFor(csn)) {
-                    return build_heap_tuple(descriptor, tuple, insertRecord->Location);
-                }
+            if (tuple_is_visible(snapshot, tuple)) {
+                return build_heap_tuple(descriptor, tuple, insertRecord->Location);
             }
 
             usn = tuple->undo;

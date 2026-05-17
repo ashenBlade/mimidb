@@ -4,7 +4,6 @@
 #include "SQLParserResult.h"
 #include "parser/ParserError.hpp"
 #include "sql/SQLStatement.h"
-#include <stdexcept>
 #include <string>
 
 using namespace mi::parser;

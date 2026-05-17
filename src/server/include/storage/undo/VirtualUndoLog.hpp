@@ -16,5 +16,12 @@ class VirtualUndoLog : public NonCopyable {
     UndoSeqNumber InsertRecord(IRMgrUndoRecord &record);
     // Perform undo of all written entries for this virtual log
     void UndoAllRecords();
+    UndoSeqNumber LastUSN() const {
+        if (this->_history.size()) {
+            return this->_history.back().value;
+        } else {
+            return UndoSeqNumber::Invalid;
+        }
+    }
 };
-} // namespace mi::transam
+} // namespace mi::storage::undo
