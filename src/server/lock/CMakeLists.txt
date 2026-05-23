@@ -3,4 +3,7 @@ target_sources(
     LWLatch.cpp
     Semaphore.cpp
     Spin.cpp
+    LockList.cpp
+    LockManager.cpp
+    WorkerLock.cpp
 )

@@ -35,7 +35,7 @@ Transaction::~Transaction() {
     // Only the same transaction worker can release lock, because for now LWLatch is implemented
     // using std::mutex.
     assert(this->_xid == MyTransaction->GetXID());
-    this->_latch.Release(lock::LockMode::Exclusive);
+    this->_latch.Unlock(lock::LockMode::Exclusive);
 }
 
 mi::storage::undo::VirtualUndoLog &Transaction::GetUndoLog() {

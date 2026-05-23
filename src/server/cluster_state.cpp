@@ -8,12 +8,15 @@
 #include "db/catalog/ColumnInfo.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeId.hpp"
+#include "include/cluster_state.hpp"
 #include "include/db/bulitin/int.hpp"
 #include "include/db/catalog/OperatorId.hpp"
 #include "include/db/catalog/OperatorInfo.hpp"
 #include "include/db/catalog/TableInfo.hpp"
 #include "include/db/catalog/TypeId.hpp"
 #include "include/executor/Oid.hpp"
+#include "include/lock/LockManager.hpp"
+#include "include/mi_config.hpp"
 #include "logger.hpp"
 #include "logger/Logger.hpp"
 #include "mi_config.hpp"
@@ -28,6 +31,7 @@
 // Global variables
 mi::db::Database *mi::DatabaseGlobal;
 mi::worker::WorkerManager *mi::WorkerGlobal;
+mi::lock::LockManager *mi::LockGlobal;
 mi::storage::buffer::BufferManager *mi::BufferPoolGlobal;
 mi::storage::undo::UndoLog *mi::UndoLogGlobal;
 mi::storage::trans::TransactionManager *mi::TransactionManagerGlobal;
@@ -161,6 +165,7 @@ void setupCluster() {
 
     // Create global structures
     mi::WorkerGlobal = new mi::worker::WorkerManager(mi::Config::MaxWorkers);
+    mi::LockGlobal = new mi::lock::LockManager(mi::Config::MaxWorkers);
     mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager();
     mi::TransactionManagerGlobal = new mi::storage::trans::TransactionManager();
     mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");

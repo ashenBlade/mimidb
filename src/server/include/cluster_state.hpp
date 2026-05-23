@@ -1,6 +1,7 @@
 #pragma once
 
 #include "db/Database.hpp"
+#include "lock/LockManager.hpp"
 #include "storage/buffer/BufferManager.hpp"
 #include "storage/undo/UndoLog.hpp"
 #include "storage/wal/WriteAheadLog.hpp"
@@ -23,4 +24,6 @@ extern storage::wal::WriteAheadLog *WALGlobal;
 extern mi::db::Database *DatabaseGlobal;
 // All registered resource managers
 extern storage::trans::ResourceManagerRegistry *RMgrRegistryGlobal;
+// Lock manager
+extern lock::LockManager *LockGlobal;
 } // namespace mi

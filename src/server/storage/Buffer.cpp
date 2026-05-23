@@ -16,5 +16,5 @@ void Buffer::Lock(bool shared) {
 
 void Buffer::Unlock(bool shared) {
     auto mode = shared ? lock::LockMode::Share : lock::LockMode::Exclusive;
-    this->_latch.Release(mode);
+    this->_latch.Unlock(mode);
 }

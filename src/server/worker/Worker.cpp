@@ -7,7 +7,7 @@
 
 using namespace mi::worker;
 
-Worker::Worker() : Worker(WorkerId::Invalid) {};
+Worker::Worker() : Worker(WorkerId::Invalid()) {};
 
 Worker::Worker(WorkerId id) : _id(id) { assert(id.IsValid()); };
 
