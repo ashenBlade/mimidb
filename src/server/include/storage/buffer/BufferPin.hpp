@@ -15,6 +15,9 @@ class BufferPin {
     /// @brief Pinned buffer
     std::shared_ptr<Buffer> _buffer;
 
+    /// @brief Buffer is pinned
+    bool _pinned;
+
   public:
     // Create already initialized buffer
     BufferPin(PageTag tag, std::shared_ptr<Buffer> buffer);

@@ -7,7 +7,7 @@ using namespace mi::storage::buffer;
 BufferPin::BufferPin() : _tag(), _buffer(nullptr) {};
 
 BufferPin::BufferPin(PageTag pagetag, std::shared_ptr<Buffer> buffer)
-    : _tag(pagetag), _buffer(buffer) {};
+    : _tag(pagetag), _buffer(buffer), _pinned(true) {};
 
 BufferPin::BufferPin(BufferPin &&other) {
     assert(&other != this);

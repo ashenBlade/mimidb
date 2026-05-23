@@ -52,6 +52,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
         auto oldTuple = reinterpret_cast<HeapPageTupleHeader *>(record.TupleData.data());
 
         // Check this undo record was already applied
+        // FIXME: неправильная проверка - я не переопределял оператор сравнения
         if (oldTuple == currentTuple) {
             return;
         }

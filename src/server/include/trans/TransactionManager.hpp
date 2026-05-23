@@ -13,15 +13,15 @@ namespace mi::storage::trans {
 class TransactionManager : private NonCopyable {
   private:
     /// @brief Mutex to synchronize access to fields
-    std::shared_mutex _mutex;
+    std::shared_mutex _mutex{};
     /// @brief Current CSN value (last assigned)
     std::atomic<CommitSeqNumber::type> _csn;
     /// @brief Current XID value (last assigned)
     std::atomic<TransactionId::type> _xid;
     /// @brief Storage for all active transactions
-    std::unordered_map<TransactionId, std::unique_ptr<Transaction>> _state;
+    std::unordered_map<TransactionId, std::unique_ptr<Transaction>> _state{};
     /// @brief Mapping between XID and it's CSN
-    std::unordered_map<TransactionId, CommitSeqNumber> _history;
+    std::unordered_map<TransactionId, CommitSeqNumber> _history{};
 
   public:
     explicit TransactionManager();

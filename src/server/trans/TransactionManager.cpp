@@ -3,15 +3,16 @@
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionId.hpp"
-#include <atomic>
+#include "worker_state.hpp"
 #include <assert.h>
+#include <atomic>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
 
 using namespace mi::storage::trans;
 
-TransactionManager::TransactionManager() : _csn(CommitSeqNumber::Min), _xid(TransactionId::Min) {}
+TransactionManager::TransactionManager() : _mutex(), _csn(CommitSeqNumber::Min), _xid(TransactionId::Min) {}
 
 CommitSeqNumber TransactionManager::GetCurrentCSN() const { return this->_csn.load(); }
 
@@ -34,18 +35,20 @@ CommitSeqNumber TransactionManager::GetTransactionCsn(TransactionId xid) {
 Transaction *TransactionManager::BeginNewTransaction() {
     auto xid = std::atomic_fetch_add(&this->_xid, 1);
 
-    auto lock = std::lock_guard{this->_mutex};
-    // Create transaction object only in the lock, because otherwise there may be race condition
-    auto transaction = std::make_unique<Transaction>(xid);
+    auto lock = std::unique_lock{this->_mutex};
+    // Create transaction object only in the lock, because otherwise there may be race condition.
+    // Note, this will automatically take lock on transaction in X mode.
+    auto transaction = std::make_unique<Transaction>(xid, MyWorker->GetId());
     auto ptr = transaction.get();
     this->_state[xid] = std::move(transaction);
+    this->_history[xid] = CommitSeqNumber::InProgress;
     return ptr;
 }
 
 CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
     // First mark transaction as committing
     {
-        auto lock = std::lock_guard{this->_mutex};
+        auto lock = std::unique_lock{this->_mutex};
         this->_history[xid] = CommitSeqNumber::Committing;
     }
 
@@ -53,7 +56,7 @@ CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
     auto csn = std::atomic_fetch_add(&this->_csn, 1);
 
     {
-        auto lock = std::lock_guard{this->_mutex};
+        auto lock = std::unique_lock{this->_mutex};
         this->_history[xid] = csn;
 
         // And finally, remove transaction object
@@ -69,7 +72,13 @@ CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
 }
 
 void TransactionManager::AbortTransaction(TransactionId xid) {
-    auto lock = std::lock_guard{this->_mutex};
+    // Перед тем как помечать транзакцию отменной откатываем все ее изменения.
+    // Делаем это перед, т.к. пока нет механизма кооперативной отмены.
+    if (auto undoLog = mi::MyTransaction->GetUndoLogIfAny()) {
+        undoLog->UndoAllRecords();
+    }
+
+    auto lock = std::unique_lock{this->_mutex};
 
     auto &status = this->_history[xid];
     assert(status.IsInProgress());
@@ -80,9 +89,23 @@ void TransactionManager::AbortTransaction(TransactionId xid) {
         throw std::runtime_error("Transaction table is broken - no transaction entry found");
     }
 
+    // Deleting will automatically release lock
     this->_state.erase(it);
 }
 
-void TransactionManager::WaitTransactionEnd([[maybe_unused]] TransactionId xid) {
-    throw std::runtime_error("WaitTransactionEnd is not implemented");
+void TransactionManager::WaitTransactionEnd(TransactionId xid) {
+    auto lock = std::shared_lock{this->_mutex};
+    auto it = this->_state.find(xid);
+    if (it == this->_state.end()) {
+        // Transaction does not exist.
+        // This can happen when transaction ends execution before this function is called.
+        return;
+    }
+
+    auto tnx = it->second.get();
+    lock.unlock();
+
+    // TODO: вот тут гонка может быть, т.к. после отпускания лока транзакция может быть удалена,
+    // поэтому указатель станет невалидным
+    tnx->Wait();
 }

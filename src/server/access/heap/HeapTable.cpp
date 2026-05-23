@@ -178,11 +178,10 @@ static void wait_tnx_end(mi::storage::trans::TransactionId xid) {
     }
 
     // For now we must know tnx status
-    assert(!(csn.IsNormal() || csn.IsCommitting()));
+    assert(!(csn.IsInvalid() || csn.IsCommitting()));
 
     if (csn.IsAborted()) {
-        throw std::runtime_error(
-            "TNX aborted but for now I do not support undoing another transaction");
+        // OK - aborted transaction must undo all it's changes before marked aborted
     } else if (csn.IsFrozen() || csn.IsNormal()) {
         throw std::runtime_error("tuple was concurrently modified");
     } else {
@@ -213,9 +212,12 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
     // so must be visible and tnx is committed. Other side is that tuple is being modified
     // by us, but for now there is no support for multistatement DML transaction.
     if (oldHeapPageTuple->xid != oldHeapTuple.GetHeader().xid) {
+        // Before waiting for transaction end unlock buffer. Otherwise we can get deadlock
+        // i.e. if transaction we are waiting for will rollback and tries to acquire lock
+        // for page to undo it's changes.
+        lock.Release();
         wait_tnx_end(oldHeapPageTuple->xid);
-        // For now should not get here
-        assert(false);
+        lock.Lock();
     }
 
     // Now decide which path to take in order to update tuple
@@ -252,7 +254,7 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
                                                        *this->_tupleDescriptor);
         auto buffer = HeapTupleSerializer::Serialize(oldHeapTuple.GetHeapPageTuple(),
                                                      *this->_tupleDescriptor, size);
-        auto record = undo::UpdateUndoRecord{this->_tableId, oldTID, newTID, buffer};
+        auto record = undo::UpdateUndoRecord{this->_tableId, oldTID, newTID, std::move(buffer)};
         usn = MyTransaction->GetUndoLog().InsertRecord(record);
     }
 
@@ -345,9 +347,9 @@ void HeapTable::DeleteTuple(ITuple &tuple) {
     auto &heapPageTuple = heapTuple.GetHeapPageTuple();
 
     if (tuplePageHeader->xid != heapPageTuple.Header().xid) {
+        lock.Release();
         wait_tnx_end(tuplePageHeader->xid);
-        // For now, should not get here
-        assert(false);
+        lock.Lock();
     }
 
     auto xid = MyTransaction->GetXID();

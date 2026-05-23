@@ -178,10 +178,6 @@ static void handle_commit(SocketServer &server) {
 
 static void rollback_state() {
     mi::TransactionManagerGlobal->AbortTransaction(mi::MyTransaction->GetXID());
-
-    if (auto undoLog = mi::MyTransaction->GetUndoLogIfAny()) {
-        undoLog->UndoAllRecords();
-    }
 }
 
 static void abort_transaction_command() {
