@@ -20,8 +20,9 @@ class LWLatch {
   public:
     LWLatch();
 
-    // TODO: тут возвращать какой-нибудь объект лока с само разлочиванием
-    // XXX: а может переделать под mutex, чтобы автоматически с другими типами работал?
+    LWLatch(const LWLatch &other) = delete;
+    LWLatch &operator=(const LWLatch &other) = delete;
+
     void Lock(LockMode mode);
     void Unlock(LockMode mode);
 

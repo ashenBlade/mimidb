@@ -8,7 +8,7 @@
 
 using namespace mi::logger;
 
-Logger::Logger() : _mutex() {};
+Logger::Logger() : _latch() {};
 
 static void format_msg(LogLevel level, const char *msg, va_list args, char *output, size_t length) {
     // Log Level
@@ -49,7 +49,7 @@ void Logger::log(LogLevel level, const char *msg, va_list args) {
     auto message = std::array<char, 1024>{};
     format_msg(level, msg, args, message.data(), message.size());
 
-    auto g = std::lock_guard{this->_mutex};
+    auto g = std::unique_lock{this->_latch};
     // Write only under the lock
     std::cout << message.data() << std::endl;
 }

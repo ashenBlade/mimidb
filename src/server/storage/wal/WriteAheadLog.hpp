@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lock/LWLatch.hpp"
 #include "storage/io/File.hpp"
 #include "storage/wal/IRMgrWalRecord.hpp"
 #include "storage/wal/LogSeqNumber.hpp"
@@ -16,8 +17,8 @@ class WriteAheadLog {
     io::File _file;
     /// File size
     off64_t _size;
-    /// Lock for writing new entries
-    std::mutex _lock;
+    /// Latch for writing new entries
+    lock::LWLatch _latch;
 
     WriteAheadLog(std::string path, off64_t size, io::File _file);
 

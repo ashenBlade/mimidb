@@ -53,9 +53,9 @@ static mi::db::catalog::OperatorStrategy map_op_strategy(hsql::OperatorType type
 
 static std::unique_ptr<mi::executor::IExpressionNode> parse_expr(hsql::Expr &expr) {
     if (expr.isType(hsql::ExprType::kExprOperator)) {
+        auto strategy = map_op_strategy(expr.opType);
         auto left = parse_expr(*expr.expr);
         auto right = parse_expr(*expr.expr2);
-        auto strategy = map_op_strategy(expr.opType);
         const auto info = mi::DatabaseGlobal->GetSchema()->FindOperatorInfo(
             // Пока только инты юзаю
             mi::schema::catalog::TypeId::Int32, mi::schema::catalog::TypeId::Int32, strategy);

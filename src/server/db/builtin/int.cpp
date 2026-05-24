@@ -1,4 +1,4 @@
-#include "db/bulitin/int.hpp"
+#include "db/builtin/int.hpp"
 #include "executor/Datum.hpp"
 #include "executor/func/FunctionArgs.hpp"
 #include <cassert>

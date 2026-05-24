@@ -4,22 +4,23 @@
 #include "access/table/AttrNumber.hpp"
 #include "access/table/ITable.hpp"
 #include "access/table/TupleDescriptor.hpp"
-#include "db/bulitin/int.hpp"
+#include "db/builtin/int.hpp"
 #include "db/catalog/ColumnInfo.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeId.hpp"
-#include "include/cluster_state.hpp"
-#include "include/db/bulitin/int.hpp"
-#include "include/db/catalog/OperatorId.hpp"
-#include "include/db/catalog/OperatorInfo.hpp"
-#include "include/db/catalog/TableInfo.hpp"
-#include "include/db/catalog/TypeId.hpp"
-#include "include/executor/Oid.hpp"
-#include "include/lock/LockManager.hpp"
-#include "include/mi_config.hpp"
+#include "cluster_state.hpp"
+#include "db/builtin/int.hpp"
+#include "db/catalog/OperatorId.hpp"
+#include "db/catalog/OperatorInfo.hpp"
+#include "db/catalog/TableInfo.hpp"
+#include "db/catalog/TypeId.hpp"
+#include "executor/Oid.hpp"
+#include "lock/LockManager.hpp"
+#include "mi_config.hpp"
 #include "logger.hpp"
 #include "logger/Logger.hpp"
 #include "mi_config.hpp"
+#include "worker_state.hpp"
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
@@ -156,6 +157,12 @@ static void setupResourceManagers() {
     mi::RMgrRegistryGlobal = manager;
 }
 
+static void setupMasterWorker() {
+    auto masterWorkerId = mi::worker::WorkerId{0};
+    auto worker = mi::WorkerGlobal->GetWorker(masterWorkerId);
+    mi::MyWorker = worker;
+}
+
 void setupCluster() {
     setupResourceManagers();
     setupDatabase();
@@ -166,9 +173,12 @@ void setupCluster() {
     // Create global structures
     mi::WorkerGlobal = new mi::worker::WorkerManager(mi::Config::MaxWorkers);
     mi::LockGlobal = new mi::lock::LockManager(mi::Config::MaxWorkers);
-    mi::TransactionManagerGlobal = new mi::storage::trans::TransactionManager(mi::Config::MaxWorkers);
+    mi::TransactionManagerGlobal =
+        new mi::storage::trans::TransactionManager(mi::Config::MaxWorkers);
     mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager();
     mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");
     mi::WALGlobal = mi::storage::wal::WriteAheadLog::Open("wal");
     mi::LoggerGlobal = new mi::logger::Logger();
+
+    setupMasterWorker();
 }

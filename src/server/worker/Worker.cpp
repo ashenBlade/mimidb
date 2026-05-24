@@ -24,6 +24,10 @@ WorkerId Worker::GetId() const { return this->_id; }
 
 bool Worker::IsBusy() const { return this->_busy; }
 
+void Worker::SetBusy() {
+    this->_busy = true;
+}
+
 void Worker::HandleUserConnectionGuts(WorkerId id, int sock) {
     try {
         mi::worker::HandleUserConnection(id, sock);

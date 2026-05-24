@@ -18,7 +18,7 @@ LogSeqNumber WriteAheadLog::WriteLogRecord(const IRMgrWalRecord &record) {
     auto xid = MyTransaction->GetXID();
     auto header = WALRecordHeader{xid, record.GetRMgrId(), record.CalculateSize()};
 
-    auto guard = std::lock_guard{this->_lock};
+    auto guard = std::unique_lock{this->_latch};
 
     auto offset = this->_size;
     auto lsn = LogSeqNumber{static_cast<uint64_t>(this->_size) + 1};

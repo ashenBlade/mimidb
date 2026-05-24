@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lock/LWLatch.hpp"
 #include "storage/undo/IRMgrUndoRecord.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
 #include "utils/NonCopyable.hpp"
@@ -14,7 +15,7 @@ class UndoLog : private NonCopyable {
     /// @brief Path to undo log file
     std::string _path;
     /// @brief Lock for write
-    std::mutex _writeMutex;
+    lock::LWLatch _latch;
     /// @brief Offset to end of undo log file at which to perform write
     off64_t _size;
 

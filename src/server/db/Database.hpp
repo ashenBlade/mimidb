@@ -17,7 +17,8 @@ class Database : private NonCopyable {
 
   public:
     // Constructor for default database - now only it exists
-    explicit Database(std::unique_ptr<Schema> schema, std::unordered_map<Oid, std::unique_ptr<access::table::ITable>> relations);
+    explicit Database(std::unique_ptr<Schema> schema,
+                      std::unordered_map<Oid, std::unique_ptr<access::table::ITable>> relations);
 
     Database(const Database &) = delete;
     Database &operator=(const Database &) = delete;

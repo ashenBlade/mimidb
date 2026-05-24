@@ -1,7 +1,7 @@
 #pragma once
 
+#include "lock/LWLatch.hpp"
 #include <cstdarg>
-#include <mutex>
 namespace mi::logger {
 enum LogLevel {
     OFF = 0,
@@ -14,7 +14,7 @@ enum LogLevel {
 class Logger {
   private:
     // Mutex to synchronize access
-    std::mutex _mutex;
+    lock::LWLatch _latch;
 
     void log(LogLevel level, const char *msg, va_list args);
   public:

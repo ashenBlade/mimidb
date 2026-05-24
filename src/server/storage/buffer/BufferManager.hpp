@@ -1,11 +1,11 @@
 #pragma once
 
 #include "executor/Oid.hpp"
+#include "lock/LWLatch.hpp"
 #include "storage/buffer/Buffer.hpp"
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageTag.hpp"
 #include <memory>
-#include <shared_mutex>
 #include <unordered_map>
 
 namespace mi::storage::buffer {
@@ -14,7 +14,7 @@ class BufferManager {
     /// @brief Mapping between page identifier and it's object
     std::unordered_map<PageTag, std::unique_ptr<Buffer>, PageTagHash> _map;
     /// @brief For for updating pages array
-    std::shared_mutex _mutex;
+    lock::LWLatch _mutex;
 
   public:
     BufferManager();

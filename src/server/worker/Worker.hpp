@@ -38,6 +38,9 @@ class Worker {
 
     /// @brief Worker is processing session right now
     bool IsBusy() const;
+    /// @brief Manually set that this worker is busy.
+    /// Now used only to mark main worker.
+    void SetBusy();
 
     /// @brief Start new worker with for this client
     void Submit(int sock);

@@ -87,7 +87,7 @@ UndoSeqNumber UndoLog::InsertUndoRecord(IRMgrUndoRecord &record) {
     auto xid = MyTransaction->GetXID();
 
     auto buffer = format_undo_record(xid, record);
-    auto guard = std::lock_guard{this->_writeMutex};
+    auto guard = std::lock_guard{this->_latch};
 
     // Получили лок - делаем запись
     file.Write(buffer.data(), buffer.size(), this->_size);

@@ -1,23 +1,18 @@
 #include "worker/WorkerManager.hpp"
 #include <algorithm>
-#include <mutex>
 
 using namespace mi::worker;
 
-WorkerManager::WorkerManager(int workersCount) : _workers(), _lock() {
+WorkerManager::WorkerManager(int workersCount) : _workers() {
     for (int i = 0; i < workersCount; i++) {
         _workers.emplace_back(WorkerId{i});
     }
+
+    // Worker with Id 0 is always reserved for master
+    _workers[0].SetBusy();
 };
 
 bool WorkerManager::StartNewSession(int sock) {
-    auto g = std::lock_guard{this->_lock};
-    for (auto it = this->_workers.begin(); it != this->_workers.end(); ++it) {
-        if (it->IsBusy()) {
-            continue;
-        }
-    }
-
     auto worker = std::find_if(this->_workers.begin(), this->_workers.end(),
                                [](const Worker &worker) { return !worker.IsBusy(); });
     if (worker == this->_workers.end()) {

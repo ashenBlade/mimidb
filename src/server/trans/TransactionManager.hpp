@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lock/LWLatch.hpp"
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionId.hpp"
@@ -7,7 +8,6 @@
 #include "worker/WorkerId.hpp"
 #include <atomic>
 #include <memory>
-#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -20,7 +20,7 @@ class TransactionManager : private NonCopyable {
     std::atomic<TransactionId::type> _xid;
 
     /// @brief Mutex to synchronize access to fields
-    std::shared_mutex _mutex{};
+    lock::LWLatch _mutex{};
     /// @brief Array of transaction states for each worker
     /// Note: it uses shared_ptr, because some fields can be used after transaction ends.
     /// i.e. LWLatch to wait for transaction end.

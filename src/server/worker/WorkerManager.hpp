@@ -2,7 +2,6 @@
 
 #include "worker/Worker.hpp"
 #include <assert.h>
-#include <shared_mutex>
 #include <vector>
 
 namespace mi::worker {
@@ -11,9 +10,6 @@ class WorkerManager {
   private:
     /// @brief Running workers
     std::vector<Worker> _workers;
-
-    /// @brief Lock for manipulating contents
-    std::shared_mutex _lock;
 
   public:
     WorkerManager(int workersCount);

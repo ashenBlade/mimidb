@@ -36,14 +36,13 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(
         -g
         -O0
-    )  
+    )
 endif()
 
 # Общие именования бинарей
 set(SERVER_EXEC_NAME mimidb)
 set(LIBMIMI_IFACE_NAME mimi)
 set(CLIENT_EXEC_NAME miclient)
-set(COMMON_LIB_NAME micommon)
 set(SQLPARSER_LIB_NAME hyrisesql)
 
 # Рекурсивно собираем все

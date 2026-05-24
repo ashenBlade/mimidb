@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lock/LWLatch.hpp"
 #include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
@@ -10,7 +11,7 @@ template <class TKey, class TValue, class THash = std::hash<TKey>,
 class HashTable {
   private:
     /// @brief lock to protect contents during operations
-    std::shared_mutex _lock;
+    lock::LWLatch _lock;
     /// @brief actual hash table data
     std::unordered_map<TKey, TValue, THash, TKeyEqual> _hash;
 

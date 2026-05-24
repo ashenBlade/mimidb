@@ -6,7 +6,7 @@
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
-#include "db/bulitin/int.hpp"
+#include "db/builtin/int.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "executor/Datum.hpp"
@@ -281,6 +281,8 @@ static void exec_plannable_query(SocketServer &server, hsql::SQLStatement &state
 static void handle_loop(SocketServer &server, WorkerId id) {
     // Setup environment
     mi::MyWorker = mi::WorkerGlobal->GetWorker(id);
+    
+    mi::LoggerGlobal->Info("starting processing client for worker %i", id.value);
 
     // Handle connection itself
     while (auto packet = server.ReadNextPacket()) {
@@ -320,7 +322,6 @@ static void handle_loop(SocketServer &server, WorkerId id) {
 
 void mi::worker::HandleUserConnection(WorkerId workerId, int sock) {
     auto server = SocketServer{sock, workerId};
-    mi::LoggerGlobal->Info("starting processing client for worker %i", workerId.value);
     try {
         handle_loop(server, workerId);
     } catch (std::exception &ex) {
