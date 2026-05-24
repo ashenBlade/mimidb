@@ -2,26 +2,22 @@
 
 #include "lock/Barrier.hpp"
 #include "storage/buffer/Buffer.hpp"
-#include <memory>
 
 namespace mi::storage::buffer {
 
 template <bool VShared> class BufferLockBase {
   private:
-    std::shared_ptr<Buffer> _buffer;
+    Buffer *_buffer;
     bool _locked;
 
   public:
     BufferLockBase() : _buffer(nullptr), _locked(false) {}
-    BufferLockBase(std::shared_ptr<Buffer> buffer) : _buffer(nullptr), _locked(false) {
+    BufferLockBase(Buffer *buffer) : _buffer(nullptr), _locked(false) {
         buffer->Lock(VShared);
         _buffer = buffer;
         lock::Barrier::Write();
         _locked = true;
     }
-
-    std::shared_ptr<Buffer> GetBuffer();
-    const std::shared_ptr<Buffer> GetBuffer() const;
 
     BufferLockBase(BufferLockBase &&other) {
         if (this == &other) {
@@ -45,7 +41,6 @@ template <bool VShared> class BufferLockBase {
         // release lock if there is one
         if (this->_locked) {
             this->_buffer->Unlock(VShared);
-            lock::Barrier::Write();
             this->_locked = false;
         }
 
@@ -63,7 +58,6 @@ template <bool VShared> class BufferLockBase {
         }
 
         this->_buffer->Unlock(VShared);
-        lock::Barrier::Write();
         this->_locked = false;
     }
     void Lock() {
@@ -72,7 +66,6 @@ template <bool VShared> class BufferLockBase {
         }
 
         this->_buffer->Lock(VShared);
-        lock::Barrier::Write();
         this->_locked = true;
     }
 

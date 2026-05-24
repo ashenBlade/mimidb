@@ -22,7 +22,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
     auto it = this->_map.find(tag);
     if (it != this->_map.end()) {
         // Ok. Found existing page.
-        return BufferPin{tag, it->second};
+        return BufferPin{tag, it->second.get()};
     }
     // Page not found - read it from disk.
 
@@ -38,11 +38,12 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
     // Success. Allocate byte array in heap and create Buffer
     auto d = new std::byte[Config::PageSize];
     std::copy(data.data(), data.data() + Config::PageSize, d);
-    auto buffer = std::make_shared<Buffer>(d);
+    auto buffer = std::make_unique<Buffer>(d);
 
     // Add new entry
-    this->_map.emplace(tag, buffer);
-    return BufferPin{tag, buffer};
+    auto [it2, success] = this->_map.emplace(tag, std::move(buffer));
+    assert(success);
+    return BufferPin{tag, it2->second.get()};
 }
 
 void BufferManager::ReturnBuffer([[maybe_unused]] BufferPin &pin) {
@@ -70,11 +71,11 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
     // Now on disk page exists and zeroed - create Buffer for it
     auto data = new std::array<std::byte, Config::PageSize>{};
     std::fill(data->begin(), data->end(), static_cast<std::byte>(0));
-    auto buffer = std::make_shared<Buffer>(data->data());
+    auto buffer = std::make_unique<Buffer>(data->data());
 
     // Add it to the map
     auto tag = PageTag{relid, newPageno};
-    this->_map.emplace(tag, buffer);
-
-    return BufferPin{tag, buffer};
+    auto [it, success] = this->_map.emplace(tag, std::move(buffer));
+    assert(success);
+    return BufferPin{tag, it->second.get()};
 }

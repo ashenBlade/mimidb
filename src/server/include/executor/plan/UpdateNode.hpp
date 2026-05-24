@@ -18,8 +18,6 @@ class UpdateNode : public IPlanNode {
     std::unique_ptr<IExpressionNode> _qual;
     // Attributes and their updates to perform
     std::vector<std::pair<access::table::AttrNumber, std::unique_ptr<IExpressionNode>>> _updates;
-    // Snapshot for scanning table
-    storage::trans::Snapshot *_snapshot;
     // Scan for current table
     std::unique_ptr<access::table::ITableScan> _scan;
 

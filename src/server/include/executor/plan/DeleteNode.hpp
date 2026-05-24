@@ -15,8 +15,6 @@ class DeleteNode : public IPlanNode {
     access::table::ITable *_table;
     // Tuple predicate
     std::unique_ptr<IExpressionNode> _qual;
-    // Snapshot for scan
-    storage::trans::Snapshot *_snapshot;
     // Scan state
     std::unique_ptr<access::table::ITableScan> _scan;
 

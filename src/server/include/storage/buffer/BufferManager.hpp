@@ -12,7 +12,7 @@ namespace mi::storage::buffer {
 class BufferManager {
   private:
     /// @brief Mapping between page identifier and it's object
-    std::unordered_map<PageTag, std::shared_ptr<Buffer>, PageTagHash> _map;
+    std::unordered_map<PageTag, std::unique_ptr<Buffer>, PageTagHash> _map;
     /// @brief For for updating pages array
     std::shared_mutex _mutex;
 
