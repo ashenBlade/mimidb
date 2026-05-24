@@ -24,6 +24,21 @@ class LWLatch {
     // XXX: а может переделать под mutex, чтобы автоматически с другими типами работал?
     void Lock(LockMode mode);
     void Unlock(LockMode mode);
+
+    // This part is only to support unique_lock and shared_lock
+    void lock() {
+      this->Lock(LockMode::Exclusive);
+    }
+    void unlock() {
+      this->Unlock(LockMode::Exclusive);
+    }
+    void lock_shared()  {
+      this->Lock(LockMode::Share);
+    }
+    void unlock_shared() {
+      this->Unlock(LockMode::Share);
+    }
+    
     ~LWLatch();
 };
 

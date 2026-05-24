@@ -103,6 +103,8 @@ void LWLatch::dequeueSelf() {
         this->_waiters.Delete(MyWorker->GetId());
     }
 
+    // If we were the only waiters, then remove HasWaiters flag, so on next Unlock
+    // we will not check for workers to wakeup
     if (this->_waiters.IsEmpty() && (this->_state.load() & LWLatchFlag::HasWaiters) != 0) {
         this->_state.fetch_and(~LWLatchFlag::HasWaiters);
     }
@@ -110,12 +112,15 @@ void LWLatch::dequeueSelf() {
     wait_list_unlock(this->_state);
 
     if (isWaiting) {
+        // Successfully dequeued ourselves
         worker.SetLockState(WorkerLockState::NotWaiting);
     } else {
-        auto extraWaits = 0;
+        // Somebody woke up us and dequeued
 
+        // Reset UnlockWaiter
         this->_state.fetch_or(LWLatchFlag::UnlockWaiter);
 
+        auto extraWaits = 0;
         while (true) {
             worker.GetSemaphore().acquire();
             if (worker.GetLockState() == WorkerLockState::NotWaiting) {
@@ -191,7 +196,7 @@ void LWLatch::wakeup() {
         auto &waiter = LockGlobal->GetWorkerLock(it.Current);
 
         if (wokeupSomebody && waiter.GetLockMode() == LockMode::Exclusive) {
-            // If wokeupSomebody is set it means
+            // We can wakeup only 1 X lock, so skip if anyone was seen so far
             continue;
         }
 
@@ -235,7 +240,7 @@ void LWLatch::wakeup() {
         }
     }
 
-    for (auto it = this->_waiters.begin(); it != this->_waiters.end(); ++it) {
+    for (auto it = wakeup.begin(); it != wakeup.end(); ++it) {
         auto &waiter = LockGlobal->GetWorkerLock(it.Current);
 
         wakeup.Delete(it.Current);
@@ -245,6 +250,7 @@ void LWLatch::wakeup() {
         // for a new lock - if this happens list would end up being corrupted.
         Barrier::Write();
         waiter.SetLockState(WorkerLockState::NotWaiting);
+        Barrier::Write();
         waiter.GetSemaphore().release();
     }
 }
@@ -254,18 +260,19 @@ void LWLatch::Unlock(LockMode mode) {
 
     if (mode == LockMode::Exclusive) {
         old = this->_state.fetch_sub(ExclusiveLockValue);
-        
+
         // Verify that we were holding X lock
         assert(old & ExclusiveLockValue);
     } else {
         old = this->_state.fetch_sub(SharedLockValue);
     }
-
-
-    constexpr auto havePendingWaiterFlags = (LWLatchFlag::HasWaiters | LWLatchFlag::UnlockWaiter);
+    assert((this->_state.load() & ExclusiveLockValue) == 0);
+    constexpr auto checkWaitersFlags = (LWLatchFlag::HasWaiters | LWLatchFlag::UnlockWaiter);
     // On latch release we should wake any waiters not only when waiters count drops,
     // but also take into account if we allowed to wakeup any (special flags)
-    if ((old & havePendingWaiterFlags) == havePendingWaiterFlags && (old & LockCountMask) == 0) {
+    if ((old & checkWaitersFlags) == checkWaitersFlags &&
+        // Returned value is OLD, so we must check either we were X locker or the only S
+        (mode == LockMode::Exclusive || (old & LockCountMask) == 1)) {
         this->wakeup();
     }
 };

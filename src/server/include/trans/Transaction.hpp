@@ -3,6 +3,7 @@
 #include "lock/LWLatch.hpp"
 #include "lock/LockMode.hpp"
 #include "storage/undo/VirtualUndoLog.hpp"
+#include "trans/CommitSeqNumber.hpp"
 #include "trans/Snapshot.hpp"
 #include "trans/TransactionId.hpp"
 #include "worker/WorkerId.hpp"
@@ -26,6 +27,8 @@ class Transaction {
     std::unique_ptr<Snapshot> _snapshot;
     /// @brief Status of current transaction
     TransactionStatus _status;
+    /// @brief Assigned CSN if committed successfully
+    CommitSeqNumber _csn;
     /// @brief Undo Log for this transaction
     std::unique_ptr<undo::VirtualUndoLog> _undoLog;
     /// @brief Worker owning transaction
@@ -53,10 +56,16 @@ class Transaction {
 
     undo::VirtualUndoLog *GetUndoLogIfAny() const { return this->_undoLog.get(); }
     worker::WorkerId GetWorkerId() const { return this->_workerId; }
-    
+
     undo::VirtualUndoLog &GetUndoLog();
+
+    // Mark transaction as committed with assigned CSN
+    void Commit(CommitSeqNumber csn);
+    // Mark transaction as aborted
+    void Abort();
+
+    // Wait until this transaction ends
     void Wait();
-    ~Transaction();
 };
 
 }; // namespace mi::storage::trans

@@ -3,6 +3,7 @@
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionId.hpp"
+#include "worker/WorkerId.hpp"
 #include "worker_state.hpp"
 #include <assert.h>
 #include <atomic>
@@ -12,7 +13,9 @@
 
 using namespace mi::storage::trans;
 
-TransactionManager::TransactionManager() : _mutex(), _csn(CommitSeqNumber::Min), _xid(TransactionId::Min) {}
+TransactionManager::TransactionManager(std::size_t workersCount)
+    : _csn(CommitSeqNumber::Min), _xid(TransactionId::Min), _mutex(), _transactions(workersCount),
+      _xidToWorker(), _history() {}
 
 CommitSeqNumber TransactionManager::GetCurrentCSN() const { return this->_csn.load(); }
 
@@ -32,20 +35,29 @@ CommitSeqNumber TransactionManager::GetTransactionCsn(TransactionId xid) {
     } while (true);
 }
 
-Transaction *TransactionManager::BeginNewTransaction() {
+void TransactionManager::BeginNewTransaction() {
     auto xid = std::atomic_fetch_add(&this->_xid, 1);
+    auto workerId = MyWorker->GetId();
+    auto transaction = std::make_unique<Transaction>(xid, workerId);
+    this->_transactions[workerId] = std::move(transaction);
+    MyTransaction = this->_transactions[workerId].get();
 
+    // Now update global structures
     auto lock = std::unique_lock{this->_mutex};
-    // Create transaction object only in the lock, because otherwise there may be race condition.
-    // Note, this will automatically take lock on transaction in X mode.
-    auto transaction = std::make_unique<Transaction>(xid, MyWorker->GetId());
-    auto ptr = transaction.get();
-    this->_state[xid] = std::move(transaction);
+    this->_xidToWorker[xid] = workerId;
     this->_history[xid] = CommitSeqNumber::InProgress;
-    return ptr;
 }
 
-CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
+void TransactionManager::CommitTransaction() {
+    auto workerId = MyWorker->GetId();
+    auto &transaction = this->_transactions[workerId];
+
+    // Verify this transaction belongs to us
+    assert(transaction != nullptr);
+    assert(transaction->GetWorkerId() == MyWorker->GetId());
+
+    auto xid = transaction->GetXID();
+
     // First mark transaction as committing
     {
         auto lock = std::unique_lock{this->_mutex};
@@ -56,56 +68,97 @@ CommitSeqNumber TransactionManager::CommitTransaction(TransactionId xid) {
     auto csn = std::atomic_fetch_add(&this->_csn, 1);
 
     {
+        // Set it's CSN
         auto lock = std::unique_lock{this->_mutex};
         this->_history[xid] = csn;
 
-        // And finally, remove transaction object
-        auto it = this->_state.find(xid);
-        if (it == this->_state.end()) {
-            throw std::runtime_error("Transaction table is broken - no transaction entry found");
+        // And remove it's record from map (marking it's ended)
+        auto it = this->_xidToWorker.find(xid);
+        if (it == this->_xidToWorker.end()) {
+            throw std::runtime_error("XidToWorker transaction table is broken - no entry found");
         }
 
-        this->_state.erase(it);
+        this->_xidToWorker.erase(it);
     }
 
-    return csn;
+    // Mark transaction committed. This will unlocks and release all waiters.
+    transaction->Commit(csn);
+
+    // Finally, we can remove transaction object
+    this->_transactions[workerId] = nullptr;
+    MyTransaction = nullptr;
 }
 
-void TransactionManager::AbortTransaction(TransactionId xid) {
-    // Перед тем как помечать транзакцию отменной откатываем все ее изменения.
-    // Делаем это перед, т.к. пока нет механизма кооперативной отмены.
+void TransactionManager::AbortTransaction() {
+    // Before performing any changes we must undo all changes done, because
+    // there is not cooperative garbage collection yet.
     if (auto undoLog = mi::MyTransaction->GetUndoLogIfAny()) {
         undoLog->UndoAllRecords();
     }
 
-    auto lock = std::unique_lock{this->_mutex};
+    // Now we can perform changes to internal data
 
-    auto &status = this->_history[xid];
-    assert(status.IsInProgress());
-    status = CommitSeqNumber::Aborted;
+    // First mark transaction as aborted in internal table
+    auto workerId = MyWorker->GetId();
+    auto &transaction = this->_transactions[workerId];
 
-    auto it = this->_state.find(xid);
-    if (it == this->_state.end()) {
-        throw std::runtime_error("Transaction table is broken - no transaction entry found");
+    // Verify this transaction belongs to us
+    assert(transaction != nullptr);
+    assert(transaction->GetWorkerId() == MyWorker->GetId());
+
+    auto xid = transaction->GetXID();
+    {
+        auto lock = std::unique_lock{this->_mutex};
+        // Mark transaction aborted
+        this->_history[xid] = CommitSeqNumber::Aborted;
+
+        // And delete it's worker information
+        auto it = this->_xidToWorker.find(xid);
+        if (it == this->_xidToWorker.end()) {
+            throw std::runtime_error("XidToWorker tnx table is broken - no transaction entry found");
+        }
+
+        this->_xidToWorker.erase(it);
     }
+    
+    transaction->Abort();
 
-    // Deleting will automatically release lock
-    this->_state.erase(it);
+    this->_transactions[workerId] = nullptr;
+    MyTransaction = nullptr;
 }
 
 void TransactionManager::WaitTransactionEnd(TransactionId xid) {
-    auto lock = std::shared_lock{this->_mutex};
-    auto it = this->_state.find(xid);
-    if (it == this->_state.end()) {
-        // Transaction does not exist.
-        // This can happen when transaction ends execution before this function is called.
+    auto workerId = worker::WorkerId::Invalid();
+
+    {
+        auto lock = std::shared_lock{this->_mutex};
+        auto it = this->_xidToWorker.find(xid);
+        if (it == this->_xidToWorker.end()) {
+            // Transaction does not exist.
+            // This can happen when transaction ends execution before this function is called.
+            return;
+        }
+    
+        workerId = it->second;
+    }
+    
+    // xid2worker must not contain invalid ids
+    assert(workerId != worker::WorkerId::Invalid());
+
+    auto transaction = this->_transactions[workerId];
+
+    if (transaction == nullptr) {
+        // Target transaction concurrently committed or aborted, so it was deleted from table
         return;
     }
 
-    auto tnx = it->second.get();
-    lock.unlock();
+    if (transaction->GetXID() != xid) {
+        // Target transaction concurrently committed or aborted and worker started another transaction
+        return;
+    }
 
-    // TODO: вот тут гонка может быть, т.к. после отпускания лока транзакция может быть удалена,
-    // поэтому указатель станет невалидным
-    tnx->Wait();
+    assert(transaction->GetWorkerId() == workerId);
+
+    // Wait for our transaction
+    transaction->Wait();
 }

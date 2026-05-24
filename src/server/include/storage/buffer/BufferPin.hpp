@@ -15,9 +15,6 @@ class BufferPin {
     /// @brief Pinned buffer
     std::shared_ptr<Buffer> _buffer;
 
-    /// @brief Buffer is pinned
-    bool _pinned;
-
   public:
     // Create already initialized buffer
     BufferPin(PageTag tag, std::shared_ptr<Buffer> buffer);
@@ -26,6 +23,8 @@ class BufferPin {
     BufferPin();
 
     PageTag GetPageTag() const { return this->_tag; }
+
+    // TODO: меняю этот shared_ptr на обычный указатель - буферы живут до конца работы, они не удаляются
     std::shared_ptr<Buffer> GetBuffer() { return this->_buffer; }
     std::shared_ptr<Buffer> GetBuffer() const { return this->_buffer; }
 

@@ -158,7 +158,8 @@ static void start_new_transaction_command() {
         return;
     }
 
-    mi::MyTransaction = mi::TransactionManagerGlobal->BeginNewTransaction();
+    mi::TransactionManagerGlobal->BeginNewTransaction();
+    assert(mi::MyTransaction != nullptr);
 }
 
 static void handle_begin(SocketServer &server) {
@@ -167,7 +168,7 @@ static void handle_begin(SocketServer &server) {
 }
 
 static void commit_transaction_command() {
-    mi::TransactionManagerGlobal->CommitTransaction(mi::MyTransaction->GetXID());
+    mi::TransactionManagerGlobal->CommitTransaction();
     mi::MyTransaction = nullptr;
 }
 
@@ -177,7 +178,7 @@ static void handle_commit(SocketServer &server) {
 }
 
 static void rollback_state() {
-    mi::TransactionManagerGlobal->AbortTransaction(mi::MyTransaction->GetXID());
+    mi::TransactionManagerGlobal->AbortTransaction();
 }
 
 static void abort_transaction_command() {

@@ -166,8 +166,8 @@ void setupCluster() {
     // Create global structures
     mi::WorkerGlobal = new mi::worker::WorkerManager(mi::Config::MaxWorkers);
     mi::LockGlobal = new mi::lock::LockManager(mi::Config::MaxWorkers);
+    mi::TransactionManagerGlobal = new mi::storage::trans::TransactionManager(mi::Config::MaxWorkers);
     mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager();
-    mi::TransactionManagerGlobal = new mi::storage::trans::TransactionManager();
     mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");
     mi::WALGlobal = mi::storage::wal::WriteAheadLog::Open("wal");
     mi::LoggerGlobal = new mi::logger::Logger();

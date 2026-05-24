@@ -13,7 +13,7 @@ struct LockListHead {
     void Delete(worker::WorkerId id);
 
     bool IsEmpty() const {
-        return this->Head.value == worker::WorkerId::Invalid();
+        return this->Head == worker::WorkerId::Invalid();
     }
 
     struct LockListIterator {

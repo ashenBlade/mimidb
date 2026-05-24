@@ -1,8 +1,11 @@
 #include "trans/Transaction.hpp"
 #include "cluster_state.hpp"
+#include "lock/LockMode.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
+#include "trans/CommitSeqNumber.hpp"
 #include "worker_state.hpp"
 #include <memory>
+#include <shared_mutex>
 
 using namespace mi::storage::trans;
 
@@ -26,15 +29,22 @@ void Transaction::BeginNewStatement() {
 
 void Transaction::Wait() {
     assert(this->_xid != MyTransaction->GetXID());
-    _latch.Lock(lock::LockMode::Share);
+    // Owner worker holds X lock, so we will get S lock only when transaction ends
+    // NOTE: we need to have unlock it, otherwise it will be left in locked state
+    auto lock = std::shared_lock{this->_latch};
 }
 
-Transaction::~Transaction() {
-    // Release lock, so waiters will be notified.
+void Transaction::Commit(CommitSeqNumber csn) {
+    assert(csn.IsNormal());
 
-    // Only the same transaction worker can release lock, because for now LWLatch is implemented
-    // using std::mutex.
-    assert(this->_xid == MyTransaction->GetXID());
+    this->_csn = csn;
+    this->_status = TransactionStatus::COMMITTED;
+
+    this->_latch.Unlock(lock::LockMode::Exclusive);
+}
+
+void Transaction::Abort() {
+    this->_status = TransactionStatus::ABORTED;
     this->_latch.Unlock(lock::LockMode::Exclusive);
 }
 
