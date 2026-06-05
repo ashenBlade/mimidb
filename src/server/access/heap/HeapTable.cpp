@@ -84,27 +84,29 @@ mi::storage::buffer::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) 
     auto npages = file.GetPagesCount();
     for (auto pageno = storage::buffer::PageNumber::Min(); pageno < npages; ++pageno) {
         auto tag = storage::buffer::PageTag{this->_tableId, pageno};
-        auto buffer = BufferPoolGlobal->GetBuffer(tag);
-        auto page = HeapPage{buffer.GetContents()};
-        auto lock = storage::buffer::BufferSharedLock{buffer.GetBuffer()};
+        auto pin = BufferPoolGlobal->GetBuffer(tag);
+        auto page = HeapPage{pin.GetContents()};
+        auto buffer= pin.GetBuffer();
+        auto lock = std::shared_lock{buffer};
         if (page.GetFreeSpace() < freeSpace) {
             continue;
         }
 
-        return buffer;
+        return pin;
     }
 
     // All pages are full - start new page
-    auto buffer = BufferPoolGlobal->ExtendRelation(this->_tableId);
-    auto page = HeapPage{buffer.GetContents()};
+    auto pin = BufferPoolGlobal->ExtendRelation(this->_tableId);
+    auto page = HeapPage{pin.GetContents()};
     if (page.IsNew())
         HeapPage::Init(page);
-    auto lock = storage::buffer::BufferSharedLock{buffer.GetBuffer()};
+    auto buffer = pin.GetBuffer();
+    auto lock = std::shared_lock{buffer};
     if (page.GetFreeSpace() < freeSpace) {
         throw std::runtime_error("all pages are occupied");
     }
 
-    return buffer;
+    return pin;
 }
 void HeapTable::InsertTuple(ITuple &tuple) {
     // Form HeapPageTuple
@@ -118,9 +120,10 @@ void HeapTable::InsertTuple(ITuple &tuple) {
         auto pin = this->searchPageFreeSpace(freeSpace);
 
         // update S -> X, so we can change page contents
-        auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
+        auto buffer = pin.GetBuffer();
+        auto lock = std::unique_lock{buffer};
 
-        auto page = HeapPage{pin.GetBuffer()->GetContents()};
+        auto page = HeapPage{buffer.GetContents()};
 
         // Check we still have free space
         if (page.GetFreeSpace() < freeSpace) {
@@ -328,9 +331,9 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
     }
 
     // Mark page dirty to spill it to disk
-    oldPin.GetBuffer()->MarkDirty();
+    oldPin.GetBuffer().MarkDirty();
     if (newPin.IsValid()) {
-        newPin.GetBuffer()->MarkDirty();
+        newPin.GetBuffer().MarkDirty();
     }
 }
 

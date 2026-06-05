@@ -32,7 +32,7 @@ class RelFile {
     void Read(std::byte *buffer, PageNumber pageno);
 
     // Perform fsync
-    void Flush();
+    void Fsync();
 
     // Get number of pages in given relation
     PageNumber GetPagesCount();

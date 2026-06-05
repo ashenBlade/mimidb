@@ -175,7 +175,7 @@ void setupCluster() {
     mi::LockGlobal = new mi::lock::LockManager(mi::Config::MaxWorkers);
     mi::TransactionManagerGlobal =
         new mi::storage::trans::TransactionManager(mi::Config::MaxWorkers);
-    mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager();
+    mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager(mi::Config::BufferPoolSize);
     mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");
     mi::WALGlobal = mi::storage::wal::WriteAheadLog::Open("wal");
     mi::LoggerGlobal = new mi::logger::Logger();

@@ -54,7 +54,7 @@ void RelFile::Read(std::byte *buffer, PageNumber pageno) {
     }
 }
 
-void RelFile::Flush() { this->_file.Fsync(); }
+void RelFile::Fsync() { this->_file.Fsync(); }
 
 PageNumber RelFile::GetPagesCount() {
     auto size = this->_file.Size();

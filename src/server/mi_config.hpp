@@ -12,5 +12,7 @@ class Config final {
     static constexpr unsigned int MaxWorkers = 16;
     // Socket port for listening connections
     static constexpr unsigned int Port = 6543;
+    // Amount of pages in buffer pool
+    static constexpr unsigned int BufferPoolSize = 1024;
 };
 } // namespace mi

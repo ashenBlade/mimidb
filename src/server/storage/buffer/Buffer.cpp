@@ -1,20 +1,55 @@
 #include "storage/buffer/Buffer.hpp"
 #include "lock/LockMode.hpp"
+#include "cluster_state.hpp"
 
 using namespace mi::storage::buffer;
 
-Buffer::Buffer(std::byte *contents) : _contents(contents), _latch(), _dirty(false) {};
+Buffer::Buffer(): Buffer(Buffer::InvalidBlockId) {};
+Buffer::Buffer(uint32_t blockId) : _blockId(blockId) {};
 
-std::byte *Buffer::GetContents() { return _contents; }
+CacheEntry *Buffer::getCacheEntry() {
+    assert(this->IsValid());
 
-const std::byte *Buffer::GetContents() const { return _contents; }
+    return &mi::BufferPoolGlobal->_entries[this->GetIndex()];
+}
+
+const CacheEntry *Buffer::getCacheEntry() const {
+    assert(this->IsValid());
+
+    return &mi::BufferPoolGlobal->_entries[this->_blockId];
+}
+
+std::byte *Buffer::GetContents() { 
+    auto buffer = this->getCacheEntry()->Buffer.load();
+    assert(buffer != nullptr);
+    return buffer->Page.get();
+}
+
+const std::byte *Buffer::GetContents() const {
+    auto buffer = this->getCacheEntry()->Buffer.load();
+    assert(buffer != nullptr);
+    return buffer->Page.get();
+}
 
 void Buffer::Lock(bool shared) {
+    auto entry = this->getCacheEntry();
+    auto buffer = entry->Buffer.load();
+    assert(buffer != nullptr);
+
     auto mode = shared ? lock::LockMode::Share : lock::LockMode::Exclusive;
-    this->_latch.Lock(mode);
+    buffer->Latch.Lock(mode);
 }
 
 void Buffer::Unlock(bool shared) {
+    auto entry = this->getCacheEntry();
+    auto buffer = entry->Buffer.load();
+    assert(buffer != nullptr);
+
     auto mode = shared ? lock::LockMode::Share : lock::LockMode::Exclusive;
-    this->_latch.Unlock(mode);
+    buffer->Latch.Unlock(mode);
+}
+
+void Buffer::MarkDirty() {
+    auto entry = this->getCacheEntry();
+    entry->State.fetch_or(CacheEntryFlags::Dirty);
 }

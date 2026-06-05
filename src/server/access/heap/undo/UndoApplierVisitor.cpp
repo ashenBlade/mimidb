@@ -38,7 +38,7 @@ void UndoApplierVisitor::Visit(DeleteUndoRecord &record) {
     itemId.setDead();
 
     // Finally, mark page dirty
-    pin.GetBuffer()->MarkDirty();
+    pin.GetBuffer().MarkDirty();
 }
 
 void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {

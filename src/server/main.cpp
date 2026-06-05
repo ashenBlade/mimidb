@@ -73,6 +73,7 @@ static void sigint_handler(int) {
 static int main_loop() {
     // Create new server socket
     auto server = open_server_socket();
+    mi::LoggerGlobal->Info("Ready to accept connections");
     while (true) {
         auto clientSock = accept(server, nullptr, nullptr);
         if (clientSock < 0) {

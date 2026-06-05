@@ -7,15 +7,14 @@ namespace mi::storage::buffer {
 
 template <bool VShared> class BufferLockBase {
   private:
-    Buffer *_buffer;
+    Buffer _buffer;
     bool _locked;
 
   public:
-    BufferLockBase() : _buffer(nullptr), _locked(false) {}
-    BufferLockBase(Buffer *buffer) : _buffer(nullptr), _locked(false) {
-        buffer->Lock(VShared);
+    BufferLockBase() : _buffer(Buffer::Invalid()), _locked(false) {}
+    BufferLockBase(Buffer buffer) : _buffer(Buffer::Invalid()), _locked(false) {
+        buffer.Lock(VShared);
         _buffer = buffer;
-        lock::Barrier::Write();
         _locked = true;
     }
 
@@ -26,7 +25,7 @@ template <bool VShared> class BufferLockBase {
 
         // release lock if there is one
         if (this->_locked) {
-            this->_buffer->Unlock(VShared);
+            this->_buffer.Unlock(VShared);
             this->_locked = false;
         }
 
@@ -40,7 +39,7 @@ template <bool VShared> class BufferLockBase {
 
         // release lock if there is one
         if (this->_locked) {
-            this->_buffer->Unlock(VShared);
+            this->_buffer.Unlock(VShared);
             this->_locked = false;
         }
 
@@ -57,7 +56,7 @@ template <bool VShared> class BufferLockBase {
             return;
         }
 
-        this->_buffer->Unlock(VShared);
+        this->_buffer.Unlock(VShared);
         this->_locked = false;
     }
     void Lock() {
@@ -65,7 +64,7 @@ template <bool VShared> class BufferLockBase {
             return;
         }
 
-        this->_buffer->Lock(VShared);
+        this->_buffer.Lock(VShared);
         this->_locked = true;
     }
 
@@ -74,7 +73,7 @@ template <bool VShared> class BufferLockBase {
             return;
         }
 
-        this->_buffer->Unlock(VShared);
+        this->_buffer.Unlock(VShared);
         this->_locked = false;
     }
 };

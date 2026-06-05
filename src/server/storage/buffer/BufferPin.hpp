@@ -2,7 +2,6 @@
 
 #include "storage/buffer/Buffer.hpp"
 #include "storage/buffer/PageTag.hpp"
-#include <memory>
 
 namespace mi::storage::buffer {
 
@@ -13,24 +12,24 @@ class BufferPin {
     PageTag _tag;
 
     /// @brief Pinned buffer
-    Buffer *_buffer;
+    Buffer _buffer;
 
   public:
     // Create already initialized buffer
-    BufferPin(PageTag tag, Buffer *buffer);
+    BufferPin(PageTag tag, Buffer buffer);
 
     // Invalid buffer
     BufferPin();
 
     PageTag GetPageTag() const { return this->_tag; }
 
-    Buffer *GetBuffer() { return this->_buffer; }
-    Buffer *GetBuffer() const { return this->_buffer; }
+    Buffer GetBuffer() { return this->_buffer; }
+    const Buffer GetBuffer() const { return this->_buffer; }
 
-    bool IsValid() const { return this->_buffer != nullptr; }
+    bool IsValid() const { return this->_buffer.IsValid(); }
 
-    std::byte *GetContents() { return this->_buffer->GetContents(); }
-    const std::byte *GetContents() const { return this->_buffer->GetContents(); }
+    std::byte *GetContents() { return this->_buffer.GetContents(); }
+    const std::byte *GetContents() const { return this->_buffer.GetContents(); }
 
     BufferPin(BufferPin &&other);
     BufferPin &operator=(BufferPin &&other);

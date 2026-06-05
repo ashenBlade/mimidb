@@ -36,6 +36,7 @@ add_server(planner)
 
 add_server(storage)
 add_server(storage/buffer)
+add_server(storage/buffer/internal)
 add_server(storage/io)
 add_server(storage/undo)
 add_server(storage/wal)
