@@ -7,6 +7,7 @@
 #include "lock/WorkerLockState.hpp"
 #include "worker_state.hpp"
 #include <atomic>
+#include <barrier>
 
 using namespace mi::lock;
 
