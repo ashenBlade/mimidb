@@ -13,6 +13,7 @@ endif()
 
 target_sources(${CLIENT_EXEC_NAME} PRIVATE
     ClientOptions.cpp
-    CommandSource.cpp)
+    CommandSource.cpp
+    formatting/TableFormatter.cpp)
 
 target_link_libraries(${CLIENT_EXEC_NAME} PRIVATE ${LIBMIMI_IFACE_NAME})

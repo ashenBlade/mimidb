@@ -1,6 +1,7 @@
 #include "ClientOptions.hpp"
 #include "CommandSource.hpp"
 #include "MimiClient.hpp"
+#include "formatting/TableFormatter.hpp"
 #include "packets/CommandCompletePacket.hpp"
 #include "packets/DataRowPacket.hpp"
 #include "packets/ErrorResponsePacket.hpp"
@@ -32,43 +33,56 @@ using namespace mi::interface::libmimi;
 static mi::client::ClientOptions Options;
 
 static bool handleResponse(MimiClient &client) {
-    TupleDescriptionPacket *tupleDescPacket = nullptr;
+    std::unique_ptr<TupleDescriptionPacket> tupleDescPacket = nullptr;
+    std::vector<std::unique_ptr<DataRowPacket>> rows{};
+
     while (auto response = client.ReceivePacket()) {
         auto stop = false;
         switch (response->Type()) {
         case PacketType::TupleDescription: {
-            TupleDescriptionPacket *descr = dynamic_cast<TupleDescriptionPacket *>(response.get());
-            for (const auto &att : descr->Attributes()) {
-                std::cout << att.Name() << "\t";
-            }
-            std::cout << std::endl;
-            tupleDescPacket = descr;
+            // Save descriptor
+            auto ptr = dynamic_cast<TupleDescriptionPacket *>(response.release());
+            tupleDescPacket = std::unique_ptr<TupleDescriptionPacket>{ptr};
             break;
         }
         case PacketType::DataRow: {
-            DataRowPacket *drow = dynamic_cast<DataRowPacket *>(response.get());
             if (!tupleDescPacket) {
                 throw std::runtime_error("DataRow received before TupleDescription");
             }
 
-            for (const auto &val : drow->Values()) {
-                if (val.has_value()) {
-                    std::cout << val.value() << "\t";
-                } else {
-                    std::cout << "NULL" << "\t";
-                }
-            }
-            std::cout << std::endl;
+            rows.emplace_back(dynamic_cast<DataRowPacket *>(response.release()));
             break;
         }
         case PacketType::CommandComplete: {
             CommandCompletePacket *complete = dynamic_cast<CommandCompletePacket *>(response.get());
 
-            std::cout << complete->GetTag();
-            if (complete->GetRowsCount() >= 0) {
-                std::cout << " " << complete->GetRowsCount();
+            // Some queries do send tuple while others (i.e. DML) do not.
+            // For the former we pretty-print table and for the latter just
+            // print command tag.
+            if (tupleDescPacket) {
+                // Format tuple output
+                mi::client::TableFormatter formatter{std::cout};
+                formatter.Format(*tupleDescPacket, rows);
+    
+                // Insert total rows processed
+                auto rows = complete->GetRowsCount();
+                if (rows >= 0) {
+                    std::cout << "(" << rows;
+                    if (complete->GetRowsCount() == 1) {
+                        std::cout << " row)" << std::endl;
+                    } else {
+                        std::cout << " rows)" << std::endl;
+                    }
+                }
+            } else {
+                std::cout << complete->GetTag();
+                auto rows = complete->GetRowsCount();
+                if (rows >= 0) {
+                    std::cout << " " << rows;
+                }
+                std::cout << std::endl;
             }
-            std::cout << std::endl;
+
             stop = true;
             break;
         }
