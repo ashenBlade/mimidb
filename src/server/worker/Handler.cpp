@@ -1,23 +1,13 @@
 #include "worker/Handler.hpp"
 #include "MimiClient.hpp"
-#include "SQLParser.h"
-#include "SQLParserResult.h"
 #include "access/table/AttrNumber.hpp"
 #include "access/table/ITuple.hpp"
 #include "access/table/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
-#include "db/builtin/int.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
 #include "executor/Datum.hpp"
-#include "executor/VirtualTuple.hpp"
-#include "executor/expr/FunctionExpressionNode.hpp"
-#include "executor/expr/IExpressionNode.hpp"
-#include "executor/func/FunctionContext.hpp"
-#include "executor/plan/DeleteNode.hpp"
-#include "executor/plan/InsertNode.hpp"
-#include "executor/plan/SeqScan.hpp"
-#include "executor/plan/UpdateNode.hpp"
+#include "executor/plan/CommandTag.hpp"
 #include "logger.hpp"
 #include "packets/CommandCompletePacket.hpp"
 #include "packets/DataRowPacket.hpp"
@@ -26,14 +16,12 @@
 #include "packets/PacketType.hpp"
 #include "packets/QueryPacket.hpp"
 #include "packets/TupleDescriptionPacket.hpp"
-#include "parser/ParserError.hpp"
 #include "parser/SQLParser.hpp"
 #include "planner/Planner.hpp"
 #include "sql/SQLStatement.h"
 #include "sql/TransactionStatement.h"
 #include "trans/Transaction.hpp"
 #include "trans/TransactionManager.hpp"
-#include "utils/DatumArray.hpp"
 #include "worker/WorkerManager.hpp"
 #include "worker_state.hpp"
 #include <algorithm>
@@ -128,8 +116,8 @@ class SocketServer {
         this->_client.SendPacket(packet);
     }
 
-    void SendCommandComplete() {
-        auto packet = mi::interface::libmimi::CommandCompletePacket{};
+    void SendCommandComplete(std::string tag, int64_t rows = -1) {
+        auto packet = mi::interface::libmimi::CommandCompletePacket{std::move(tag), rows};
         this->_client.SendPacket(packet);
     }
 
@@ -164,7 +152,7 @@ static void start_new_transaction_command() {
 
 static void handle_begin(SocketServer &server) {
     start_new_transaction_command();
-    server.SendCommandComplete();
+    server.SendCommandComplete("BEGIN");
 }
 
 static void commit_transaction_command() {
@@ -174,25 +162,23 @@ static void commit_transaction_command() {
 
 static void handle_commit(SocketServer &server) {
     commit_transaction_command();
-    server.SendCommandComplete();
+    server.SendCommandComplete("COMMIT");
 }
 
-static void rollback_state() {
-    mi::TransactionManagerGlobal->AbortTransaction();
-}
+static void rollback_state() { mi::TransactionManagerGlobal->AbortTransaction(); }
 
 static void abort_transaction_command() {
     if (mi::MyTransaction == nullptr) {
         throw std::runtime_error("There is no transaction");
     }
-    
+
     rollback_state();
     mi::MyTransaction = nullptr;
 }
 
 static void handle_rollback(SocketServer &server) {
     abort_transaction_command();
-    server.SendCommandComplete();
+    server.SendCommandComplete("ROLLBACK");
 }
 
 static void exec_tcl_query(SocketServer &server, hsql::SQLStatement &statement) {
@@ -218,7 +204,7 @@ class ImplicitTransactionGuard {
     ImplicitTransactionGuard() {
         auto tnxIsRunning = mi::MyTransaction != nullptr;
         this->_inImplicitTnx = !tnxIsRunning;
-        if (tnxIsRunning) { 
+        if (tnxIsRunning) {
             return;
         }
 
@@ -233,7 +219,7 @@ class ImplicitTransactionGuard {
         commit_transaction_command();
         this->_inImplicitTnx = false;
     }
-    
+
     void Abort() {
         if (!this->_inImplicitTnx) {
             return;
@@ -250,8 +236,23 @@ class ImplicitTransactionGuard {
     }
 };
 
+static std::string cmdTagToString(mi::executor::plan::CommandTag tag) {
+    switch (tag) {
+    case mi::executor::plan::CommandTag::Select:
+        return "SELECT";
+    case mi::executor::plan::CommandTag::Insert:
+        return "INSERT";
+    case mi::executor::plan::CommandTag::Update:
+        return "UPDATE";
+    case mi::executor::plan::CommandTag::Delete:
+        return "DELETE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 static void exec_plannable_query(SocketServer &server, hsql::SQLStatement &statement) {
-    auto node = mi::planner::Planner::Plan(statement);
+    auto stmt = mi::planner::Planner::Plan(statement);
 
     // Start implicit transaction if not started one yet
     auto tnxBlock = ImplicitTransactionGuard{};
@@ -264,19 +265,23 @@ static void exec_plannable_query(SocketServer &server, hsql::SQLStatement &state
     const auto &descriptor = *table->GetDescriptor();
 
     // For SELECT statements we should send tuple descriptor
-    if (statement.isType(hsql::StatementType::kStmtSelect)) {
+    auto sendTuples = stmt.GetCmdTag() == mi::executor::plan::CommandTag::Select;
+    if (sendTuples) {
         server.SendTupleDescriptor(descriptor);
     }
 
+    auto node = stmt.GetNode();
     node->Start(snapshot);
 
     while (auto tuple = node->Execute()) {
-        server.SendTuple(descriptor, *tuple);
+        if (sendTuples) {
+            server.SendTuple(descriptor, *tuple);
+        }
     }
 
     node->End();
 
-    server.SendCommandComplete();
+    server.SendCommandComplete(cmdTagToString(stmt.GetCmdTag()), node->GetRowsProcessed());
 
     tnxBlock.Commit();
 }
@@ -284,7 +289,7 @@ static void exec_plannable_query(SocketServer &server, hsql::SQLStatement &state
 static void handle_loop(SocketServer &server, WorkerId id) {
     // Setup environment
     mi::MyWorker = mi::WorkerGlobal->GetWorker(id);
-    
+
     mi::LoggerGlobal->Info("starting processing client for worker %i", id.value);
 
     // Handle connection itself
@@ -299,7 +304,7 @@ static void handle_loop(SocketServer &server, WorkerId id) {
         auto queryPacket = dynamic_cast<mi::interface::libmimi::QueryPacket *>(packet.get());
 
         mi::LoggerGlobal->Debug("got query: %s", queryPacket->Query().c_str());
-        
+
         // Only 1 types of statements are supported: TCL and simple SQL crud
         try {
             auto statement = mi::parser::SQLParser::ParseStatement(queryPacket->Query());
@@ -314,7 +319,8 @@ static void handle_loop(SocketServer &server, WorkerId id) {
             }
         } catch (std::exception &ex) {
             server.SendError(ex.what());
-            mi::LoggerGlobal->Error("could not execute query \"%s\": %s", queryPacket->Query().c_str(), ex.what());
+            mi::LoggerGlobal->Error("could not execute query \"%s\": %s",
+                                    queryPacket->Query().c_str(), ex.what());
 
             // All errors abort transaction (if exists)
             if (mi::MyTransaction != nullptr)

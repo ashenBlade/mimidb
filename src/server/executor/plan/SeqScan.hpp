@@ -8,7 +8,7 @@
 #include <memory>
 
 namespace mi::executor::plan {
-class SeqScan : public IPlanNode {
+class SeqScan : public PlanNode {
   private:
     /// @brief State for scanning node
     std::unique_ptr<mi::access::table::ITableScan> _scan;

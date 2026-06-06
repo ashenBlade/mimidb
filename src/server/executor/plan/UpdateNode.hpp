@@ -10,7 +10,7 @@
 #include <memory>
 namespace mi::executor::plan {
 
-class UpdateNode : public IPlanNode {
+class UpdateNode : public PlanNode {
   private:
     // Table where insert tuple
     access::table::ITable *_table;

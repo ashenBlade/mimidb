@@ -14,13 +14,16 @@
 
 using namespace mi::interface::libmimi;
 
+static inline size_t getStringSize(const std::string &str) {
+    return sizeof(uint32_t) + str.size();
+}
+
 static size_t calculate_payload_size(const QueryPacket &packet) {
     // common header
     size_t size = 0;
 
     // Query length
-    size += sizeof(uint32_t);
-    size += packet.Query().size();
+    size += getStringSize(packet.Query());
 
     return size;
 }
@@ -34,8 +37,7 @@ static size_t calculate_payload_size(const TupleDescriptionPacket &packet) {
 
     // Calculate each attribute
     for (const auto &att : packet.Attributes()) {
-        size += sizeof(uint32_t);
-        size += att.Name().size();
+        size += getStringSize(att.Name());
     }
 
     return size;
@@ -66,16 +68,19 @@ static size_t calculate_payload_size(const DataRowPacket &packet) {
 static size_t calculate_payload_size(const ErrorResponsePacket &packet) {
     size_t size = 0;
 
-    size += sizeof(uint32_t);
-    size += packet.Message().size();
+    size += getStringSize(packet.Message());
 
     return size;
 }
 
-static size_t calculate_payload_size([[maybe_unused]]const CommandCompletePacket &packet) {
+static size_t calculate_payload_size(const CommandCompletePacket &packet) {
     size_t size = 0;
 
-    // There is no actual payload
+    // Tag
+    size += getStringSize(packet.GetTag());
+
+    // Rows
+    size += sizeof(int64_t);
 
     return size;
 }
@@ -104,7 +109,6 @@ void SerializerPacketVisitor::Visit(const QueryPacket &packet) {
     writer.WriteString(packet.Query());
     this->_buffer = std::move(buffer);
 }
-
 
 QueryPacket PacketDeserializer::DeserializeQuery(std::byte *buffer, size_t length) {
     auto reader = NetworkReader{buffer, length};
@@ -198,10 +202,18 @@ ErrorResponsePacket PacketDeserializer::DeserializeErrorResponse(std::byte *buff
 void SerializerPacketVisitor::Visit(const CommandCompletePacket &packet) {
     NetworkWriter writer;
     auto buffer = visit_base(packet, &writer);
-    // No fields
+
+    writer.WriteString(packet.GetTag());
+    writer.WriteInt64(packet.GetRowsCount());
+
     this->_buffer = std::move(buffer);
 }
 
-CommandCompletePacket PacketDeserializer::DeserializeCommandComplete([[maybe_unused]] std::byte *buffer, [[maybe_unused]] size_t length) {
-    return CommandCompletePacket{};
+CommandCompletePacket PacketDeserializer::DeserializeCommandComplete(std::byte *buffer, size_t length) {
+    auto reader = NetworkReader{buffer, length};
+
+    auto tag = reader.ReadString();
+    auto rows = reader.ReadInt64();
+
+    return CommandCompletePacket{std::move(tag), rows};
 }

@@ -1,5 +1,6 @@
 #include "NetworkWriter.hpp"
 #include <cstring>
+#include <endian.h>
 #include <stdexcept>
 
 using namespace mi::interface::libmimi;
@@ -39,6 +40,13 @@ void NetworkWriter::WriteInt32(int32_t value) {
     *reinterpret_cast<uint32_t *>(this->_cursor) = htobe32(static_cast<uint32_t>(value));
     this->_cursor += sizeof(int32_t);
     this->_pos += sizeof(int32_t);
+}
+
+void NetworkWriter::WriteInt64(int64_t value) {
+    this->checkBufferSize(sizeof(int64_t));
+    *reinterpret_cast<uint64_t *>(this->_cursor) = htobe64(static_cast<uint64_t>(value));
+    this->_cursor += sizeof(int64_t);
+    this->_pos += sizeof(int64_t);
 }
 
 void NetworkWriter::WriteString(const std::string &value) {

@@ -9,7 +9,7 @@
 #include <memory>
 namespace mi::executor::plan {
 
-class DeleteNode : public IPlanNode {
+class DeleteNode : public PlanNode {
   private:
     // Table where to delete tuples
     access::table::ITable *_table;

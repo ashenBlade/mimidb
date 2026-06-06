@@ -51,6 +51,7 @@ std::unique_ptr<mi::access::table::ITuple> UpdateNode::Execute() {
 
         // Update table tuple
         this->_table->UpdateTuple(*oldTuple, newTuple);
+        this->_nrows++;
     }
 
     return nullptr;

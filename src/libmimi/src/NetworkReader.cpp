@@ -45,6 +45,14 @@ int32_t NetworkReader::ReadInt32() {
     return static_cast<int32_t>(value);
 }
 
+int64_t NetworkReader::ReadInt64() {
+    this->checkBufferSize(sizeof(int64_t));
+    auto value = be64toh(*reinterpret_cast<uint64_t *>(this->_cursor));
+    this->_cursor += sizeof(int64_t);
+    this->_pos += sizeof(int64_t);
+    return static_cast<int64_t>(value);
+}
+
 std::string NetworkReader::ReadString() {
     auto len = this->ReadUint32();
     auto str = std::string(len, 0);

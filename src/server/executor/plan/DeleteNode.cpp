@@ -14,7 +14,6 @@ DeleteNode::DeleteNode(access::table::ITable *table, std::unique_ptr<IExpression
 };
 
 void DeleteNode::Start(mi::storage::trans::Snapshot *snapshot) {
-    // nothing
     auto scan = this->_table->StartScan(snapshot);
     scan->BeginScan();
     this->_scan = std::move(scan);
@@ -38,6 +37,7 @@ std::unique_ptr<mi::access::table::ITuple> DeleteNode::Execute() {
         }
 
         this->_table->DeleteTuple(*tuple);
+        this->_nrows++;
     }
 
     return nullptr;

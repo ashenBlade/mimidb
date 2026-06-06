@@ -20,9 +20,11 @@ std::unique_ptr<mi::access::table::ITuple> SeqScan::Execute() {
         if (this->_qual) {
             auto result = this->_qual->Exec(*tuple);
             if (result.has_value() && result.value().getScalar<bool>()) {
+                this->_nrows++;
                 return tuple;
             }
         } else {
+            this->_nrows++;
             return tuple;
         }
     }

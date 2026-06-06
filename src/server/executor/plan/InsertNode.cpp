@@ -20,6 +20,7 @@ std::unique_ptr<mi::access::table::ITuple> InsertNode::Execute() {
     // Insert all tuples
     for (auto &tuple : this->_tuples) {
         this->_table->InsertTuple(*tuple);
+        this->_nrows++;
     }
 
     // We do not return any data

@@ -21,6 +21,7 @@ class NetworkReader {
     uint8_t ReadUint8();
     uint32_t ReadUint32();
     int32_t ReadInt32();
+    int64_t ReadInt64();
     std::string ReadString();
     // Read continuous memory space of length 'length' and store it into 'buffer'
     void ReadBuffer(size_t length, std::byte *buffer);

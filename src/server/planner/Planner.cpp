@@ -13,10 +13,13 @@
 #include "executor/expr/FunctionExpressionNode.hpp"
 #include "executor/expr/IExpressionNode.hpp"
 #include "executor/func/FunctionContext.hpp"
+#include "executor/plan/CommandTag.hpp"
 #include "executor/plan/DeleteNode.hpp"
+#include "executor/plan/IPlanNode.hpp"
 #include "executor/plan/InsertNode.hpp"
 #include "executor/plan/SeqScan.hpp"
 #include "executor/plan/UpdateNode.hpp"
+#include "planner/PlannedStmt.hpp"
 #include "sql/DeleteStatement.h"
 #include "sql/Expr.h"
 #include "sql/InsertStatement.h"
@@ -94,12 +97,16 @@ static std::unique_ptr<mi::executor::IExpressionNode> parse_expr(hsql::Expr &exp
         assert(attno <= tableInfo.GetDescriptor()->GetMaxAttrNumber());
         return std::make_unique<mi::executor::expr::AttributeExpressionNode>(attno);
     } else {
-        throw std::runtime_error("expression is not supported: " + std::to_string(static_cast<int>(expr.type)));
+        throw std::runtime_error("expression is not supported: " +
+                                 std::to_string(static_cast<int>(expr.type)));
     }
 }
 
-std::unique_ptr<mi::executor::plan::IPlanNode> Planner::Plan(hsql::SQLStatement &statement) {
+PlannedStmt Planner::Plan(hsql::SQLStatement &statement) {
     assert(IsPlannableStatement(statement));
+
+    std::unique_ptr<executor::plan::PlanNode> node{};
+    executor::plan::CommandTag tag;
 
     if (statement.is(hsql::StatementType::kStmtSelect)) {
         hsql::SelectStatement &stmt = dynamic_cast<hsql::SelectStatement &>(statement);
@@ -133,7 +140,7 @@ std::unique_ptr<mi::executor::plan::IPlanNode> Planner::Plan(hsql::SQLStatement 
             // ok, idfc there is only 1 table for now
             break;
         case hsql::TableRefType::kTableSelect:
-            throw std::runtime_error("subSELECT is not supported");
+            throw std::runtime_error("subquery is not supported");
         case hsql::TableRefType::kTableJoin:
             /* FALLTHROUGH */
         case hsql::TableRefType::kTableCrossProduct:
@@ -150,7 +157,8 @@ std::unique_ptr<mi::executor::plan::IPlanNode> Planner::Plan(hsql::SQLStatement 
             qual = nullptr;
         }
 
-        return std::make_unique<executor::plan::SeqScan>(table, std::move(qual));
+        node = std::make_unique<executor::plan::SeqScan>(table, std::move(qual));
+        tag = executor::plan::CommandTag::Select;
     } else if (statement.is(hsql::StatementType::kStmtInsert)) {
         hsql::InsertStatement &stmt = dynamic_cast<hsql::InsertStatement &>(statement);
         const auto &info =
@@ -185,7 +193,9 @@ std::unique_ptr<mi::executor::plan::IPlanNode> Planner::Plan(hsql::SQLStatement 
         auto table = DatabaseGlobal->OpenTable(schema::catalog::TableId::MainTableId);
         auto vec = std::vector<std::unique_ptr<access::table::ITuple>>{};
         vec.emplace_back(std::move(tuple));
-        return std::make_unique<executor::plan::InsertNode>(table, std::move(vec));
+
+        node = std::make_unique<executor::plan::InsertNode>(table, std::move(vec));
+        tag = executor::plan::CommandTag::Insert;
     } else if (statement.is(hsql::StatementType::kStmtUpdate)) {
         hsql::UpdateStatement &stmt = dynamic_cast<hsql::UpdateStatement &>(statement);
         auto table = DatabaseGlobal->OpenTable(schema::catalog::TableId::MainTableId);
@@ -207,19 +217,24 @@ std::unique_ptr<mi::executor::plan::IPlanNode> Planner::Plan(hsql::SQLStatement 
 
         // predicate
         auto qual = stmt.where ? parse_expr(*stmt.where) : nullptr;
-        return std::make_unique<executor::plan::UpdateNode>(table, std::move(qual),
+        node = std::make_unique<executor::plan::UpdateNode>(table, std::move(qual),
                                                             std::move(updates));
+        tag = executor::plan::CommandTag::Update;
     } else if (statement.is(hsql::StatementType::kStmtDelete)) {
         hsql::DeleteStatement &stmt = dynamic_cast<hsql::DeleteStatement &>(statement);
         auto table = DatabaseGlobal->OpenTable(schema::catalog::TableId::MainTableId);
         auto qual = stmt.expr ? parse_expr(*stmt.expr) : nullptr;
-        return std::make_unique<executor::plan::DeleteNode>(table, std::move(qual));
+        node = std::make_unique<executor::plan::DeleteNode>(table, std::move(qual));
+        tag = executor::plan::CommandTag::Delete;
     } else if (statement.is(hsql::StatementType::kStmtTransaction)) {
         // TCL должен выполнятся отдельно (пока без всяких PlannedStmt)
         throw std::runtime_error("TCL must not reach here");
     } else {
-        throw std::runtime_error("statement is not supported: " + std::to_string(static_cast<int>(statement.type())));
+        throw std::runtime_error("statement is not supported: " +
+                                 std::to_string(static_cast<int>(statement.type())));
     }
+
+    return PlannedStmt{std::move(node), tag};
 }
 
 bool Planner::IsPlannableStatement(hsql::SQLStatement &statement) {

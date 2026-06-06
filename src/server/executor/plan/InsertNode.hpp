@@ -6,7 +6,7 @@
 #include <memory>
 namespace mi::executor::plan {
 
-class InsertNode : public IPlanNode {
+class InsertNode : public PlanNode {
   private:
     // Table where insert tuple
     access::table::ITable *_table;

@@ -1,12 +1,12 @@
 #include "ClientOptions.hpp"
 #include "CommandSource.hpp"
 #include "MimiClient.hpp"
+#include "packets/CommandCompletePacket.hpp"
 #include "packets/DataRowPacket.hpp"
 #include "packets/ErrorResponsePacket.hpp"
 #include "packets/PacketType.hpp"
 #include "packets/QueryPacket.hpp"
 #include "packets/TupleDescriptionPacket.hpp"
-#include <algorithm>
 #include <boost/program_options.hpp>
 #include <boost/program_options/detail/parsers.hpp>
 #include <boost/program_options/options_description.hpp>
@@ -17,7 +17,6 @@
 #include <exception>
 #include <fcntl.h>
 #include <iostream>
-#include <locale>
 #include <memory>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -63,6 +62,13 @@ static bool handleResponse(MimiClient &client) {
             break;
         }
         case PacketType::CommandComplete: {
+            CommandCompletePacket *complete = dynamic_cast<CommandCompletePacket *>(response.get());
+
+            std::cout << complete->GetTag();
+            if (complete->GetRowsCount() >= 0) {
+                std::cout << " " << complete->GetRowsCount();
+            }
+            std::cout << std::endl;
             stop = true;
             break;
         }
