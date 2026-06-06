@@ -1,5 +1,6 @@
 #pragma once
 
+#include "adt/LinkedList.hpp"
 #include "lock/LWLatch.hpp"
 #include <condition_variable>
 #include <memory>
@@ -7,7 +8,7 @@ namespace mi::storage::buffer {
 
 // Data required to work with buffer.
 // Stored separately from CacheEntry to reduce memory consumption.
-struct BufferData {
+struct BufferData : public adt::LinkedListEntry<BufferData> {
     // Pointer to page bytes
     std::unique_ptr<std::byte[]> Page;
 

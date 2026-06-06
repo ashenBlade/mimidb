@@ -17,7 +17,6 @@
 #include <shared_mutex>
 #include <stdexcept>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 using namespace mi::storage::buffer;
@@ -287,7 +286,7 @@ void BufferManager::handleCacheHit(CacheEntry *entry) {
     // Take lock before modifications, otherwise we can spoil different
     // lists (concurrent remove/insert across different lists).
     auto state = entry->State.load();
-    
+
     // Verify that this entry belongs to top list. Since entry must be pinned
     // at this point, then it can not move to B list, but anyway check.
     assert(state & CacheEntryFlags::IsTopList);
@@ -298,9 +297,10 @@ void BufferManager::handleCacheHit(CacheEntry *entry) {
 
         state = entry->Lock();
 
-        // We can not move from T2 to T1, by design but anyway check that we 
+        // We can not move from T2 to T1, by design but anyway check that we
         // still in T2.
-        assert ((state & CacheEntryListMask) == (CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList));
+        assert((state & CacheEntryListMask) ==
+               (CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList));
         this->T2.MoveMRU(entry);
         entry->Unlock();
     } else {
@@ -379,7 +379,7 @@ BufferPin BufferManager::makeBufferPin(CacheEntry *entry) {
     // Returned buffer must be valid and ready to use
     assert(entry->State.load() & CacheEntryFlags::DataValid);
     assert((entry->State.load() & BufferRefCountMask) > 0);
-    assert(entry->Buffer.load() != nullptr);
+    assert(entry->Buffer != nullptr);
 
     return BufferPin{entry->Tag, Buffer{this, entry->BlockId + 1}};
 }
@@ -429,7 +429,9 @@ bool BufferManager::tryVacateEntry(CacheEntry *entry, bool isFrequency) {
     // No-one still hold pin except us.
 
     // Extract buffer object to later add it to free list
-    auto buffer = entry->Buffer.load();
+    auto buffer = entry->Buffer;
+    // All entries in T list must have buffer assigned
+    assert(buffer);
     entry->Buffer = nullptr;
 
     entry->Unpin();
@@ -451,18 +453,15 @@ bool BufferManager::tryVacateEntry(CacheEntry *entry, bool isFrequency) {
     listLock.unlock();
 
     // Finally, move freed buffer to free list.
-    // Note that buffer can be null, because cache entry can be assigned to
-    // failed relation extend operation, when buffer was not assigned.
-    if (buffer != nullptr) {
-        auto l2 = std::unique_lock{this->_freeBuffersLock};
-        this->_freeBuffers.push_back(buffer);
-    }
+    this->_freeBuffers.Add(buffer);
 
     return true;
 }
 
-
 BufferPin BufferManager::GetBuffer(PageTag tag) {
+    // TODO: объявление BufferPin структуры здесь, а инициализация потом, чтобы пин отпустить если
+    // исключение будет
+
     // At first we must find/obtain id for given entry
     auto partLockS = this->_map.LockPartitionShared(tag);
     auto blkId = this->_map.Get(tag);
@@ -472,8 +471,11 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
     // Flag indicating that entry was created now, so needs to process hit
     bool created;
     if (blkId == nullptr) {
-        // Cache miss.
         partLockS.unlock();
+        // Entry does not exist at all - create it
+
+        // Perform some preinsert cleanup, so we will have some cache entries
+        this->preinsertCleanup();
 
         entry = this->evictCacheEntry();
         if (entry != nullptr) {
@@ -492,14 +494,35 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
                 entry->State.fetch_or(CacheEntryFlags::IsTopList);
                 entry->Pin();
 
-                // It's bad to acquire list lock while locking map, but for now
-                // it hard to handle rouge entries while not in lock.
-                {
-                    auto l = this->T1.Lock();
-                    this->T1.InsertMRU(entry);
+                // Get free buffer for the entry
+                auto buffer = this->_freeBuffers.Get();
+                if (!buffer) {
+                    // There are no free buffers to assign, so we can not create new entry.
+                    // Return everything back.
+                    auto removed = this->_map.Remove(tag);
+                    assert(removed);
+                    mapLockX.unlock();
+                    // Return cache entry to list
+                    // Only we can hold pin
+                    assert((entry->State.load() & BufferRefCountMask) == 1);
+                    auto l = this->FreeList.Lock();
+                    this->FreeList.InsertMRU(entry);
+
+                    throw std::runtime_error("can not get buffer: no free pages");
                 }
 
+                entry->Buffer = buffer;
+
+                // Finally, move entry to T1 list. In order not to hold both locks
+                // we grab spinlock on entry and release map lock.
+                entry->Lock();
                 mapLockX.unlock();
+
+                // It's bad to acquire list lock while locking map, but for now
+                // it hard to handle rouge entries while not in lock.
+                auto l = this->T1.Lock();
+                this->T1.InsertMRU(entry);
+                entry->Unlock();
 
                 created = true;
             } else {
@@ -511,14 +534,10 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
 
                 // Pin entry
                 entry->Pin();
-
                 mapLockX.unlock();
 
-                // Move obtained cache entry to free list as soon as possible
-                {
-                    auto l = this->FreeList.Lock();
-                    this->FreeList.InsertMRU(oldEntry);
-                }
+                auto l = this->FreeList.Lock();
+                this->FreeList.InsertMRU(oldEntry);
 
                 created = false;
             }
@@ -553,6 +572,13 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
 
     // If we actually made a cache/ghost hit, then process this.
     if (!created) {
+        // We must lock/unlock entry before obtaining it's state, because if entry is being inserted
+        // right now by other worker, then it may still be in process of inserting entry (not yet in
+        // list). To prevent such race conditions inserter grabs the lock before releasing map lock,
+        // so by grabbing the lock we ensure that list information is still valid.
+        entry->Lock();
+        entry->Unlock();
+
         auto state = entry->State.load();
         if (state & CacheEntryFlags::IsTopList) {
             this->handleCacheHit(entry);
@@ -564,45 +590,12 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
     // Up to this moment we have entry moved to top list and pinned, but no lock
     // is hold.
 
-    // Now check that buffer is assigned and valid.
+    // Buffer must be assigned, because entry is in T list
+    assert(entry->Buffer != nullptr);
 
     // Very likely that everything already setup
     if (entry->State.load() & CacheEntryFlags::DataValid) {
-        assert(entry->Buffer.load() != nullptr);
         return this->makeBufferPin(entry);
-    }
-
-    // Buffer is not yet setup.
-
-    // Check we have buffer page assigned
-    if (entry->Buffer.load() == nullptr) {
-        // Search free buffer in list
-        auto lock = std::unique_lock{this->_freeBuffersLock};
-        if (this->_freeBuffers.size() > 0) {
-            auto buffer = this->_freeBuffers.back();
-            this->_freeBuffers.pop_back();
-            lock.unlock();
-
-            auto old = entry->Buffer.load();
-            if (!(old == nullptr && entry->Buffer.compare_exchange_strong(old, buffer))) {
-                // Another worker can concurrently find free buffer data.
-                // If we are here, then this happened and buffer is set.
-                // We must return our obtained buffer back.
-                lock.lock();
-                this->_freeBuffers.push_back(buffer);
-                lock.unlock();
-            }
-        } else if (entry->Buffer.load() == nullptr) {
-            // No free buffers, but we checked this after got X lock on list,
-            // so someone can already get buffer and assign it.
-            // But if we are in this branch, then that not true and we really
-            // failed to find free page.
-            //
-            // TODO: consider moving entry to B
-            throw std::runtime_error("no free buffers");
-        }
-
-        assert(entry->Buffer.load() != nullptr);
     }
 
     // Now verify page data is valid: read from file and validated.
@@ -656,6 +649,19 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
         // pin entry
         entry->Pin();
 
+        auto buffer = this->_freeBuffers.Get();
+        if (!buffer) {
+            // Remove this entry from map since we do not need it
+            auto removed = this->_map.Remove(tag);
+            assert(removed);
+            mapLock.unlock();
+
+            auto l = this->FreeList.Lock();
+            this->FreeList.InsertMRU(entry);
+
+            throw std::runtime_error("could not get buffer: no free pages");
+        }
+
         // Insert new entry to T1 list, but still hold map lock
         //
         // NOTE: this is bad, because we are grabbing T1 lock inside map lock
@@ -667,7 +673,15 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
             entry->State.fetch_or(CacheEntryFlags::IsTopList);
         }
 
+        entry->Lock();
         mapLock.unlock();
+
+        {
+            auto l = this->T1.Lock();
+            this->T1.InsertMRU(entry);
+            entry->State.fetch_or(CacheEntryFlags::IsTopList);
+        }
+        entry->Unlock();
 
         // Only 1 worker can invoke extend, so this call must succeed
         auto shouldStart = entry->ShouldStartIO(true);
@@ -708,50 +722,30 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
     }
 
     // Verify that we have buffer assigned
-    entry->Lock();
-    if (entry->Buffer == nullptr) {
-        entry->Unlock();
-        auto l = std::unique_lock{this->_freeBuffersLock};
-        entry->Lock();
-        if (entry->Buffer == nullptr) {
-            if (this->_freeBuffers.size()) {
-                auto buffer = this->_freeBuffers.back();
-                this->_freeBuffers.pop_back();
-                entry->Buffer = buffer;
-            } else {
-                entry->Unlock();
-                throw std::runtime_error("no free buffer found");
-            }
-        } else {
-            // Someone concurrently assigned buffer - nothing to do
-        }
-    }
     assert(entry->Buffer != nullptr);
-    entry->Unlock();
 
     // Take a lock for IO
-    auto lock = std::unique_lock{entry->Buffer.load()->Latch};
+    auto lock = std::unique_lock{entry->Buffer->Latch};
 
     // Now we are holding lock and must perform IO
     try {
         // Actually extend relation
         relfile.Extend(nblocks);
-
-        // Write all zeros to allocated buffer
-        std::memset(entry->Buffer.load()->Page.get(), 0, Config::PageSize);
-
-        // Do not call abort - next caller will make another attempt
-        entry->TerminateBufferIO(CacheEntryFlags::DataValid, 0);
     } catch (...) {
         entry->TerminateBufferIO(CacheEntryFlags::IoError, 0);
         throw;
     }
 
+    // Write all zeros to allocated buffer
+    std::memset(entry->Buffer->Page.get(), 0, Config::PageSize);
+
+    // Do not call abort - next caller will make another attempt
+    entry->TerminateBufferIO(CacheEntryFlags::DataValid, 0);
+
     return this->makeBufferPin(entry);
 }
 
-BufferManager::BufferManager(uint32_t npages)
-    : _map(8), _npages(npages), _freeBuffersLock(), _freeBuffers() {
+BufferManager::BufferManager(uint32_t npages) : _map(8), _npages(npages), _freeBuffers() {
 
     if (UINT32_MAX <= static_cast<size_t>(_npages) * 2) {
         throw std::runtime_error("too many blocks in buffer");
@@ -782,6 +776,6 @@ BufferManager::BufferManager(uint32_t npages)
         _buffers[i].Page = std::make_unique<std::byte[]>(Config::PageSize);
 
         // All buffers initially are free
-        this->_freeBuffers.push_back(&_buffers[i]);
+        this->_freeBuffers.Add(&_buffers[i]);
     }
 }

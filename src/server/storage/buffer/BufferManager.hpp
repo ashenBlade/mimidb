@@ -1,6 +1,7 @@
 #pragma once
 
 #include "adt/HashTable.hpp"
+#include "adt/LinkedList.hpp"
 #include "executor/Oid.hpp"
 #include "lock/LWLatch.hpp"
 #include "storage/buffer/Buffer.hpp"
@@ -85,6 +86,7 @@ class BufferManager {
     friend class Buffer;
 
   private:
+    // Page table
     adt::HashTable<PageTag, uint32_t, PageTagHash> _map;
 
     // Total amount of pages
@@ -96,8 +98,7 @@ class BufferManager {
     std::vector<BufferData> _buffers;
 
     // List of free buffers.
-    lock::LWLatch _freeBuffersLock;
-    std::list<BufferData *> _freeBuffers;
+    adt::LinkedList<BufferData> _freeBuffers;
 
     // Lists for ARC
 
@@ -109,7 +110,7 @@ class BufferManager {
     CacheEntryList B1;
     // Bottom frequency
     CacheEntryList B2;
-    // List of free entries (not used)
+    // List of free entries
     CacheEntryList FreeList;
 
     // Target T1 size (adaptive parameter)

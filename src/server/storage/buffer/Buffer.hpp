@@ -24,7 +24,7 @@ class Buffer final {
     uint32_t _blockId;
 
     // Get index for associated entry in buffer cache
-    uint32_t GetIndex() {
+    uint32_t GetIndex() const {
         assert(this->IsValid());
         return this->_blockId - 1;
     }

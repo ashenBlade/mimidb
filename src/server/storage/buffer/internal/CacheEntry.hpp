@@ -60,7 +60,7 @@ class CacheEntry {
     // State for this entry
     std::atomic_int32_t State;
     // Assigned BufferData or nullptr if not assigned
-    std::atomic<BufferData *> Buffer;
+    BufferData * Buffer;
 
     // Pointer to next entry in list
     CacheEntry *Prev;

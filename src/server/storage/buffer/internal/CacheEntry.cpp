@@ -64,8 +64,7 @@ void CacheEntry::TearDown() {
 }
 
 void CacheEntry::waitIO() {
-    auto buffer = this->Buffer.load();
-    assert(buffer != nullptr);
+    assert(this->Buffer != nullptr);
     while (true) {
         auto state = this->Lock();
 
@@ -77,10 +76,10 @@ void CacheEntry::waitIO() {
         }
 
         // Вот эта часть некорректная (а может и ок)
-        auto lock = std::unique_lock{buffer->Latch};
+        auto lock = std::unique_lock{this->Buffer->Latch};
         state = this->State.load();
         if (state & CacheEntryFlags::IoInProgress) {
-            buffer->IOCondVar.wait(lock);
+            this->Buffer->IOCondVar.wait(lock);
         }
     }
 }
@@ -102,11 +101,10 @@ void CacheEntry::TerminateBufferIO(int32_t setFlags, int32_t unsetFlags) {
 
     this->Unlock();
 
-    auto buffer = this->Buffer.load();
-    assert(buffer != nullptr);
+    assert(this->Buffer != nullptr);
 
     // Notify IO completed
-    buffer->IOCondVar.notify_all();
+    this->Buffer->IOCondVar.notify_all();
 }
 
 bool CacheEntry::ShouldStartIO(bool forInput) {
@@ -148,13 +146,12 @@ void CacheEntry::ReadBuffer() {
     }
 
     // Buffer must be assigned
-    auto buffer = this->Buffer.load();
-    assert(buffer != nullptr);
+    assert(this->Buffer != nullptr);
 
-    auto lock = std::unique_lock{buffer->Latch};
+    auto lock = std::unique_lock{this->Buffer->Latch};
     try {
         auto file = RelFile::Open(this->Tag.Relid, O_RDONLY);
-        file.Read(buffer->Page.get(), this->Tag.PageNo);
+        file.Read(this->Buffer->Page.get(), this->Tag.PageNo);
     } catch (...) {
         this->TerminateBufferIO(CacheEntryFlags::IoError, 0);
         throw;
@@ -169,15 +166,14 @@ void CacheEntry::FlushBuffer() {
         return;
     }
 
-    auto buffer = this->Buffer.load();
-    assert(buffer != nullptr);
+    assert(this->Buffer != nullptr);
 
-    auto l = std::unique_lock{buffer->Latch};
+    auto l = std::unique_lock{this->Buffer->Latch};
 
     // We grabbed the lock and can perform IO
     try {
         auto relfile = RelFile::Open(this->Tag.Relid, O_WRONLY);
-        relfile.Write(buffer->Page.get(), this->Tag.PageNo);
+        relfile.Write(this->Buffer->Page.get(), this->Tag.PageNo);
         relfile.Fsync();
     } catch (...) {
         this->TerminateBufferIO(CacheEntryFlags::IoError, 0);

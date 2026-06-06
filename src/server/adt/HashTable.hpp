@@ -45,7 +45,8 @@ class HashTable {
     // already exist and value pointer is an existing entry.
     std::pair<TValue *, bool> Insert(const TKey &key, const TValue &value) {
         auto index = this->getElementIndex(key);
-        return this->_maps[index].Map.insert(key, value);
+        auto [it, success] = this->_maps[index].Map.insert(std::make_pair(key, value));
+        return std::make_pair(&it->second, success);
     }
 
     TValue *Get(const TKey &key) {
@@ -63,7 +64,6 @@ class HashTable {
         auto index = this->getElementIndex(key);
         auto map = &this->_maps[index].Map;
         auto erased = map->erase(key);
-        assert(erased <= 1);
         return erased == 1;
     }
 
