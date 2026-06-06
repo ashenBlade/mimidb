@@ -260,10 +260,13 @@ static void exec_plannable_query(SocketServer &server, hsql::SQLStatement &state
     mi::MyTransaction->BeginNewStatement();
     auto snapshot = mi::MyTransaction->GetSnapshot();
 
-    // Пока я знаю, что только 1 таблица есть, поэтому не надо возиться с дескриптором
     auto table = mi::DatabaseGlobal->OpenTable(mi::schema::catalog::TableId::MainTableId);
     const auto &descriptor = *table->GetDescriptor();
-    server.SendTupleDescriptor(descriptor);
+
+    // For SELECT statements we should send tuple descriptor
+    if (statement.isType(hsql::StatementType::kStmtSelect)) {
+        server.SendTupleDescriptor(descriptor);
+    }
 
     node->Start(snapshot);
 

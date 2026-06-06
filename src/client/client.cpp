@@ -10,6 +10,7 @@
 #include <iostream>
 #include <locale>
 #include <netinet/in.h>
+#include <stdexcept>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -17,8 +18,7 @@
 using namespace mi::interface::libmimi;
 
 static bool handleResponse(MimiClient &client) {
-    // XXX: тут можно создать стейт машину, чтобы проверять разные шняги, например, что мне всегда
-    // приходит TupleDescr перед DataRow
+    TupleDescriptionPacket *tupleDescPacket = nullptr;
     while (auto response = client.ReceivePacket()) {
         auto stop = false;
         switch (response->Type()) {
@@ -28,10 +28,15 @@ static bool handleResponse(MimiClient &client) {
                 std::cout << att.Name() << "\t";
             }
             std::cout << std::endl;
+            tupleDescPacket = descr;
             break;
         }
         case PacketType::DataRow: {
             DataRowPacket *drow = dynamic_cast<DataRowPacket *>(response.get());
+            if (!tupleDescPacket) {
+                throw std::runtime_error("DataRow received before TupleDescription");
+            }
+
             for (const auto &val : drow->Values()) {
                 if (val.has_value()) {
                     std::cout << val.value() << "\t";
@@ -109,8 +114,13 @@ int main() {
         auto packet = QueryPacket{std::move(input)};
         client.SendPacket(packet);
 
-        if (!handleResponse(client)) {
-            std::cout << "CONNECTION LOST" << std::endl;
+        try {
+            if (!handleResponse(client)) {
+                std::cout << "CONNECTION LOST" << std::endl;
+                break;
+            }
+        } catch (std::exception &ex) {
+            std::cout << "Error during response handling: " << ex.what() << std::endl;
             break;
         }
     }

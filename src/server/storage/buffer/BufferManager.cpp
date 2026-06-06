@@ -131,14 +131,15 @@ void CacheEntryList::RemoveEntry(CacheEntry *entry) {
 }
 
 void CacheEntryList::MoveMRU(CacheEntry *entry) {
-    assert(!entry->IsRouge());
     assert(this->_size > 0);
 
     if (this->_size == 1) {
         // Nothing to do
+        assert(entry->IsRouge());
         return;
     }
 
+    assert(!entry->IsRouge());
     this->RemoveEntry(entry);
     this->InsertMRU(entry);
 }
@@ -661,6 +662,8 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
 
             throw std::runtime_error("could not get buffer: no free pages");
         }
+
+        entry->Buffer = buffer;
 
         // Insert new entry to T1 list, but still hold map lock
         //
