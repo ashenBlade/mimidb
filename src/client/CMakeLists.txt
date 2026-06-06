@@ -17,3 +17,10 @@ target_sources(${CLIENT_EXEC_NAME} PRIVATE
     formatting/TableFormatter.cpp)
 
 target_link_libraries(${CLIENT_EXEC_NAME} PRIVATE ${LIBMIMI_IFACE_NAME})
+
+install(TARGETS ${CLIENT_EXEC_NAME}
+        DESTINATION ${INSTALL_BINDIR})
+set_target_properties(
+    ${CLIENT_EXEC_NAME} PROPERTIES
+    INSTALL_RPATH "\${ORIGIN}/../lib"
+)

@@ -45,6 +45,11 @@ set(LIBMIMI_IFACE_NAME mimi)
 set(CLIENT_EXEC_NAME miclient)
 set(SQLPARSER_LIB_NAME hyrisesql)
 
+# Данные для установки
+set(INSTALL_BINDIR  "bin")
+set(INSTALL_LIBDIR  "lib")
+include(GNUInstallDirs)
+
 # Рекурсивно собираем все
-add_subdirectory(src)
 add_subdirectory(external/sql-parser)
+add_subdirectory(src)

@@ -6,3 +6,6 @@ add_headers_and_sources(libmimi src)
 add_headers_and_sources(libmimi src/packets)
 
 target_sources(${LIBMIMI_IFACE_NAME} PRIVATE ${libmimi_sources} ${libmimi_headers})
+
+install(TARGETS ${LIBMIMI_IFACE_NAME}
+        DESTINATION ${INSTALL_LIBDIR})

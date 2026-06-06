@@ -61,3 +61,11 @@ if (Boost_FOUND)
     target_link_libraries(${SERVER_EXEC_NAME} PRIVATE ${Boost_LIBRARIES})
 endif()
 
+# Installation
+install(TARGETS ${SERVER_EXEC_NAME}
+        DESTINATION ${INSTALL_BINDIR})
+
+set_target_properties(
+    ${SERVER_EXEC_NAME} PROPERTIES
+    INSTALL_RPATH "\${ORIGIN}/../lib"
+)
