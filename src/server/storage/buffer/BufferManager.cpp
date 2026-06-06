@@ -469,12 +469,13 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
 
     // Allocated and pinned entry
     CacheEntry *entry;
+    // Flag indicating that entry was created now, so needs to process hit
+    bool created;
     if (blkId == nullptr) {
         // Cache miss.
         partLockS.unlock();
 
         entry = this->evictCacheEntry();
-        bool cacheHit;
         if (entry != nullptr) {
             // Before inserting entry into hash table setup cache entry state appropriately.
             entry->Tag = tag;
@@ -500,7 +501,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
 
                 mapLockX.unlock();
 
-                cacheHit = false;
+                created = true;
             } else {
                 // Someone inserted entry for the same tag concurrently.
                 // Move our cache entry to free list.
@@ -519,7 +520,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
                     this->FreeList.InsertMRU(oldEntry);
                 }
 
-                cacheHit = true;
+                created = false;
             }
         } else {
             // No free cache entry found, but maybe other workers invoked us
@@ -535,35 +536,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
             entry = &this->_entries[*blkId];
             entry->Pin();
 
-            cacheHit = true;
-        }
-
-        // If entry was concurrently added while we were trying to do it, then
-        // this is cache hit. In both cases we move entry to T2 list.
-        if (cacheHit) {
-            auto state = entry->Lock();
-            if (!(state & CacheEntryFlags::IsTopList)) {
-                // The entry in B list - this is ghost hit
-                entry->Unlock();
-                this->handleGhostHit(entry, state & CacheEntryFlags::IsFrequencyList);
-            } else if (!(state & CacheEntryFlags::IsFrequencyList)) {
-                // Entry in T1 list
-                entry->Unlock();
-                this->handleCacheHit(entry);
-            } else {
-                // Entry already in T2 list - just move to MRU
-                entry->Unlock();
-
-                {
-                    auto l = this->T2.Lock();
-                    state = entry->Lock();
-                    constexpr auto t2flags = CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList;
-                    if ((state & CacheEntryListMask) == t2flags) {
-                        this->T2.MoveMRU(entry);
-                    }
-                    entry->Unlock();
-                }
-            }
+            created = false;
         }
     } else {
         // Entry is found in cache: either alive or ghost.
@@ -575,6 +548,11 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
         entry->Pin();
         partLockS.unlock();
 
+        created = false;
+    }
+
+    // If we actually made a cache/ghost hit, then process this.
+    if (!created) {
         auto state = entry->State.load();
         if (state & CacheEntryFlags::IsTopList) {
             this->handleCacheHit(entry);
@@ -619,6 +597,8 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
             // so someone can already get buffer and assign it.
             // But if we are in this branch, then that not true and we really
             // failed to find free page.
+            //
+            // TODO: consider moving entry to B
             throw std::runtime_error("no free buffers");
         }
 
