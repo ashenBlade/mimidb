@@ -52,3 +52,12 @@ target_link_libraries(${SERVER_EXEC_NAME} PRIVATE ${LIBMIMI_IFACE_NAME})
 
 # SQL parser
 target_link_libraries(${SERVER_EXEC_NAME} PUBLIC ${SQLPARSER_LIB_NAME})
+
+# Link program options
+find_package(Boost 1.83.0 COMPONENTS program_options REQUIRED)
+
+if (Boost_FOUND)
+    target_include_directories(${SERVER_EXEC_NAME} PRIVATE ${Boost_INCLUDE_DIRS})
+    target_link_libraries(${SERVER_EXEC_NAME} PRIVATE ${Boost_LIBRARIES})
+endif()
+

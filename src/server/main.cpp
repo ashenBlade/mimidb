@@ -1,7 +1,9 @@
+#include "Settings.hpp"
 #include "cluster_state.hpp"
 #include "logger.hpp"
 #include "mi_config.hpp"
 #include "worker/WorkerManager.hpp"
+#include <boost/program_options/options_description.hpp>
 #include <cerrno>
 #include <cmath>
 #include <csignal>
@@ -16,6 +18,8 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+using namespace mi;
 
 static int open_server_socket() {
     auto sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -80,7 +84,8 @@ static int main_loop() {
             if (errno == EINTR && stop_requested) {
                 mi::LoggerGlobal->Info("got SIGINT, stop working");
             } else {
-                mi::LoggerGlobal->Error("error accepting client, stop working: %s", strerror(errno));
+                mi::LoggerGlobal->Error("error accepting client, stop working: %s",
+                                        strerror(errno));
             }
             break;
         }
@@ -93,45 +98,12 @@ static int main_loop() {
     return 0;
 }
 
-static void processArguments(int argc, char **argv) {
-    for (auto i = 1; i < argc; ++i) {
-        auto arg = argv[i];
+extern void setupCluster(Settings &settings);
 
-        if (strcmp(arg, "--help") == 0) {
-            std::cout << "--help\tshow this help message\n"
-                      << "-D [WORKDIR]\tset working directory" << std::endl;
-            exit(0);
-        }
+int main(int argc, const char **argv) {
+    auto settings = mi::parseCommandArgs(argc, argv);
 
-        if (strcmp(arg, "-D") == 0) {
-            if (i + 1 >= argc) {
-                std::cerr << "work dir is not provided" << std::endl;
-                exit(1);
-            }
-
-            i++;
-            auto dir = argv[i];
-            auto buf = std::array<char, 128>{};
-            getcwd(buf.data(), buf.size());
-            if (chdir(dir) < 0) {
-                std::cerr << "could not chdir to " << dir << ": " << strerror(errno) << std::endl;
-                exit(1);
-            }
-
-            continue;
-        }
-
-        std::cerr << "Unknown option " << arg << std::endl;
-        exit(1);
-    }
-}
-
-extern void setupCluster();
-
-int main(int argc, char **argv) {
-    processArguments(argc, argv);
-
-    setupCluster();
+    setupCluster(settings);
 
     // Register simple handler to stop processing
     struct sigaction sa;

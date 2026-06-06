@@ -1,5 +1,6 @@
 #include "FileLogHandler.hpp"
 #include "storage/io/File.hpp"
+#include <cstddef>
 
 using namespace mi::logger;
 
@@ -7,6 +8,7 @@ FileLogHandler::FileLogHandler(mi::storage::io::File file): _file(std::move(file
 
 void FileLogHandler::Write(const std::string &message) {
     this->_file.Append(reinterpret_cast<const std::byte *>(message.c_str()), message.size());
+    this->_file.Append(reinterpret_cast<const std::byte *>("\n"), 1);
 }
 
 FileLogHandler::~FileLogHandler() {

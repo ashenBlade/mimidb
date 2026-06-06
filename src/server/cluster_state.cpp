@@ -1,4 +1,5 @@
 #include "cluster_state.hpp"
+#include "Settings.hpp"
 #include "access/heap/HeapResourceManager.hpp"
 #include "access/heap/HeapTable.hpp"
 #include "access/table/AttrNumber.hpp"
@@ -18,15 +19,21 @@
 #include "lock/LockManager.hpp"
 #include "logger/ConsoleLogHandler.hpp"
 #include "logger/DefaultLogFormatter.hpp"
+#include "logger/FileLogHandler.hpp"
+#include "logger/ILogHandler.hpp"
 #include "mi_config.hpp"
 #include "logger.hpp"
 #include "logger/Logger.hpp"
 #include "mi_config.hpp"
+#include "storage/io/File.hpp"
 #include "worker_state.hpp"
+#include <array>
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <linux/limits.h>
 #include <memory>
+#include <stdexcept>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_map>
@@ -165,18 +172,38 @@ static void setupMasterWorker() {
     mi::MyWorker = worker;
 }
 
-static void setupLogger() {
+static void setupLogger(mi::Settings &settings) {
     auto formatter = std::make_unique<mi::logger::DefaultLogFormatter>();
-    auto handler = std::make_unique<mi::logger::ConsoleLogHandler>();
+    std::unique_ptr<mi::logger::ILogHandler> handler;
+    if (settings.LogFile.size()) {
+        auto fd = open(settings.LogFile.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0666);
+        auto file = mi::storage::io::File{fd};
+        handler = std::make_unique<mi::logger::FileLogHandler>(std::move(file));
+    } else {
+        handler = std::make_unique<mi::logger::ConsoleLogHandler>();
+    }
 
     mi::LoggerGlobal = new mi::logger::Logger(std::move(handler), std::move(formatter));
 }
 
-void setupCluster() {
+static void setupDirectory(mi::Settings &settings) {
+    if (!settings.DataDirectory.size()) {
+        throw std::logic_error("Data directory is not specified");
+    }
+
+    if (chdir(settings.DataDirectory.c_str()) < 0) {
+        throw std::runtime_error(std::string{"could not change directory: "} + strerror(errno));
+    }
+}
+
+void setupCluster(mi::Settings &settings) {
+    setupLogger(settings);
+    setupDirectory(settings);
+
     setupResourceManagers();
     setupDatabase();
 
-    // temp
+    // Временное решение
     setupStorage();
 
     // Create global structures
@@ -187,7 +214,6 @@ void setupCluster() {
     mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager(mi::Config::BufferPoolSize);
     mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");
     mi::WALGlobal = mi::storage::wal::WriteAheadLog::Open("wal");
-    setupLogger();
 
     setupMasterWorker();
 }
