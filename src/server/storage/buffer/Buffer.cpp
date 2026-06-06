@@ -1,22 +1,22 @@
 #include "storage/buffer/Buffer.hpp"
 #include "lock/LockMode.hpp"
-#include "cluster_state.hpp"
+#include "storage/buffer/BufferManager.hpp"
 
 using namespace mi::storage::buffer;
 
-Buffer::Buffer(): Buffer(Buffer::InvalidBlockId) {};
-Buffer::Buffer(uint32_t blockId) : _blockId(blockId) {};
+Buffer::Buffer(): Buffer(nullptr, Buffer::InvalidBlockId) {};
+Buffer::Buffer(BufferManager *pool, uint32_t blockId) : _pool(pool), _blockId(blockId) {};
 
 CacheEntry *Buffer::getCacheEntry() {
     assert(this->IsValid());
 
-    return &mi::BufferPoolGlobal->_entries[this->GetIndex()];
+    return &this->_pool->_entries[this->GetIndex()];
 }
 
 const CacheEntry *Buffer::getCacheEntry() const {
     assert(this->IsValid());
 
-    return &mi::BufferPoolGlobal->_entries[this->_blockId];
+    return &this->_pool->_entries[this->_blockId];
 }
 
 std::byte *Buffer::GetContents() { 

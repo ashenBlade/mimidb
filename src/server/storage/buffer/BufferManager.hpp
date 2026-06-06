@@ -1,5 +1,6 @@
 #pragma once
 
+#include "adt/HashTable.hpp"
 #include "executor/Oid.hpp"
 #include "lock/LWLatch.hpp"
 #include "storage/buffer/Buffer.hpp"
@@ -11,8 +12,6 @@
 #include <list>
 #include <mutex>
 #include <shared_mutex>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 namespace mi::storage::buffer {
@@ -56,9 +55,9 @@ class CacheEntryList {
   public:
     CacheEntryList();
 
-    // Remove LRU element from list.
+    // Remove tail entry from list.
     // Can return NULL if list is empty.
-    CacheEntry *DeleteLRU();
+    CacheEntry *PopTail();
     // Insert given entry into MRU of list.
     void InsertMRU(CacheEntry *entry);
     // Remove given entry from list
@@ -86,10 +85,7 @@ class BufferManager {
     friend class Buffer;
 
   private:
-    // Mapping between PageTag and index of it's associated cache entry in array
-    std::unordered_map<PageTag, uint32_t, PageTagHash> _map;
-    // Latch for working with _map
-    lock::LWLatch _mapLock;
+    adt::HashTable<PageTag, uint32_t, PageTagHash> _map;
 
     // Total amount of pages
     uint32_t _npages;
@@ -128,8 +124,10 @@ class BufferManager {
     CacheEntry *evictCacheEntry();
 
     // Handle case when entry is hit in B list - 'isFrequency' tells which one.
-    // Returns pair of cache entry to vacate and bool - whether this entry was in frequency list.
     void handleGhostHit(CacheEntry *entry, bool isFrequency);
+
+    // Handle case when entry is hit in T list - 'isFrequency' tells which one.
+    void handleCacheHit(CacheEntry *entry);
 
     // Move valid T cache entry into B with possible buffer flush.
     // isFrequency tells which B list to add in. We should keep this flag, because
@@ -148,6 +146,10 @@ class BufferManager {
     // to B list freeing it's buffer.
     // This allows us to create/find new unused cache entry 
     void preinsertCleanup();
+
+    // Utility function to create BufferPin object from it's cache entry.
+    // Used when returning BufferPin to user.
+    BufferPin makeBufferPin(CacheEntry *entry);
 
   public:
     BufferManager(uint32_t npages);

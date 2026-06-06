@@ -39,7 +39,7 @@ enum CacheEntryFlags : int32_t {
 };
 
 // Mask to get only list information from buffer state
-inline constexpr int32_t BufferCtlListMask =
+inline constexpr int32_t CacheEntryListMask =
     CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList;
 // Mask to get reference count from state
 inline constexpr int32_t BufferRefCountMask = (1 << 20) - 1;
@@ -49,8 +49,8 @@ inline constexpr int32_t BufferRefCountOne = 1;
 // Entry in buffer cache
 class CacheEntry {
   private:
-    int32_t WaitUnlocked();
-    void WaitIO();
+    int32_t waitUnlocked();
+    void waitIO();
 
   public:
     // Page tag for entry

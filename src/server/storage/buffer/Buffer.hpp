@@ -18,6 +18,8 @@ class Buffer final {
     friend class BufferManager;
 
   private:
+    // Buffer pool which we belong to
+    BufferManager *_pool;
     // Id for BufferCtl block
     uint32_t _blockId;
 
@@ -31,7 +33,7 @@ class Buffer final {
     const CacheEntry *getCacheEntry() const;
   public:
     Buffer();
-    Buffer(uint32_t blockId);
+    Buffer(BufferManager *pool, uint32_t blockId);
 
     std::byte *GetContents();
     const std::byte *GetContents() const;
@@ -41,21 +43,13 @@ class Buffer final {
     void MarkDirty();
     bool IsDirty();
 
-    bool IsValid() const { return this->_blockId != InvalidBlockId; }
+    bool IsValid() const { return this->_pool != nullptr && this->_blockId != InvalidBlockId; }
 
-    static Buffer Invalid() { return Buffer{InvalidBlockId}; }
+    static Buffer Invalid() { return Buffer{nullptr, InvalidBlockId}; }
 
-    void lock() {
-      this->Lock(false);
-    }
-    void lock_shared() {
-      this->Lock(true);
-    }
-    void unlock() {
-      this->Unlock(false);
-    }
-    void unlock_shared() {
-      this->Unlock(true);
-    }
+    void lock() { this->Lock(false); }
+    void lock_shared() { this->Lock(true); }
+    void unlock() { this->Unlock(false); }
+    void unlock_shared() { this->Unlock(true); }
 };
 }; // namespace mi::storage::buffer

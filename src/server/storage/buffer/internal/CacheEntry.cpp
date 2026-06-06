@@ -7,7 +7,7 @@
 
 using namespace mi::storage::buffer;
 
-int32_t CacheEntry::WaitUnlocked() {
+int32_t CacheEntry::waitUnlocked() {
     auto state = this->State.load();
     while (state & CacheEntryFlags::Locked) {
         lock::Spin::PerformSpin();
@@ -18,34 +18,17 @@ int32_t CacheEntry::WaitUnlocked() {
 }
 
 void CacheEntry::Pin() {
-    auto old = this->State.load();
-    while (true) {
-        if (old & CacheEntryFlags::Locked) {
-            old = this->WaitUnlocked();
-        }
+    auto old = this->State.fetch_add(BufferRefCountOne);
 
-        auto state = old + BufferRefCountOne;
-        if (this->State.compare_exchange_strong(old, state)) {
-            break;
-        }
-    }
+    // Can not exceed max value which is mask itself
+    assert((old & BufferRefCountMask) != BufferRefCountMask);
 }
 
 void CacheEntry::Unpin() {
-    // For some reason it's unsafe to use atomic decrement, so use simple CAS
-    auto old = this->State.load();
-    while (true) {
-        if (old & CacheEntryFlags::Locked) {
-            old = this->WaitUnlocked();
-        }
+    auto old = this->State.fetch_sub(BufferRefCountOne);
 
-        assert((old & BufferRefCountMask) > 0);
-        auto state = old - BufferRefCountOne;
-        if (this->State.compare_exchange_strong(old, state)) {
-            assert((old & BufferRefCountMask) >= 0);
-            break;
-        }
-    }
+    // Must be pinned
+    assert((old & BufferRefCountMask) > 0);
 }
 
 int32_t CacheEntry::Lock() {
@@ -55,7 +38,7 @@ int32_t CacheEntry::Lock() {
             return old | CacheEntryFlags::Locked;
         }
 
-        this->WaitUnlocked();
+        this->waitUnlocked();
     }
 }
 
@@ -80,7 +63,7 @@ void CacheEntry::TearDown() {
     // this->Tag = {};
 }
 
-void CacheEntry::WaitIO() {
+void CacheEntry::waitIO() {
     auto buffer = this->Buffer.load();
     assert(buffer != nullptr);
     while (true) {
@@ -138,7 +121,7 @@ bool CacheEntry::ShouldStartIO(bool forInput) {
         }
 
         this->Unlock();
-        this->WaitIO();
+        this->waitIO();
     }
 
     if (forInput ? (state & CacheEntryFlags::DataValid) : !(state & CacheEntryFlags::Dirty)) {

@@ -16,6 +16,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -51,7 +52,7 @@ CacheEntryList::CacheEntryList() : _head(nullptr), _tail(nullptr), _size(0), Lat
 
 uint32_t CacheEntryList::Size() { return this->_size; }
 
-CacheEntry *CacheEntryList::DeleteLRU() {
+CacheEntry *CacheEntryList::PopTail() {
     for (auto entry = this->_tail; entry != nullptr; entry = entry->Prev) {
         auto state = entry->Lock();
         if ((state & BufferRefCountMask) != 0) {
@@ -147,7 +148,7 @@ CacheEntry *BufferManager::evictCacheEntry() {
     // First, try to find free cache entry in free list if any
     {
         auto l = this->FreeList.Lock();
-        auto x = this->FreeList.DeleteLRU();
+        auto x = this->FreeList.PopTail();
         if (x) {
             x->TearDown();
             return x;
@@ -173,7 +174,7 @@ CacheEntry *BufferManager::evictCacheEntry() {
             }
 
             // Lock map to remove this entry
-            auto mapLock = std::unique_lock{this->_mapLock};
+            auto mapLock = this->_map.LockPartition(entry->Tag);
 
             // Check entry is not pinned once more
             state = entry->State.load();
@@ -182,8 +183,7 @@ CacheEntry *BufferManager::evictCacheEntry() {
                 continue;
             }
 
-            auto erased = this->_map.erase(entry->Tag);
-            if (erased != 1) {
+            if (!this->_map.Remove(entry->Tag)) {
                 throw std::runtime_error(
                     "buffer page map is broken - entry is not presented in list");
             }
@@ -213,15 +213,14 @@ void BufferManager::forgetAnyEntry(CacheEntryList *list) {
             continue;
         }
 
-        auto mapLock = std::unique_lock{this->_mapLock};
+        auto mapLock = this->_map.LockPartition(entry->Tag);
         state = entry->State.load();
         if ((state & BufferRefCountMask) != 0) {
             continue;
         }
 
         // Cache entry is not pinned by anyone - feel free to remove
-        auto erased = this->_map.erase(entry->Tag);
-        if (erased != 1) {
+        if (!this->_map.Remove(entry->Tag)) {
             throw std::runtime_error(
                 "page table is broken - cache entry must be in map but absent");
         }
@@ -281,6 +280,46 @@ void BufferManager::preinsertCleanup() {
     }
 }
 
+void BufferManager::handleCacheHit(CacheEntry *entry) {
+    // This entry already in top list. Now this buffer is referenced at least
+    // twice, so move it to MRU in T2.
+
+    // Take lock before modifications, otherwise we can spoil different
+    // lists (concurrent remove/insert across different lists).
+    auto state = entry->State.load();
+    
+    // Verify that this entry belongs to top list. Since entry must be pinned
+    // at this point, then it can not move to B list, but anyway check.
+    assert(state & CacheEntryFlags::IsTopList);
+
+    if (state & CacheEntryFlags::IsFrequencyList) {
+        // Entry is in T2 list - just move it to MRU position
+        auto l = this->T2.Lock();
+
+        state = entry->Lock();
+
+        // We can not move from T2 to T1, by design but anyway check that we 
+        // still in T2.
+        assert ((state & CacheEntryListMask) == (CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList));
+        this->T2.MoveMRU(entry);
+        entry->Unlock();
+    } else {
+        auto l1 = this->T1.Lock();
+        auto l2 = this->T2.Lock();
+        auto state = entry->Lock();
+        if ((state & CacheEntryListMask) != CacheEntryFlags::IsFrequencyList) {
+            // Entry in T1 list - move to T2
+            this->T1.RemoveEntry(entry);
+            this->T2.InsertMRU(entry);
+            entry->State.fetch_or(CacheEntryFlags::IsFrequencyList);
+        } else {
+            // Entry was concurrently moved to T2, so just move to MRU
+            this->T2.MoveMRU(entry);
+        }
+        entry->Unlock();
+    }
+}
+
 // Here we handle cache miss cases: II and III.
 // Passed cache entry must be already locked.
 void BufferManager::handleGhostHit(CacheEntry *entry, bool isFrequency) {
@@ -327,13 +366,22 @@ void BufferManager::handleGhostHit(CacheEntry *entry, bool isFrequency) {
         auto l2 = this->T2.Lock();
 
         auto state = entry->Lock();
-        if ((state & BufferCtlListMask) == oldListMask) {
+        if ((state & CacheEntryListMask) == oldListMask) {
             oldList->RemoveEntry(entry);
             this->T2.InsertMRU(entry);
             entry->State.fetch_or(CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList);
         }
         entry->Unlock();
     }
+}
+
+BufferPin BufferManager::makeBufferPin(CacheEntry *entry) {
+    // Returned buffer must be valid and ready to use
+    assert(entry->State.load() & CacheEntryFlags::DataValid);
+    assert((entry->State.load() & BufferRefCountMask) > 0);
+    assert(entry->Buffer.load() != nullptr);
+
+    return BufferPin{entry->Tag, Buffer{this, entry->BlockId + 1}};
 }
 
 bool BufferManager::tryVacateEntry(CacheEntry *entry, bool isFrequency) {
@@ -346,7 +394,7 @@ bool BufferManager::tryVacateEntry(CacheEntry *entry, bool isFrequency) {
 
     // Before flushing buffer to disk we must pin it, otherwise concurent worker
     // may also select this entry to vacate
-    entry->State.fetch_add(BufferRefCountOne);
+    entry->Pin();
     entry->Unlock();
 
     // Actually flush buffer to disk
@@ -384,9 +432,7 @@ bool BufferManager::tryVacateEntry(CacheEntry *entry, bool isFrequency) {
     auto buffer = entry->Buffer.load();
     entry->Buffer = nullptr;
 
-    // Decrement refcount (our only pin)
-    auto old = entry->State.fetch_sub(BufferRefCountOne);
-    assert((old & BufferRefCountMask) == 1);
+    entry->Unpin();
 
     // Update list information of this entry: remove from Top list (to B) and set R/F sublist
     // accordingly
@@ -418,103 +464,120 @@ bool BufferManager::tryVacateEntry(CacheEntry *entry, bool isFrequency) {
 
 BufferPin BufferManager::GetBuffer(PageTag tag) {
     // At first we must find/obtain id for given entry
-    auto mapLockS = std::shared_lock{this->_mapLock};
-    auto it = this->_map.find(tag);
+    auto partLockS = this->_map.LockPartitionShared(tag);
+    auto blkId = this->_map.Get(tag);
 
     // Allocated and pinned entry
     CacheEntry *entry;
-    if (it == this->_map.end()) {
+    if (blkId == nullptr) {
         // Cache miss.
-
-        mapLockS.unlock();
-
-        this->preinsertCleanup();
+        partLockS.unlock();
 
         entry = this->evictCacheEntry();
-
+        bool cacheHit;
         if (entry != nullptr) {
             // Before inserting entry into hash table setup cache entry state appropriately.
             entry->Tag = tag;
             entry->State.store(CacheEntryFlags::TagValid);
             assert(entry->Buffer == nullptr);
 
-            auto mapLock = std::unique_lock{this->_mapLock};
-            auto [_, inserted] = this->_map.insert(std::make_pair(tag, entry->BlockId));
+            auto mapLockX = this->_map.LockPartition(tag);
+            auto [existing, inserted] = this->_map.Insert(tag, entry->BlockId);
             if (inserted) {
                 // We have successfully inserted entry into the map.
                 // Now insert it into T1 list
 
                 // We can not hold lock on entry, because we are holding X lock on map
                 entry->State.fetch_or(CacheEntryFlags::IsTopList);
-                entry->State.fetch_and(~CacheEntryFlags::IsFrequencyList);
+                entry->Pin();
 
-                auto l = this->T1.Lock();
-                this->T1.InsertMRU(entry);
+                // It's bad to acquire list lock while locking map, but for now
+                // it hard to handle rouge entries while not in lock.
+                {
+                    auto l = this->T1.Lock();
+                    this->T1.InsertMRU(entry);
+                }
+
+                mapLockX.unlock();
+
+                cacheHit = false;
             } else {
                 // Someone inserted entry for the same tag concurrently.
                 // Move our cache entry to free list.
-                mapLock.unlock();
+                auto oldEntry = entry;
 
-                auto l = this->FreeList.Lock();
-                this->FreeList.InsertMRU(entry);
+                entry = &this->_entries[*existing];
+
+                // Pin entry
+                entry->Pin();
+
+                mapLockX.unlock();
+
+                // Move obtained cache entry to free list as soon as possible
+                {
+                    auto l = this->FreeList.Lock();
+                    this->FreeList.InsertMRU(oldEntry);
+                }
+
+                cacheHit = true;
             }
         } else {
             // No free cache entry found, but maybe other workers invoked us
             // with the same page tag and grabbed last free cache entry.
             // Check if entry with same tag exists.
-            auto lock = std::shared_lock{this->_mapLock};
+            partLockS = this->_map.LockPartitionShared(tag);
 
-            it = this->_map.find(tag);
-            if (it == this->_map.end()) {
+            blkId = this->_map.Get(tag);
+            if (blkId == nullptr) {
                 throw std::runtime_error("no free cache entries found");
             }
 
-            auto id = it->second;
-            entry = &this->_entries[id];
+            entry = &this->_entries[*blkId];
+            entry->Pin();
+
+            cacheHit = true;
+        }
+
+        // If entry was concurrently added while we were trying to do it, then
+        // this is cache hit. In both cases we move entry to T2 list.
+        if (cacheHit) {
+            auto state = entry->Lock();
+            if (!(state & CacheEntryFlags::IsTopList)) {
+                // The entry in B list - this is ghost hit
+                entry->Unlock();
+                this->handleGhostHit(entry, state & CacheEntryFlags::IsFrequencyList);
+            } else if (!(state & CacheEntryFlags::IsFrequencyList)) {
+                // Entry in T1 list
+                entry->Unlock();
+                this->handleCacheHit(entry);
+            } else {
+                // Entry already in T2 list - just move to MRU
+                entry->Unlock();
+
+                {
+                    auto l = this->T2.Lock();
+                    state = entry->Lock();
+                    constexpr auto t2flags = CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList;
+                    if ((state & CacheEntryListMask) == t2flags) {
+                        this->T2.MoveMRU(entry);
+                    }
+                    entry->Unlock();
+                }
+            }
         }
     } else {
         // Entry is found in cache: either alive or ghost.
-        auto entryId = it->second;
+        auto entryId = *blkId;
         entry = &this->_entries[entryId];
 
         // Pin entry before unlocking map lock, so no one will evict entry from cache.
         // Also, pin ensures that no-one will evict this entry
         entry->Pin();
-        mapLockS.unlock();
+        partLockS.unlock();
 
-        auto state = entry->Lock();
-        entry->Unlock();
-
+        auto state = entry->State.load();
         if (state & CacheEntryFlags::IsTopList) {
-            // This entry already in top list. Now this buffer is referenced at least
-            // twice, so move it to MRU in T2.
-
-            // Take lock before modifications, otherwise we can spoil different
-            // lists (concurrent remove/insert across different lists).
-            if (state & CacheEntryFlags::IsFrequencyList) {
-                // Move entry to top of list
-                auto lock = this->T2.Lock();
-
-                state = entry->Lock();
-                if ((state & BufferCtlListMask) !=
-                    (CacheEntryFlags::IsTopList | CacheEntryFlags::IsFrequencyList)) {
-                    // Actually, this check can be omitted, because we have pinned buffer
-                    // and entry was in T2, so it could not move to another list.
-                    this->T2.MoveMRU(entry);
-                    entry->State.fetch_and(~CacheEntryFlags::IsTopList);
-                }
-                entry->Unlock();
-            } else {
-                auto l1 = this->T1.Lock();
-                auto l2 = this->T2.Lock();
-                auto state = entry->Lock();
-                if ((state & BufferCtlListMask) != CacheEntryFlags::IsFrequencyList) {
-                    this->T1.RemoveEntry(entry);
-                    this->T2.InsertMRU(entry);
-                    entry->State.fetch_or(CacheEntryFlags::IsFrequencyList);
-                }
-                entry->Unlock();
-            }
+            this->handleCacheHit(entry);
         } else {
             this->handleGhostHit(entry, state & CacheEntryFlags::IsFrequencyList);
         }
@@ -528,7 +591,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
     // Very likely that everything already setup
     if (entry->State.load() & CacheEntryFlags::DataValid) {
         assert(entry->Buffer.load() != nullptr);
-        return BufferPin{tag, Buffer{entry->BlockId + 1}};
+        return this->makeBufferPin(entry);
     }
 
     // Buffer is not yet setup.
@@ -568,7 +631,7 @@ BufferPin BufferManager::GetBuffer(PageTag tag) {
         assert(entry->State.load() & CacheEntryFlags::DataValid);
     }
 
-    return BufferPin{tag, Buffer{entry->BlockId + 1}};
+    return this->makeBufferPin(entry);
 }
 
 void BufferManager::ReturnBuffer(Buffer buffer) {
@@ -599,8 +662,8 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
 
     auto tag = PageTag{relid, nblocks};
 
-    auto mapLock = std::unique_lock{this->_mapLock};
-    auto [existing, inserted] = this->_map.insert(std::make_pair(tag, entry->BlockId));
+    auto mapLock = this->_map.LockPartition(tag);
+    auto [existing, inserted] = this->_map.Insert(tag, entry->BlockId);
     if (inserted) {
         // Entry state must be clear
         constexpr auto emptyEntryFlags =
@@ -611,7 +674,7 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
         entry->Tag = tag;
         entry->State.fetch_or(CacheEntryFlags::TagValid);
         // pin entry
-        entry->State.fetch_add(BufferRefCountOne);
+        entry->Pin();
 
         // Insert new entry to T1 list, but still hold map lock
         //
@@ -634,7 +697,7 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
         // and previous call failed without setting DataValid bit.
 
         auto oldEntry = entry;
-        entry = &this->_entries[existing->second];
+        entry = &this->_entries[*existing];
 
         // Pin entry before unlocking hash table
         entry->Pin();
@@ -704,11 +767,11 @@ BufferPin BufferManager::ExtendRelation(Oid relid) {
         throw;
     }
 
-    return BufferPin{tag, Buffer{entry->BlockId + 1}};
+    return this->makeBufferPin(entry);
 }
 
 BufferManager::BufferManager(uint32_t npages)
-    : _map(), _mapLock(), _npages(npages), _freeBuffersLock(), _freeBuffers() {
+    : _map(8), _npages(npages), _freeBuffersLock(), _freeBuffers() {
 
     if (UINT32_MAX <= static_cast<size_t>(_npages) * 2) {
         throw std::runtime_error("too many blocks in buffer");
