@@ -8,6 +8,7 @@
 #include "worker_state.hpp"
 #include <atomic>
 #include <barrier>
+#include <shared_mutex>
 
 using namespace mi::lock;
 

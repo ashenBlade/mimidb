@@ -22,6 +22,11 @@ class File {
     File(File &&other) noexcept;
     File &operator=(File &&other) noexcept;
 
+    // Append given buffer to file.
+    // In order to use this function underlying file must be opened with O_APPEND
+    // flag, otherwise result is undefined.
+    void Append(const std::byte *buffer, size_t size);
+
     /// @brief Write given buffer to file
     /// @param buffer Buffer with data
     /// @param size Size of buffer

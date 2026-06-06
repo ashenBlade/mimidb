@@ -16,6 +16,8 @@
 #include "db/catalog/TypeId.hpp"
 #include "executor/Oid.hpp"
 #include "lock/LockManager.hpp"
+#include "logger/ConsoleLogHandler.hpp"
+#include "logger/DefaultLogFormatter.hpp"
 #include "mi_config.hpp"
 #include "logger.hpp"
 #include "logger/Logger.hpp"
@@ -163,6 +165,13 @@ static void setupMasterWorker() {
     mi::MyWorker = worker;
 }
 
+static void setupLogger() {
+    auto formatter = std::make_unique<mi::logger::DefaultLogFormatter>();
+    auto handler = std::make_unique<mi::logger::ConsoleLogHandler>();
+
+    mi::LoggerGlobal = new mi::logger::Logger(std::move(handler), std::move(formatter));
+}
+
 void setupCluster() {
     setupResourceManagers();
     setupDatabase();
@@ -178,7 +187,7 @@ void setupCluster() {
     mi::BufferPoolGlobal = new mi::storage::buffer::BufferManager(mi::Config::BufferPoolSize);
     mi::UndoLogGlobal = mi::storage::undo::UndoLog::Open("undo");
     mi::WALGlobal = mi::storage::wal::WriteAheadLog::Open("wal");
-    mi::LoggerGlobal = new mi::logger::Logger();
+    setupLogger();
 
     setupMasterWorker();
 }

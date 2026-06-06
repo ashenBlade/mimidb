@@ -33,10 +33,17 @@ static inline void throw_error(const char *op) {
     throw std::system_error(std::error_code{errno, std::system_category()}, std::move(what));
 }
 
+void File::Append(const std::byte *buffer, size_t size) {
+    auto ret = write(this->_fd, static_cast<const void *>(buffer), size);
+    if (ret < 0) {
+        throw_error("write");
+    }
+}
+
 void File::Write(const std::byte *buffer, size_t size, off64_t offset) {
     auto ret = pwrite64(this->_fd, static_cast<const void *>(buffer), size, offset);
     if (ret < 0) {
-        throw_error("write");
+        throw_error("pwrite64");
     }
 }
 
