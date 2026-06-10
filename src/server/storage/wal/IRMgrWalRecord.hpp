@@ -20,4 +20,4 @@ class IRMgrWalRecord {
     virtual ~IRMgrWalRecord() = default;
 };
 
-} // namespace mi::transam
+} // namespace mi::storage::wal

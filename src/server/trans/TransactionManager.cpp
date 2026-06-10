@@ -1,4 +1,5 @@
 #include "trans/TransactionManager.hpp"
+#include "cluster_state.hpp"
 #include "lock/Spin.hpp"
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Transaction.hpp"
@@ -56,6 +57,11 @@ void TransactionManager::CommitTransaction() {
     assert(transaction != nullptr);
     assert(transaction->GetWorkerId() == MyWorker->GetId());
 
+    // Before committing harden transaction
+    if (auto lsn = transaction->GetLastLSN(); lsn.IsValid()) {
+        WALGlobal->Flush(lsn);
+    }
+
     auto xid = transaction->GetXID();
 
     // First mark transaction as committing
@@ -65,7 +71,7 @@ void TransactionManager::CommitTransaction() {
     }
 
     // Then obtain it's CSN and mark as committed
-    auto csn = std::atomic_fetch_add(&this->_csn, 1);
+    auto csn = this->_csn.fetch_add(1);
 
     {
         // Set it's CSN

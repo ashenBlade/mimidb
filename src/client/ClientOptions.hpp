@@ -11,6 +11,9 @@ struct ClientOptions {
     // Single SQL statement to execute
     std::optional<std::string> SingleCommand;
 
+    // File to write output instead of stdout
+    std::optional<std::string> OutputFile;
+
     // Port to connect
     std::optional<int> Port;
 

@@ -17,6 +17,7 @@ ClientOptions ClientOptions::ParseOptions(int argc, const char **argv) {
         ("file,f", boost::program_options::value<std::string>(), "SQL file to execute commands from")
         ("port,p", value<int>(), "Database port to connect")
         ("host,h", value<std::string>(), "Database host to connect")
+        ("output,o", value<std::string>(), "File to write output")
     ;
     // clang-format on
 
@@ -50,6 +51,11 @@ ClientOptions ClientOptions::ParseOptions(int argc, const char **argv) {
     it = vm.find("host");
     if (it != vm.end()) {
         options.Host = it->second.as<std::string>();
+    }
+
+    it = vm.find("output");
+    if (it != vm.end()) {
+        options.OutputFile = it->second.as<std::string>();
     }
 
     // Parameter validation

@@ -3,6 +3,8 @@
 #include "lock/LWLatch.hpp"
 #include "lock/LockMode.hpp"
 #include "storage/undo/VirtualUndoLog.hpp"
+#include "storage/wal/IRMgrWalRecord.hpp"
+#include "storage/wal/LogSeqNumber.hpp"
 #include "trans/CommitSeqNumber.hpp"
 #include "trans/Snapshot.hpp"
 #include "trans/TransactionId.hpp"
@@ -31,6 +33,8 @@ class Transaction {
     CommitSeqNumber _csn;
     /// @brief Undo Log for this transaction
     std::unique_ptr<undo::VirtualUndoLog> _undoLog;
+    // LSN of last inserted WAL record
+    wal::LogSeqNumber _lastLsn;
     /// @brief Worker owning transaction
     worker::WorkerId _workerId;
 
@@ -58,6 +62,9 @@ class Transaction {
     worker::WorkerId GetWorkerId() const { return this->_workerId; }
 
     undo::VirtualUndoLog &GetUndoLog();
+
+    void WriteWAL(const wal::IRMgrWalRecord &record);
+    wal::LogSeqNumber GetLastLSN() const;
 
     // Mark transaction as committed with assigned CSN
     void Commit(CommitSeqNumber csn);

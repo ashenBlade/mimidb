@@ -2,6 +2,8 @@
 #include "cluster_state.hpp"
 #include "lock/LockMode.hpp"
 #include "storage/undo/UndoSeqNumber.hpp"
+#include "storage/wal/IRMgrWalRecord.hpp"
+#include "storage/wal/LogSeqNumber.hpp"
 #include "trans/CommitSeqNumber.hpp"
 #include "worker_state.hpp"
 #include <memory>
@@ -32,6 +34,14 @@ void Transaction::Wait() {
     // Owner worker holds X lock, so we will get S lock only when transaction ends
     // NOTE: we need to have unlock it, otherwise it will be left in locked state
     auto lock = std::shared_lock{this->_latch};
+}
+
+void Transaction::WriteWAL(const wal::IRMgrWalRecord &record) {
+    this->_lastLsn = WALGlobal->WriteLogRecord(record);
+}
+
+mi::storage::wal::LogSeqNumber Transaction::GetLastLSN() const {
+    return this->_lastLsn;
 }
 
 void Transaction::Commit(CommitSeqNumber csn) {

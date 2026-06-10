@@ -96,4 +96,7 @@ void TableFormatter::Format(
 
         this->_output << std::endl;
     }
+
+    // Finally, write total rows count
+    
 }

@@ -12,7 +12,7 @@ Settings mi::parseCommandArgs(int argc, const char **argv) {
 
     // clang-format off
     desc.add_options()
-        ("logfile,f", value<std::string>(), "Log file name")
+        ("logfile,l", value<std::string>(), "Log file name")
         ("datadir,D", value<std::string>()->required(), "Path to data directory")
     ;
     // clang-format on

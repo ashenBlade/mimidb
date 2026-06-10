@@ -4,16 +4,24 @@
 
 namespace mi::storage::wal {
 
-/// @brief Log Sequence Number describing address of record in WAL or UNDO
+// Log Sequence Number describing address of record in WAL
 struct LogSeqNumber final {
-    uint64_t lsn;
+    static constexpr const uint64_t InvalidValue = 0;
+    uint64_t value;
 
-    LogSeqNumber() : lsn(Invalid) {}
-    LogSeqNumber(uint64_t value) : lsn(value) {};
-    /// @brief Get numeric value of LSN
-    operator uint64_t() const { return lsn; }
+    LogSeqNumber() : value(InvalidValue) {};
+    LogSeqNumber(uint64_t value) : value(value) {};
 
-    static constexpr const uint64_t Invalid = 0;
+    // Get numeric value of LSN
+    operator uint64_t() const { return value; }
+    
+    constexpr bool IsValid() const {
+        return this->value != InvalidValue;
+    }
+
+    static LogSeqNumber Invalid() {
+        return LogSeqNumber{InvalidValue};
+    }
 };
 
 }; // namespace mi::transam

@@ -15,4 +15,4 @@ struct WALRecordHeader {
     size_t Length;
 };
 
-}; // namespace mi::transam
+}; // namespace mi::storage::wal

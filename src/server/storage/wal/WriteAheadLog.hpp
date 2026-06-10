@@ -16,16 +16,21 @@ class WriteAheadLog {
     /// File object for underlying WAL
     io::File _file;
     /// File size
-    off64_t _size;
+    uint64_t _end;
+    // File position up to which it is flushed to disk.
+    uint64_t _flushed;
     /// Latch for writing new entries
     lock::LWLatch _latch;
 
-    WriteAheadLog(std::string path, off64_t size, io::File _file);
+    WriteAheadLog(std::string path, uint64_t size, io::File _file);
 
   public:
-    /// @brief Durable write record to WAL
-    /// @return LSN at which record is written
+    // Write single record to WAL file.
+    // Returns LSN at which record ends.
     LogSeqNumber WriteLogRecord(const IRMgrWalRecord &record);
+
+    // Flush and sync WAL file to disk up to given point.
+    void Flush(LogSeqNumber upto);
 
     static WriteAheadLog *Open(std::string path);
 };
