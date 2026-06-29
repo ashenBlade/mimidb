@@ -19,7 +19,7 @@ struct ItemId final {
     uint32_t offset : 15;
     /// @brief Length of tuple
     uint32_t length : 15; // length of item
-    
+
     bool isUnused() const { return flags == ItemState::Unused; }
     bool isNormal() const { return flags == ItemState::Normal; }
     bool isDead() const { return flags == ItemState::Dead; }

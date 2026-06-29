@@ -1,5 +1,4 @@
 #include "db/Database.hpp"
-#include "access/heap/HeapTable.hpp"
 #include "db/Schema.hpp"
 #include <memory>
 

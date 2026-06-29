@@ -21,7 +21,7 @@ class WorkerLock {
   public:
     WorkerLock();
 
-    std::binary_semaphore &GetSemaphore() { return this->_sema; }
+    std::binary_semaphore *GetSemaphore() { return &this->_sema; }
     WorkerLockState GetLockState() const { return this->_lockState; }
     void SetLockState(WorkerLockState state) { this->_lockState = state; }
     LockMode GetLockMode() const { return this->_lockMode; }

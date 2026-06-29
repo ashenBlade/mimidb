@@ -5,8 +5,8 @@
 using namespace mi::lock;
 
 static LockListNode &get_node(mi::worker::WorkerId id) {
-    auto &worker = mi::LockGlobal->GetWorkerLock(id);
-    return worker.GetLockNode();
+    auto worker = mi::LockGlobal->GetWorkerLock(id);
+    return worker->GetLockNode();
 }
 
 void LockListHead::PushTail(mi::worker::WorkerId id) {

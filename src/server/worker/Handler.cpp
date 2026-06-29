@@ -71,8 +71,8 @@ class SocketServer {
             auto attrs = desc.Attributes();
             std::transform(attrs.begin(), attrs.end(), outputs.begin(),
                            [=](const mi::access::table::AttributeDescriptor &attr) {
-                               auto &info = schema->GetTypeInfo(attr.TypeId());
-                               return info.GetOutputFunction();
+                               auto info = schema->GetTypeInfo(attr.TypeId());
+                               return info->GetOutputFunction();
                            });
             this->_outputs = std::optional{outputs};
         }

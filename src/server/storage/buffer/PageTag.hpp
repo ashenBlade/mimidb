@@ -26,6 +26,7 @@ struct PageTag {
     }
 };
 
+// TODO: вынести к херам собачьим
 // Used only std::hash support
 struct PageTagHash {
     size_t operator()(const PageTag &tag) const noexcept {

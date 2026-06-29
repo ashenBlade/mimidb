@@ -29,6 +29,7 @@ struct TransactionId final {
 };
 }; // namespace mi::transam
 
+// TODO: переместить
 namespace std {
 template <> struct hash<mi::storage::trans::TransactionId> {
     size_t operator()(const mi::storage::trans::TransactionId &xid) const {

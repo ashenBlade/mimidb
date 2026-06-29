@@ -13,9 +13,9 @@ class LockManager {
 
   public:
     LockManager(std::size_t workersCount);
-    WorkerLock &GetWorkerLock(worker::WorkerId id) {
+    WorkerLock *GetWorkerLock(worker::WorkerId id) {
         assert(id.IsValid());
-        return this->_states[static_cast<std::size_t>(id.value)];
+        return &this->_states[static_cast<std::size_t>(id.value)];
     }
 };
 

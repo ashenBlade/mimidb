@@ -78,11 +78,11 @@ static std::unique_ptr<mi::executor::IExpressionNode> parse_expr(hsql::Expr &exp
     } else if (expr.isType(hsql::ExprType::kExprLiteralNull)) {
         return std::make_unique<mi::executor::expr::ConstantExpressionNode>(std::nullopt);
     } else if (expr.isType(hsql::ExprType::kExprColumnRef)) {
-        auto &tableInfo = mi::DatabaseGlobal->GetSchema()->GetTableInfo(
+        auto tableInfo = mi::DatabaseGlobal->GetSchema()->GetTableInfo(
             mi::schema::catalog::TableId::MainTableId);
         auto attno = mi::access::table::AttrNumber::Min();
         bool found = false;
-        for (const auto &col : tableInfo.GetColumns()) {
+        for (const auto &col : tableInfo->GetColumns()) {
             if (col.GetName() == expr.name) {
                 found = true;
                 break;
@@ -94,7 +94,7 @@ static std::unique_ptr<mi::executor::IExpressionNode> parse_expr(hsql::Expr &exp
             throw std::runtime_error("could not find column: " + std::string{expr.name});
         }
 
-        assert(attno <= tableInfo.GetDescriptor()->GetMaxAttrNumber());
+        assert(attno <= tableInfo->GetDescriptor()->GetMaxAttrNumber());
         return std::make_unique<mi::executor::expr::AttributeExpressionNode>(attno);
     } else {
         throw std::runtime_error("expression is not supported: " +
@@ -161,9 +161,9 @@ PlannedStmt Planner::Plan(hsql::SQLStatement &statement) {
         tag = executor::plan::CommandTag::Select;
     } else if (statement.is(hsql::StatementType::kStmtInsert)) {
         hsql::InsertStatement &stmt = dynamic_cast<hsql::InsertStatement &>(statement);
-        const auto &info =
+        const auto info =
             DatabaseGlobal->GetSchema()->GetTableInfo(schema::catalog::TableId::MainTableId);
-        const auto &desc = info.GetDescriptor();
+        const auto desc = info->GetDescriptor();
         if (stmt.values->size() != desc->GetMaxAttrNumber()) {
             throw std::runtime_error(
                 "INSERT attributes and table descriptor are not the same size");
@@ -199,14 +199,14 @@ PlannedStmt Planner::Plan(hsql::SQLStatement &statement) {
     } else if (statement.is(hsql::StatementType::kStmtUpdate)) {
         hsql::UpdateStatement &stmt = dynamic_cast<hsql::UpdateStatement &>(statement);
         auto table = DatabaseGlobal->OpenTable(schema::catalog::TableId::MainTableId);
-        const auto &info = DatabaseGlobal->GetSchema()->GetTableInfo(schema::catalog::MainTableId);
+        const auto info = DatabaseGlobal->GetSchema()->GetTableInfo(schema::catalog::MainTableId);
 
         // attribute updates
         auto updates = std::vector<
             std::pair<access::table::AttrNumber, std::unique_ptr<executor::IExpressionNode>>>{};
         for (const auto update : *stmt.updates) {
             auto colname = std::string{update->column};
-            auto colinfo = info.FindColumn(colname);
+            auto colinfo = info->FindColumn(colname);
             if (!colinfo) {
                 throw std::runtime_error("could not find column: " + colname);
             }

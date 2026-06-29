@@ -39,11 +39,11 @@ class Schema : private NonCopyable {
            std::unordered_map<Oid, std::unique_ptr<catalog::OperatorInfo>> &&operators);
 
     /// @brief Get information about table by it's Id
-    const catalog::TableInfo &GetTableInfo(Oid tableId) const;
+    const catalog::TableInfo *GetTableInfo(Oid tableId) const;
     /// @brief Get information about type by it's Id
-    const catalog::TypeInfo &GetTypeInfo(Oid typeId) const;
+    const catalog::TypeInfo *GetTypeInfo(Oid typeId) const;
     /// @brief Get information about operator by it's Id
-    const catalog::OperatorInfo &GetOperatorInfo(Oid operatorId) const;
+    const catalog::OperatorInfo *GetOperatorInfo(Oid operatorId) const;
     /// @brief Search operator by it's signature
     const catalog::OperatorInfo *FindOperatorInfo(Oid leftType, Oid rightType,
                                                   catalog::OperatorStrategy strategy) const;

@@ -23,6 +23,7 @@ struct Oid {
 
 }; // namespace mi
 
+// TODO: перенести это говно куда-нибудь иначе нах bits включаю я долбоеб
 namespace std {
 
 template <> struct hash<mi::Oid> {

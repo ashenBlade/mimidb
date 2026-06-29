@@ -31,6 +31,7 @@ HeapTableScan::HeapTableScan(storage::trans::Snapshot *snapshot, HeapTable *tabl
 void HeapTableScan::BeginScan() {
     this->_lastPageNumber = this->_table->GetPageCount();
     assert(this->_lastPageNumber.IsValid());
+
     // Start iterating from first page. Note that BufferWrapper is initialized with Invalid, so we
     // will read buffer at first scan call
     this->_tupleId = TupleId{storage::buffer::PageNumber::Min(), 0};
@@ -150,13 +151,13 @@ std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
     auto index = this->_tupleId.itemid;
     for (; index < page.ItemsCount(); ++index) {
         auto itemid = page.GetItemId(index);
-        if (!itemid.isNormal()) {
+        if (!itemid->isNormal()) {
             continue;
         }
 
-        assert(itemid.hasHeader());
+        assert(itemid->hasHeader());
 
-        auto header = page.GetTuple(itemid);
+        auto header = page.GetTuple(*itemid);
 
         if (tuple_is_visible(*this->_snapshot, header)) {
             if (header->flags & HeapTupleFlags::Deleted) {

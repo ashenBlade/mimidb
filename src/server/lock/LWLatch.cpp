@@ -81,14 +81,14 @@ static void wait_list_unlock(std::atomic_uint32_t &state) {
 }
 
 void LWLatch::queueSelf(LockMode mode) {
-    auto &worker = LockGlobal->GetWorkerLock(MyWorker->GetId());
+    auto worker = LockGlobal->GetWorkerLock(MyWorker->GetId());
 
     wait_list_lock(this->_state);
 
     this->_state.fetch_or(LWLatchFlag::HasWaiters);
 
-    worker.SetLockState(WorkerLockState::Waiting);
-    worker.SetLockMode(mode);
+    worker->SetLockState(WorkerLockState::Waiting);
+    worker->SetLockMode(mode);
 
     this->_waiters.PushTail(MyWorker->GetId());
 
@@ -98,8 +98,8 @@ void LWLatch::queueSelf(LockMode mode) {
 void LWLatch::dequeueSelf() {
     wait_list_lock(this->_state);
 
-    auto &worker = LockGlobal->GetWorkerLock(MyWorker->GetId());
-    auto isWaiting = worker.GetLockState() == WorkerLockState::Waiting;
+    auto worker = LockGlobal->GetWorkerLock(MyWorker->GetId());
+    auto isWaiting = worker->GetLockState() == WorkerLockState::Waiting;
 
     if (isWaiting) {
         this->_waiters.Delete(MyWorker->GetId());
@@ -115,7 +115,7 @@ void LWLatch::dequeueSelf() {
 
     if (isWaiting) {
         // Successfully dequeued ourselves
-        worker.SetLockState(WorkerLockState::NotWaiting);
+        worker->SetLockState(WorkerLockState::NotWaiting);
     } else {
         // Somebody woke up us and dequeued
 
@@ -124,8 +124,8 @@ void LWLatch::dequeueSelf() {
 
         auto extraWaits = 0;
         while (true) {
-            worker.GetSemaphore().acquire();
-            if (worker.GetLockState() == WorkerLockState::NotWaiting) {
+            worker->GetSemaphore()->acquire();
+            if (worker->GetLockState() == WorkerLockState::NotWaiting) {
                 break;
             }
 
@@ -133,13 +133,13 @@ void LWLatch::dequeueSelf() {
         }
 
         if (extraWaits > 0) {
-            worker.GetSemaphore().release(extraWaits);
+            worker->GetSemaphore()->release(extraWaits);
         }
     }
 }
 
 void LWLatch::Lock(LockMode mode) {
-    auto &worker = LockGlobal->GetWorkerLock(MyWorker->GetId());
+    auto worker = LockGlobal->GetWorkerLock(MyWorker->GetId());
     auto extraWaits = 0;
 
     while (true) {
@@ -169,8 +169,8 @@ void LWLatch::Lock(LockMode mode) {
         // Note that we can be woken up spuriously, so track which amount of time
         // we waited for the lock
         while (true) {
-            worker.GetSemaphore().acquire();
-            if (worker.GetLockState() == WorkerLockState::NotWaiting) {
+            worker->GetSemaphore()->acquire();
+            if (worker->GetLockState() == WorkerLockState::NotWaiting) {
                 break;
             }
 
@@ -183,7 +183,7 @@ void LWLatch::Lock(LockMode mode) {
     }
 
     if (extraWaits > 0) {
-        worker.GetSemaphore().release(extraWaits);
+        worker->GetSemaphore()->release(extraWaits);
     }
 };
 
@@ -195,9 +195,9 @@ void LWLatch::wakeup() {
 
     auto wokeupSomebody = false;
     for (auto it = this->_waiters.begin(); it != this->_waiters.end(); ++it) {
-        auto &waiter = LockGlobal->GetWorkerLock(it.Current);
+        auto waiter = LockGlobal->GetWorkerLock(it.Current);
 
-        if (wokeupSomebody && waiter.GetLockMode() == LockMode::Exclusive) {
+        if (wokeupSomebody && waiter->GetLockMode() == LockMode::Exclusive) {
             // We can wakeup only 1 X lock, so skip if anyone was seen so far
             continue;
         }
@@ -208,10 +208,10 @@ void LWLatch::wakeup() {
         // Do not wakeup other X locks
         wokeupSomebody = true;
 
-        assert(waiter.GetLockState() == WorkerLockState::Waiting);
-        waiter.SetLockState(WorkerLockState::PendingWakeup);
+        assert(waiter->GetLockState() == WorkerLockState::Waiting);
+        waiter->SetLockState(WorkerLockState::PendingWakeup);
 
-        if (waiter.GetLockMode() == LockMode::Exclusive) {
+        if (waiter->GetLockMode() == LockMode::Exclusive) {
             // Only 1 X lock can be granted
             break;
         }
@@ -243,7 +243,7 @@ void LWLatch::wakeup() {
     }
 
     for (auto it = wakeup.begin(); it != wakeup.end(); ++it) {
-        auto &waiter = LockGlobal->GetWorkerLock(it.Current);
+        auto waiter = LockGlobal->GetWorkerLock(it.Current);
 
         wakeup.Delete(it.Current);
 
@@ -251,9 +251,9 @@ void LWLatch::wakeup() {
         // Otherwise worker can be woken up for some other reason and enqueue
         // for a new lock - if this happens list would end up being corrupted.
         Barrier::Write();
-        waiter.SetLockState(WorkerLockState::NotWaiting);
+        waiter->SetLockState(WorkerLockState::NotWaiting);
         Barrier::Write();
-        waiter.GetSemaphore().release();
+        waiter->GetSemaphore()->release();
     }
 }
 

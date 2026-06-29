@@ -48,6 +48,7 @@ struct PageNumber {
 };
 } // namespace mi::storage::buffer
 
+// TODO: вынести в отдельно место к херам собачьим
 namespace std {
 
 template <> struct hash<mi::storage::buffer::PageNumber> {

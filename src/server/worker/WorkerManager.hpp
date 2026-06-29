@@ -16,6 +16,7 @@ class WorkerManager {
 
     Worker *GetWorker(WorkerId id) {
         assert(id.IsValid());
+        assert(static_cast<size_t>(id.value) < this->_workers.size());
         return &this->_workers[static_cast<size_t>(id.value)];
     }
     size_t WorkersCount() const { return this->_workers.size(); }

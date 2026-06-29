@@ -16,16 +16,16 @@ class HeapPage final {
   public:
     HeapPage(std::byte *buffer);
 
-    HeapPageHeader &GetHeader();
-    const HeapPageHeader &GetHeader() const;
+    HeapPageHeader *GetHeader();
+    const HeapPageHeader *GetHeader() const;
 
     /// @brief Get number of items on given page
     uint16_t ItemsCount() const;
     /// @brief Get ItemId at specified index
     /// @param index Index of ItemId, 0-based
     /// @return Pointer to ItemId
-    ItemId &GetItemId(int index);
-    const ItemId &GetItemId(int index) const;
+    ItemId *GetItemId(int index);
+    const ItemId *GetItemId(int index) const;
 
     /// @brief Get pointer to start of line pointer array
     ItemId *GetLinePointerArray();

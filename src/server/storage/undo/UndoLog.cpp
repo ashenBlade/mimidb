@@ -46,7 +46,7 @@ std::unique_ptr<IRMgrUndoRecord> UndoLog::GetRecord(UndoSeqNumber usn) {
     // Читаем заголовок записи (получаем ее длину)
     auto offset = usn.value - 1;
     auto header = read_header(file, offset);
-    auto &manager = RMgrRegistryGlobal->GetManager(header.ResourceManager);
+    auto manager = RMgrRegistryGlobal->GetManager(header.ResourceManager);
 
     // Читаем оставшуюся запись
     auto buffer = std::vector<std::byte>(header.DataLength);
@@ -56,7 +56,7 @@ std::unique_ptr<IRMgrUndoRecord> UndoLog::GetRecord(UndoSeqNumber usn) {
         throw std::runtime_error("could not read UndoLogRecordHeader");
     }
 
-    return manager.ParseUndo(header.RecordType, buffer.data(), buffer.size());
+    return manager->ParseUndo(header.RecordType, buffer.data(), buffer.size());
 }
 
 static std::vector<std::byte> format_undo_record(mi::storage::trans::TransactionId xid, IRMgrUndoRecord &record) {
@@ -105,7 +105,7 @@ void UndoLog::PerformUndo(UndoSeqNumber usn) {
 
     // Read header and get associated RMgr
     auto header = read_header(file, offset);
-    auto &manager = RMgrRegistryGlobal->GetManager(header.ResourceManager);
+    auto manager = RMgrRegistryGlobal->GetManager(header.ResourceManager);
 
     // Read record payload
     auto payload = std::make_unique<std::byte[]>(header.DataLength);
@@ -114,6 +114,6 @@ void UndoLog::PerformUndo(UndoSeqNumber usn) {
     if (ret != header.DataLength) {
         throw std::runtime_error("could not read UndoLogRecordHeader");
     }
-    auto record = manager.ParseUndo(header.RecordType, payload.get(), header.DataLength);
-    manager.ApplyUndo(*record, usn);
+    auto record = manager->ParseUndo(header.RecordType, payload.get(), header.DataLength);
+    manager->ApplyUndo(*record, usn);
 }

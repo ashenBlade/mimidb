@@ -20,13 +20,13 @@ void UndoApplierVisitor::Visit(DeleteUndoRecord &record) {
     // Detect whether this record is already undone
     auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
     auto page = HeapPage{pin.GetContents()};
-    auto &itemId = page.GetItemId(record.TupId.itemid);
-    if (!itemId.isNormal()) {
+    auto itemId = page.GetItemId(record.TupId.itemid);
+    if (!itemId->isNormal()) {
         // Nothing to do
         return;
     }
 
-    auto tuple = page.GetTuple(itemId);
+    auto tuple = page.GetTuple(*itemId);
     // TODO: надо еще XID проверять, это передавать при вызове IResourceManager
     if (tuple->undo != this->_usn) {
         // Tuple was changed - nothing to do
@@ -35,7 +35,7 @@ void UndoApplierVisitor::Visit(DeleteUndoRecord &record) {
 
     // Actually we do not have to remove or somewhat clean page contents.
     // Mark ItemId dead is enough to just skip entry
-    itemId.setDead();
+    itemId->setDead();
 
     // Finally, mark page dirty
     pin.GetBuffer().MarkDirty();
@@ -48,7 +48,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
         auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
         auto page = HeapPage{pin.GetContents()};
         auto itemId = page.GetItemId(record.OldLocation.itemid);
-        auto currentTuple = page.GetTuple(itemId);
+        auto currentTuple = page.GetTuple(*itemId);
         auto oldTuple = reinterpret_cast<HeapPageTupleHeader *>(record.TupleData.data());
 
         // Check this undo record was already applied
@@ -73,7 +73,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
         auto lock = storage::buffer::BufferLock{pin.GetBuffer()};
         auto page = HeapPage{pin.GetContents()};
         auto oldItemId = page.GetItemId(record.OldLocation.itemid);
-        auto currentOldTuple = page.GetTuple(oldItemId);
+        auto currentOldTuple = page.GetTuple(*oldItemId);
         auto oldTuple = reinterpret_cast<HeapPageTupleHeader *>(record.TupleData.data());
 
         // Check this undo record was already applied
@@ -88,7 +88,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
         }
 
         auto newItemId = page.GetItemId(record.NewLocation.itemid);
-        auto currentNewTuple = page.GetTuple(newItemId);
+        auto currentNewTuple = page.GetTuple(*newItemId);
         if (currentNewTuple->undo != this->_usn) {
             throw std::runtime_error("can not undo update: new tuple was concurrently modified");
         }
@@ -100,7 +100,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
                     record.TupleData.size());
 
         // Mark new tuple as dead, so noone can access it
-        newItemId.setDead();
+        newItemId->setDead();
     } else {
         // New tuple placed on DIFFERENT page
         auto oldPin = BufferPoolGlobal->GetBuffer(
@@ -108,7 +108,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
         auto oldLock = storage::buffer::BufferLock{oldPin.GetBuffer()};
         auto oldPage = HeapPage{oldPin.GetContents()};
         auto oldItemId = oldPage.GetItemId(record.OldLocation.itemid);
-        auto currentOldTuple = oldPage.GetTuple(oldItemId);
+        auto currentOldTuple = oldPage.GetTuple(*oldItemId);
         auto oldTuple = reinterpret_cast<HeapPageTupleHeader *>(record.TupleData.data());
 
         // Check this undo record was already applied
@@ -127,8 +127,8 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
             storage::buffer::PageTag{record.TableId, record.NewLocation.pageno});
         auto newLock = storage::buffer::BufferLock{newPin.GetBuffer()};
         auto newPage = HeapPage{newPin.GetContents()};
-        auto &newItemId = newPage.GetItemId(record.NewLocation.itemid);
-        auto currentNewTuple = newPage.GetTuple(newItemId);
+        auto newItemId = newPage.GetItemId(record.NewLocation.itemid);
+        auto currentNewTuple = newPage.GetTuple(*newItemId);
         if (currentNewTuple->undo != this->_usn) {
             throw std::runtime_error("can not undo update: new tuple was concurrently modified");
         }
@@ -140,7 +140,7 @@ void UndoApplierVisitor::Visit(UpdateUndoRecord &record) {
                     record.TupleData.size());
 
         // Mark new tuple as dead, so noone can access it
-        newItemId.setDead();
+        newItemId->setDead();
     }
 }
 
@@ -151,7 +151,7 @@ void UndoApplierVisitor::Visit(InsertUndoRecord &record) {
     auto page = HeapPage{pin.GetContents()};
 
     auto itemId = page.GetItemId(record.Location.itemid);
-    auto tupleHeader = page.GetTuple(itemId);
+    auto tupleHeader = page.GetTuple(*itemId);
 
     if (tupleHeader->undo != this->_usn) {
         // undo was already applied
@@ -159,6 +159,6 @@ void UndoApplierVisitor::Visit(InsertUndoRecord &record) {
     }
 
     // Update tuple contents
-    assert(record.TupleData.size() <= itemId.getLength());
+    assert(record.TupleData.size() <= itemId->getLength());
     std::memcpy(tupleHeader, record.TupleData.data(), record.TupleData.size());
 }
