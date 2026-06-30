@@ -16,7 +16,7 @@ add_server(access/heap)
 add_server(access/heap/wal)
 add_server(access/heap/undo)
 
-add_server(access/table)
+add_server(access)
 
 add_server(db)
 add_server(db/builtin)

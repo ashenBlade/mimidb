@@ -2,9 +2,9 @@
 #include "Settings.hpp"
 #include "access/heap/HeapResourceManager.hpp"
 #include "access/heap/HeapTable.hpp"
-#include "access/table/AttrNumber.hpp"
-#include "access/table/ITable.hpp"
-#include "access/table/TupleDescriptor.hpp"
+#include "access/AttrNumber.hpp"
+#include "access/ITable.hpp"
+#include "access/TupleDescriptor.hpp"
 #include "db/builtin/int.hpp"
 #include "db/catalog/ColumnInfo.hpp"
 #include "db/catalog/TableId.hpp"
@@ -53,10 +53,10 @@ static void setupDatabase() {
     // CREATE TABLE tbl(a int4, b int2);
 
     // Tuple with 2 attributes, both ints
-    auto tupDesc = std::make_unique<mi::access::table::TupleDescriptor>(std::vector{
-        mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int32, sizeof(int32_t),
+    auto tupDesc = std::make_unique<mi::access::TupleDescriptor>(std::vector{
+        mi::access::AttributeDescriptor{mi::schema::catalog::TypeId::Int32, sizeof(int32_t),
                                                true},
-        mi::access::table::AttributeDescriptor{mi::schema::catalog::TypeId::Int16, sizeof(int16_t),
+        mi::access::AttributeDescriptor{mi::schema::catalog::TypeId::Int16, sizeof(int16_t),
                                                true},
     });
     auto table = std::make_unique<mi::access::heap::HeapTable>(
@@ -66,12 +66,12 @@ static void setupDatabase() {
         std::vector<mi::db::catalog::ColumnInfo>{mi::db::catalog::ColumnInfo{
                                                      mi::schema::catalog::TypeId::Int32,
                                                      "a",
-                                                     mi::access::table::AttrNumber::Min(),
+                                                     mi::access::AttrNumber::Min(),
                                                  },
                                                  mi::db::catalog::ColumnInfo{
                                                      mi::schema::catalog::TypeId::Int16,
                                                      "b",
-                                                     mi::access::table::AttrNumber::Min() + 1U,
+                                                     mi::access::AttrNumber::Min() + 1U,
                                                  }};
 
     // Table info
@@ -107,7 +107,7 @@ static void setupDatabase() {
     auto schema =
         std::make_unique<mi::db::Schema>(std::move(tables), std::move(types), std::move(operators));
 
-    auto itables = std::unordered_map<mi::Oid, std::unique_ptr<mi::access::table::ITable>>{};
+    auto itables = std::unordered_map<mi::Oid, std::unique_ptr<mi::access::ITable>>{};
     itables.emplace(mi::schema::catalog::TableId::MainTableId, std::move(table));
 
     mi::DatabaseGlobal = new mi::db::Database(std::move(schema), std::move(itables));

@@ -2,7 +2,7 @@
 
 namespace mi::executor::plan {
 
-SeqScan::SeqScan(mi::access::table::ITable *table,
+SeqScan::SeqScan(mi::access::ITable *table,
                  std::unique_ptr<IExpressionNode> qual)
     : _scan(nullptr), _table(table), _qual(std::move(qual)) {};
 
@@ -15,7 +15,7 @@ void SeqScan::Start(mi::storage::trans::Snapshot *snapshot) {
 
 void SeqScan::End() { _scan->EndScan(); }
 
-std::unique_ptr<mi::access::table::ITuple> SeqScan::Execute() {
+std::unique_ptr<mi::access::ITuple> SeqScan::Execute() {
     while (auto tuple = _scan->GetNextTuple()) {
         if (this->_qual) {
             auto result = this->_qual->Exec(*tuple);

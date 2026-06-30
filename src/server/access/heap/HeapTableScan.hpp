@@ -2,13 +2,13 @@
 
 #include "access/heap/HeapTable.hpp"
 #include "access/heap/TupleId.hpp"
-#include "access/table/ITableScan.hpp"
-#include "access/table/ITuple.hpp"
+#include "access/ITableScan.hpp"
+#include "access/ITuple.hpp"
 #include "storage/buffer/PageNumber.hpp"
 
 namespace mi::access::heap {
 
-class HeapTableScan : public table::ITableScan {
+class HeapTableScan : public ITableScan {
   private:
     // Id of page item id we are currently observing
     TupleId _tupleId;
@@ -28,7 +28,7 @@ class HeapTableScan : public table::ITableScan {
     void BeginScan() override;
     /// @brief Get next tuple from underlying table
     /// @return Tuple or NULL if end of scan
-    std::unique_ptr<access::table::ITuple> GetNextTuple() override;
+    std::unique_ptr<access::ITuple> GetNextTuple() override;
     /// @brief End iteration and cleanup resources
     void EndScan() override;
 };

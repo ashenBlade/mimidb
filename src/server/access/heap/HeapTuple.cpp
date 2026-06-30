@@ -1,14 +1,14 @@
 #include "access/heap/HeapTuple.hpp"
-#include "access/table/AttrNumber.hpp"
+#include "access/AttrNumber.hpp"
 #include "executor/Datum.hpp"
 #include <stdexcept>
 #include <utility>
 
 using namespace mi::access::heap;
 using namespace mi::access;
-using namespace mi::access::table;
+using namespace mi::access;
 
-std::optional<mi::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
+std::optional<mi::Datum> HeapTuple::GetAttribute(AttrNumber attno) {
     if (this->_descriptor->GetMaxAttrNumber() < attno) {
         throw std::runtime_error("provided attribute number greater than available");
     }
@@ -20,10 +20,10 @@ std::optional<mi::Datum> HeapTuple::GetAttribute(table::AttrNumber attno) {
     }
 }
 
-table::AttrNumber HeapTuple::GetMaxAttno() {
+AttrNumber HeapTuple::GetMaxAttno() {
     return this->_descriptor->GetMaxAttrNumber();
 }
 
-HeapTuple::HeapTuple(const table::TupleDescriptor *descriptor, HeapPageTuple &&tuple, TupleId tid)
+HeapTuple::HeapTuple(const TupleDescriptor *descriptor, HeapPageTuple &&tuple, TupleId tid)
     : _descriptor(descriptor), _tuple(std::move(tuple)), _tid(tid) {};
 

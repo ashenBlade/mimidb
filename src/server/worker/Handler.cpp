@@ -1,8 +1,8 @@
 #include "worker/Handler.hpp"
 #include "MimiClient.hpp"
-#include "access/table/AttrNumber.hpp"
-#include "access/table/ITuple.hpp"
-#include "access/table/TupleDescriptor.hpp"
+#include "access/AttrNumber.hpp"
+#include "access/ITuple.hpp"
+#include "access/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
 #include "db/catalog/TableId.hpp"
 #include "db/catalog/TypeInfo.hpp"
@@ -37,7 +37,7 @@
 #include <vector>
 
 using namespace mi::worker;
-using AttrNumber = mi::access::table::AttrNumber;
+using AttrNumber = mi::access::AttrNumber;
 using MimiClient = mi::interface::libmimi::MimiClient;
 
 enum CommandType {
@@ -63,14 +63,14 @@ class SocketServer {
     std::optional<std::vector<mi::db::catalog::TypeInfo::OutputFunction>> _outputs;
 
     const std::vector<mi::db::catalog::TypeInfo::OutputFunction> &
-    getOutputFunctions(const mi::access::table::TupleDescriptor &desc) {
+    getOutputFunctions(const mi::access::TupleDescriptor &desc) {
         if (!this->_outputs.has_value()) {
             auto natts = static_cast<size_t>(desc.GetMaxAttrNumber());
             auto schema = mi::DatabaseGlobal->GetSchema();
             auto outputs = std::vector<mi::db::catalog::TypeInfo::OutputFunction>{natts};
             auto attrs = desc.Attributes();
             std::transform(attrs.begin(), attrs.end(), outputs.begin(),
-                           [=](const mi::access::table::AttributeDescriptor &attr) {
+                           [=](const mi::access::AttributeDescriptor &attr) {
                                auto info = schema->GetTypeInfo(attr.TypeId());
                                return info->GetOutputFunction();
                            });
@@ -87,7 +87,7 @@ class SocketServer {
         return this->_client.ReceivePacket();
     }
 
-    void SendTupleDescriptor([[maybe_unused]] const mi::access::table::TupleDescriptor &desc) {
+    void SendTupleDescriptor([[maybe_unused]] const mi::access::TupleDescriptor &desc) {
         // Пока только 1 таблица, поэтому ок
         auto attrs = std::vector<mi::interface::libmimi::AttributeDescription>{
             mi::interface::libmimi::AttributeDescription{"a"},
@@ -97,8 +97,8 @@ class SocketServer {
         this->_client.SendPacket(packet);
     }
 
-    void SendTuple(const mi::access::table::TupleDescriptor &desc,
-                   mi::access::table::ITuple &tuple) {
+    void SendTuple(const mi::access::TupleDescriptor &desc,
+                   mi::access::ITuple &tuple) {
         auto maxAttno = desc.GetMaxAttrNumber();
         auto &outputs = this->getOutputFunctions(desc);
         auto attrs = std::vector<std::optional<std::string>>{};

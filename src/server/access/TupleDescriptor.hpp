@@ -1,10 +1,10 @@
 #pragma once
 
-#include "access/table/AttrNumber.hpp"
+#include "access/AttrNumber.hpp"
 #include "executor/Oid.hpp"
 #include <vector>
 
-namespace mi::access::table {
+namespace mi::access {
 class AttributeDescriptor {
   private:
     // Type of this attribute
@@ -40,4 +40,4 @@ class TupleDescriptor {
     }
 };
 
-}; // namespace mi::access::table
+}; // namespace mi::access

@@ -6,7 +6,7 @@
 #include "access/heap/undo/HeapUndoRecord.hpp"
 #include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
-#include "access/table/TupleDescriptor.hpp"
+#include "access/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
 #include "storage/buffer/BufferLock.hpp"
 #include "storage/buffer/PageNumber.hpp"
@@ -43,7 +43,7 @@ void HeapTableScan::BeginScan() {
 };
 
 // Create new HeapTuple from given on page tuple to return from scan node
-static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::table::TupleDescriptor *descr,
+static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::TupleDescriptor *descr,
                                                    HeapPageTupleHeader *header, TupleId tid) {
     auto tuple =
         HeapTupleSerializer::Deserialize(reinterpret_cast<const std::byte *>(header), *descr);
@@ -84,7 +84,7 @@ static bool tuple_is_visible(const mi::storage::trans::Snapshot &snapshot,
 // который перемещал кортеж, то уже становится невидимым)
 static std::unique_ptr<HeapTuple>
 find_visible_tuple_page(HeapPageTupleHeader *header,
-                        const mi::access::table::TupleDescriptor *descriptor,
+                        const mi::access::TupleDescriptor *descriptor,
                         mi::storage::trans::Snapshot &snapshot) {
     auto usn = header->undo;
     std::unique_ptr<HeapTuple> tuple = nullptr;
@@ -135,7 +135,7 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
     return tuple;
 }
 
-std::unique_ptr<mi::access::table::ITuple> HeapTableScan::GetNextTuple() {
+std::unique_ptr<mi::access::ITuple> HeapTableScan::GetNextTuple() {
     if (this->_end) {
         return nullptr;
     }

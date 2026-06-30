@@ -12,9 +12,9 @@
 #include "access/heap/wal/DeleteHeapWALRecord.hpp"
 #include "access/heap/wal/InsertHeapWALRecord.hpp"
 #include "access/heap/wal/UpdateHeapWALRecord.hpp"
-#include "access/table/AttrNumber.hpp"
-#include "access/table/ITableScan.hpp"
-#include "access/table/ITuple.hpp"
+#include "access/AttrNumber.hpp"
+#include "access/ITableScan.hpp"
+#include "access/ITuple.hpp"
 #include "cluster_state.hpp"
 #include "mi_config.hpp"
 #include "storage/buffer/BufferLock.hpp"
@@ -37,12 +37,12 @@ using namespace mi::access::heap;
 HeapTable::HeapTable(Oid tableId, std::unique_ptr<TupleDescriptor> descriptor)
     : _tableId(tableId), _tupleDescriptor(std::move(descriptor)) {}
 
-HeapPageTuple HeapTable::formHeapPageTuple(mi::access::table::ITuple &tuple) const {
+HeapPageTuple HeapTable::formHeapPageTuple(mi::access::ITuple &tuple) const {
     auto maxAttr = this->_tupleDescriptor->GetMaxAttrNumber();
     auto values = std::vector<Datum>(maxAttr);
     auto isnull = std::vector<bool>(maxAttr);
     auto anyNull = false;
-    for (auto attno = table::AttrNumber::Min(); attno <= maxAttr; attno++) {
+    for (auto attno = AttrNumber::Min(); attno <= maxAttr; attno++) {
         auto datum = tuple.GetAttribute(attno);
         if (datum.has_value()) {
             values[attno.ToIndex()] = datum.value();
@@ -380,7 +380,7 @@ void HeapTable::DeleteTuple(ITuple &tuple) {
     page.GetHeader()->lsn = lsn;
 }
 
-std::unique_ptr<mi::access::table::ITableScan>
+std::unique_ptr<mi::access::ITableScan>
 HeapTable::StartScan(storage::trans::Snapshot *snapshot) {
     return std::make_unique<HeapTableScan>(snapshot, this);
 }

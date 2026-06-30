@@ -1,10 +1,10 @@
 #pragma once
 
-#include "access/table/AttrNumber.hpp"
+#include "access/AttrNumber.hpp"
 #include "executor/Datum.hpp"
 #include <optional>
 
-namespace mi::access::table {
+namespace mi::access {
 
 /// @brief Runtime tuple representation
 class ITuple {
@@ -20,4 +20,4 @@ class ITuple {
     virtual ~ITuple() = default;
 };
 
-}; // namespace mi::access::table
+}; // namespace mi::access

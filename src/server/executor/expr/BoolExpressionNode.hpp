@@ -1,6 +1,6 @@
 #pragma once
 
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "executor/Datum.hpp"
 #include "executor/expr/IExpressionNode.hpp"
 #include <memory>
@@ -33,7 +33,7 @@ class BoolExpressionNode : public IExpressionNode {
             throw std::runtime_error("Expression array does not contain any element");
         }
     };
-    std::optional<Datum> Exec(access::table::ITuple &tuple) override;
+    std::optional<Datum> Exec(access::ITuple &tuple) override;
     ~BoolExpressionNode() override = default;
 };
 } // namespace mi::executor::expr

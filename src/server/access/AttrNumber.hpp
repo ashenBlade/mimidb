@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cstdint>
 
-namespace mi::access::table {
+namespace mi::access {
 
 /// @brief Number of attribute in tuple
 struct AttrNumber {
@@ -33,8 +33,12 @@ struct AttrNumber {
     operator uint16_t() const { return value; }
 
     template <class T> bool operator==(T other) { return this->value == other; }
-    template <class T> AttrNumber operator+(T other) { return AttrNumber{static_cast<uint16_t>(this->value + other)}; };
-    AttrNumber operator+(const AttrNumber &other) { return AttrNumber{static_cast<uint16_t>(this->value + other.value)}; };
+    template <class T> AttrNumber operator+(T other) {
+        return AttrNumber{static_cast<uint16_t>(this->value + other)};
+    };
+    AttrNumber operator+(const AttrNumber &other) {
+        return AttrNumber{static_cast<uint16_t>(this->value + other.value)};
+    };
     bool operator==(const AttrNumber &other) { return this->value == other.value; }
     bool operator<=(const AttrNumber &other) const { return this->value <= other.value; }
     bool operator<(const AttrNumber &other) const { return this->value < other.value; }
@@ -60,4 +64,4 @@ struct AttrNumber {
     static AttrNumber Invalid() { return AttrNumber{InvalidValue}; }
 };
 
-}; // namespace mi::access::table
+}; // namespace mi::access

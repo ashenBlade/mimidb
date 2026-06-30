@@ -1,5 +1,5 @@
 #include "executor/expr/FunctionExpressionNode.hpp"
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "executor/Datum.hpp"
 #include "utils/DatumArray.hpp"
 #include <optional>
@@ -10,7 +10,7 @@ FunctionExpressionNode::FunctionExpressionNode(
     FunctionContext context, std::vector<std::unique_ptr<IExpressionNode>> arguments)
     : _funcCtx(std::move(context)), _arguments(std::move(arguments)) {};
 
-std::optional<mi::Datum> FunctionExpressionNode::Exec(mi::access::table::ITuple &tuple) {
+std::optional<mi::Datum> FunctionExpressionNode::Exec(mi::access::ITuple &tuple) {
     // Build arguments array for function
     auto array = DatumArray{};
     for (const auto &expr : this->_arguments) {

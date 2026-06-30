@@ -1,6 +1,6 @@
 #include "planner/Planner.hpp"
-#include "access/table/AttrNumber.hpp"
-#include "access/table/ITuple.hpp"
+#include "access/AttrNumber.hpp"
+#include "access/ITuple.hpp"
 #include "cluster_state.hpp"
 #include "db/catalog/OperatorInfo.hpp"
 #include "db/catalog/TableId.hpp"
@@ -80,7 +80,7 @@ static std::unique_ptr<mi::executor::IExpressionNode> parse_expr(hsql::Expr &exp
     } else if (expr.isType(hsql::ExprType::kExprColumnRef)) {
         auto tableInfo = mi::DatabaseGlobal->GetSchema()->GetTableInfo(
             mi::schema::catalog::TableId::MainTableId);
-        auto attno = mi::access::table::AttrNumber::Min();
+        auto attno = mi::access::AttrNumber::Min();
         bool found = false;
         for (const auto &col : tableInfo->GetColumns()) {
             if (col.GetName() == expr.name) {
@@ -169,7 +169,7 @@ PlannedStmt Planner::Plan(hsql::SQLStatement &statement) {
                 "INSERT attributes and table descriptor are not the same size");
         }
         auto arrays = DatumArray{};
-        for (auto attno = access::table::AttrNumber::Min(); attno <= desc->GetMaxAttrNumber();
+        for (auto attno = access::AttrNumber::Min(); attno <= desc->GetMaxAttrNumber();
              ++attno) {
             const auto &attDesc = desc->Attributes()[attno.ToIndex()];
             if (!(attDesc.TypeId() != schema::catalog::TypeId::Int16 ||
@@ -191,7 +191,7 @@ PlannedStmt Planner::Plan(hsql::SQLStatement &statement) {
         auto [values, isnull] = arrays.Decompose();
         auto tuple = std::make_unique<executor::VirtualTuple>(std::move(values), std::move(isnull));
         auto table = DatabaseGlobal->OpenTable(schema::catalog::TableId::MainTableId);
-        auto vec = std::vector<std::unique_ptr<access::table::ITuple>>{};
+        auto vec = std::vector<std::unique_ptr<access::ITuple>>{};
         vec.emplace_back(std::move(tuple));
 
         node = std::make_unique<executor::plan::InsertNode>(table, std::move(vec));
@@ -203,7 +203,7 @@ PlannedStmt Planner::Plan(hsql::SQLStatement &statement) {
 
         // attribute updates
         auto updates = std::vector<
-            std::pair<access::table::AttrNumber, std::unique_ptr<executor::IExpressionNode>>>{};
+            std::pair<access::AttrNumber, std::unique_ptr<executor::IExpressionNode>>>{};
         for (const auto update : *stmt.updates) {
             auto colname = std::string{update->column};
             auto colinfo = info->FindColumn(colname);

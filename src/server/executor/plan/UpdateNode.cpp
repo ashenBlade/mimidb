@@ -1,5 +1,5 @@
 #include "executor/plan/UpdateNode.hpp"
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "executor/VirtualTuple.hpp"
 #include "trans/Snapshot.hpp"
 #include <stdexcept>
@@ -7,8 +7,8 @@
 using namespace mi::executor::plan;
 
 UpdateNode::UpdateNode(
-    access::table::ITable *table, std::unique_ptr<IExpressionNode> qual,
-    std::vector<std::pair<access::table::AttrNumber, std::unique_ptr<IExpressionNode>>> updates)
+    access::ITable *table, std::unique_ptr<IExpressionNode> qual,
+    std::vector<std::pair<access::AttrNumber, std::unique_ptr<IExpressionNode>>> updates)
     : _table(table), _qual(std::move(qual)), _updates(std::move(updates)), _scan(nullptr) {
     if (this->_qual == nullptr) {
         throw std::runtime_error("qual is null");
@@ -30,7 +30,7 @@ void UpdateNode::End() {
     }
 }
 
-std::unique_ptr<mi::access::table::ITuple> UpdateNode::Execute() {
+std::unique_ptr<mi::access::ITuple> UpdateNode::Execute() {
     if (!this->_scan) {
         throw std::runtime_error("scan is not started");
     }

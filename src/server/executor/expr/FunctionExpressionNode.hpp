@@ -1,6 +1,6 @@
 #pragma once
 
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "executor/expr/IExpressionNode.hpp"
 #include "executor/func/FunctionContext.hpp"
 #include <memory>
@@ -17,7 +17,7 @@ class FunctionExpressionNode : public IExpressionNode {
   public:
     FunctionExpressionNode(
       FunctionContext context, std::vector<std::unique_ptr<IExpressionNode>> arguments);
-    std::optional<Datum> Exec(access::table::ITuple &tuple) override;
+    std::optional<Datum> Exec(access::ITuple &tuple) override;
     ~FunctionExpressionNode() override = default;
 };
 } // namespace mi::executor

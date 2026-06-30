@@ -1,9 +1,9 @@
 #pragma once
 
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include <memory>
 
-namespace mi::access::table {
+namespace mi::access {
 
 /// @brief Access method specific table iterator state
 class ITableScan {
@@ -12,11 +12,11 @@ class ITableScan {
     virtual void BeginScan() = 0;
     /// @brief Get next tuple from underlying table
     /// @return Tuple or NULL if end of scan
-    virtual std::unique_ptr<mi::access::table::ITuple> GetNextTuple() = 0;
+    virtual std::unique_ptr<mi::access::ITuple> GetNextTuple() = 0;
     /// @brief End iteration and cleanup resources
     virtual void EndScan() = 0;
 
     virtual ~ITableScan() = default;
 };
 
-}; // namespace mi::access::table
+}; // namespace mi::access

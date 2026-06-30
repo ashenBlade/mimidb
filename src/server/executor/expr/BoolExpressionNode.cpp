@@ -1,11 +1,11 @@
 #include "executor/expr/BoolExpressionNode.hpp"
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "executor/Datum.hpp"
 #include <stdexcept>
 
 using namespace mi::executor::expr;
 
-std::optional<mi::Datum> BoolExpressionNode::Exec(mi::access::table::ITuple &tuple) {
+std::optional<mi::Datum> BoolExpressionNode::Exec(mi::access::ITuple &tuple) {
     assert(this->_expressions.size() > 0);
 
     // Choose initial value

@@ -1,12 +1,12 @@
 #include "executor/plan/DeleteNode.hpp"
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "trans/Snapshot.hpp"
 #include <memory>
 #include <stdexcept>
 
 using namespace mi::executor::plan;
 
-DeleteNode::DeleteNode(access::table::ITable *table, std::unique_ptr<IExpressionNode> qual)
+DeleteNode::DeleteNode(access::ITable *table, std::unique_ptr<IExpressionNode> qual)
     : _table(table), _qual(std::move(qual)), _scan(nullptr) {
     if (this->_qual == nullptr) {
         throw std::runtime_error("predicate is not provided");
@@ -26,7 +26,7 @@ void DeleteNode::End() {
     }
 }
 
-std::unique_ptr<mi::access::table::ITuple> DeleteNode::Execute() {
+std::unique_ptr<mi::access::ITuple> DeleteNode::Execute() {
     if (!this->_scan) {
         throw std::runtime_error("Start was not invoked");
     }

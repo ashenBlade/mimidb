@@ -1,6 +1,6 @@
 #pragma once
 
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "executor/Datum.hpp"
 #include "executor/expr/IExpressionNode.hpp"
 #include <optional>
@@ -12,7 +12,7 @@ class ConstantExpressionNode : public IExpressionNode {
 
   public:
     ConstantExpressionNode(std::optional<Datum> value) : _value(value) {}
-    std::optional<Datum> Exec([[maybe_unused]] access::table::ITuple &tuple) override {
+    std::optional<Datum> Exec([[maybe_unused]] access::ITuple &tuple) override {
         return this->_value;
     }
     ~ConstantExpressionNode() override = default;

@@ -1,12 +1,11 @@
 #pragma once
 
-#include "access/table/ITableScan.hpp"
-#include "access/table/ITuple.hpp"
-#include "access/table/TupleDescriptor.hpp"
+#include "access/ITableScan.hpp"
+#include "access/ITuple.hpp"
+#include "access/TupleDescriptor.hpp"
 #include "trans/Snapshot.hpp"
-#include <memory>
 
-namespace mi::access::table {
+namespace mi::access {
 
 class ITable {
   public:
@@ -31,4 +30,4 @@ class ITable {
     virtual ~ITable() = default;
 };
 
-}; // namespace mi::access::table
+}; // namespace mi::access

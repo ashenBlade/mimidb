@@ -1,16 +1,16 @@
 #pragma once
 
-#include "access/table/ITuple.hpp"
+#include "access/ITuple.hpp"
 #include "executor/Datum.hpp"
 #include <optional>
 
 namespace mi::executor {
 class IExpressionNode {
   public:
-    virtual std::optional<Datum> Exec(access::table::ITuple &tuple) = 0;
+    virtual std::optional<Datum> Exec(access::ITuple &tuple) = 0;
     virtual ~IExpressionNode() = default;
 
-    bool ExecQual(access::table::ITuple &tuple) {
+    bool ExecQual(access::ITuple &tuple) {
       auto value = this->Exec(tuple);
       return value.has_value() && value->getScalar<bool>();
     }
