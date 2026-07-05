@@ -1,4 +1,5 @@
 #include "access/heap/HeapTableScan.hpp"
+#include "access/TupleDescriptor.hpp"
 #include "access/heap/HeapPage.hpp"
 #include "access/heap/HeapPageTupleHeader.hpp"
 #include "access/heap/HeapTuple.hpp"
@@ -6,7 +7,6 @@
 #include "access/heap/undo/HeapUndoRecord.hpp"
 #include "access/heap/undo/InsertUndoRecord.hpp"
 #include "access/heap/undo/UpdateUndoRecord.hpp"
-#include "access/TupleDescriptor.hpp"
 #include "cluster_state.hpp"
 #include "storage/buffer/BufferLock.hpp"
 #include "storage/buffer/PageNumber.hpp"
@@ -44,9 +44,10 @@ void HeapTableScan::BeginScan() {
 
 // Create new HeapTuple from given on page tuple to return from scan node
 static std::unique_ptr<HeapTuple> build_heap_tuple(const mi::access::TupleDescriptor *descr,
-                                                   HeapPageTupleHeader *header, TupleId tid) {
+                                                   HeapPageTupleHeader *header, size_t size,
+                                                   TupleId tid) {
     auto tuple =
-        HeapTupleSerializer::Deserialize(reinterpret_cast<const std::byte *>(header), *descr);
+        HeapTupleSerializer::Deserialize(reinterpret_cast<const std::byte *>(header), size, *descr);
     return std::make_unique<HeapTuple>(descr, std::move(tuple), tid);
 }
 
@@ -83,8 +84,7 @@ static bool tuple_is_visible(const mi::storage::trans::Snapshot &snapshot,
 // Найти видимую версию кортежа, но только на этой странице и на этом же месте (т.е. если UPDATE,
 // который перемещал кортеж, то уже становится невидимым)
 static std::unique_ptr<HeapTuple>
-find_visible_tuple_page(HeapPageTupleHeader *header,
-                        const mi::access::TupleDescriptor *descriptor,
+find_visible_tuple_page(HeapPageTupleHeader *header, const mi::access::TupleDescriptor *descriptor,
                         mi::storage::trans::Snapshot &snapshot) {
     auto usn = header->undo;
     std::unique_ptr<HeapTuple> tuple = nullptr;
@@ -110,7 +110,7 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
 
             auto tuple = reinterpret_cast<HeapPageTupleHeader *>(updateRecord->TupleData.data());
             if (tuple_is_visible(snapshot, tuple)) {
-                return build_heap_tuple(descriptor, tuple, updateRecord->NewLocation);
+                return build_heap_tuple(descriptor, tuple, updateRecord->TupleData.size(), updateRecord->NewLocation);
             }
 
             usn = tuple->undo;
@@ -121,7 +121,7 @@ find_visible_tuple_page(HeapPageTupleHeader *header,
 
             auto tuple = reinterpret_cast<HeapPageTupleHeader *>(insertRecord->TupleData.data());
             if (tuple_is_visible(snapshot, tuple)) {
-                return build_heap_tuple(descriptor, tuple, insertRecord->Location);
+                return build_heap_tuple(descriptor, tuple, insertRecord->TupleData.size(), insertRecord->Location);
             }
 
             usn = tuple->undo;
@@ -164,7 +164,7 @@ std::unique_ptr<mi::access::ITuple> HeapTableScan::GetNextTuple() {
                 continue;
             }
 
-            tuple = build_heap_tuple(this->_table->GetDescriptor(), header,
+            tuple = build_heap_tuple(this->_table->GetDescriptor(), header, itemid->getLength(),
                                      TupleId{pagetag.PageNo, index});
         } else {
             tuple =

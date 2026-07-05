@@ -68,7 +68,7 @@ class SocketServer {
             auto natts = static_cast<size_t>(desc.GetMaxAttrNumber());
             auto schema = mi::DatabaseGlobal->GetSchema();
             auto outputs = std::vector<mi::db::catalog::TypeInfo::OutputFunction>{natts};
-            auto attrs = desc.Attributes();
+            auto &attrs = *desc.Attributes();
             std::transform(attrs.begin(), attrs.end(), outputs.begin(),
                            [=](const mi::access::AttributeDescriptor &attr) {
                                auto info = schema->GetTypeInfo(attr.TypeId());

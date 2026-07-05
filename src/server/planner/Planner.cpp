@@ -169,9 +169,11 @@ PlannedStmt Planner::Plan(hsql::SQLStatement &statement) {
                 "INSERT attributes and table descriptor are not the same size");
         }
         auto arrays = DatumArray{};
+        auto &attributes = *desc->Attributes();
         for (auto attno = access::AttrNumber::Min(); attno <= desc->GetMaxAttrNumber();
              ++attno) {
-            const auto &attDesc = desc->Attributes()[attno.ToIndex()];
+                
+            const auto &attDesc = attributes[attno.ToIndex()];
             if (!(attDesc.TypeId() != schema::catalog::TypeId::Int16 ||
                   attDesc.TypeId() != schema::catalog::TypeId::Int32 ||
                   attDesc.TypeId() != schema::catalog::TypeId::Int64)) {

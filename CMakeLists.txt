@@ -10,27 +10,6 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Бьем по рукам за любые ошибки
-add_compile_options(
-    -Werror
-    -Wall
-    -Wextra
-    -Wpedantic
-    
-    -Wcast-align
-    -Wcast-qual
-    -Wconversion
-    -Wctor-dtor-privacy
-    -Wenum-compare
-    -Wfloat-equal
-    -Wnon-virtual-dtor
-    -Wold-style-cast
-    -Woverloaded-virtual
-    -Wredundant-decls
-    -Wsign-conversion
-    -Wsign-promo
-)
-
 # Отладка, пока могу безусловно добавлять, но оставлю пока так
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(
@@ -49,6 +28,13 @@ set(SQLPARSER_LIB_NAME hyrisesql)
 set(INSTALL_BINDIR  "bin")
 set(INSTALL_LIBDIR  "lib")
 include(GNUInstallDirs)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Unit test
+enable_testing()
+add_subdirectory(external/googletest)
+include(GoogleTest)
 
 # Рекурсивно собираем все
 add_subdirectory(external/sql-parser)

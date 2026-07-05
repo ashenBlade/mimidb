@@ -7,6 +7,7 @@ enum TypeId {
     Int64 = 1,
     Int32 = 2,
     Int16 = 3,
+    Text = 4,
 };
 
 }; // namespace mi::schema::catalog
