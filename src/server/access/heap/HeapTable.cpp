@@ -1,4 +1,7 @@
 #include "access/heap/HeapTable.hpp"
+#include "access/AttrNumber.hpp"
+#include "access/ITableScan.hpp"
+#include "access/ITuple.hpp"
 #include "access/heap/HeapPage.hpp"
 #include "access/heap/HeapPageTuple.hpp"
 #include "access/heap/HeapPageTupleHeader.hpp"
@@ -12,9 +15,6 @@
 #include "access/heap/wal/DeleteHeapWALRecord.hpp"
 #include "access/heap/wal/InsertHeapWALRecord.hpp"
 #include "access/heap/wal/UpdateHeapWALRecord.hpp"
-#include "access/AttrNumber.hpp"
-#include "access/ITableScan.hpp"
-#include "access/ITuple.hpp"
 #include "cluster_state.hpp"
 #include "mi_config.hpp"
 #include "storage/buffer/BufferLock.hpp"
@@ -67,11 +67,8 @@ HeapPageTuple HeapTable::formHeapPageTuple(mi::access::ITuple &tuple) const {
         dataStart = sizeof(HeapPageTupleHeader);
     }
 
-    auto header = HeapPageTupleHeader{
-        MyTransaction->GetXID(),
-        storage::undo::UndoSeqNumber::Invalid,
-        flags
-    };
+    auto header =
+        HeapPageTupleHeader{MyTransaction->GetXID(), storage::undo::UndoSeqNumber::Invalid, flags};
     return HeapPageTuple{header, std::move(values), std::move(isnull)};
 }
 
@@ -85,7 +82,7 @@ mi::storage::buffer::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) 
         auto tag = storage::buffer::PageTag{this->_tableId, pageno};
         auto pin = BufferPoolGlobal->GetBuffer(tag);
         auto page = HeapPage{pin.GetContents()};
-        auto buffer= pin.GetBuffer();
+        auto buffer = pin.GetBuffer();
         auto lock = std::shared_lock{buffer};
         if (page.GetFreeSpace() < freeSpace) {
             continue;
@@ -97,14 +94,16 @@ mi::storage::buffer::BufferPin HeapTable::searchPageFreeSpace(size_t freeSpace) 
     // All pages are full - start new page
     auto pin = BufferPoolGlobal->ExtendRelation(this->_tableId);
     auto page = HeapPage{pin.GetContents()};
-    if (page.IsNew())
-        HeapPage::Init(page);
     auto buffer = pin.GetBuffer();
-    auto lock = std::shared_lock{buffer};
-    if (page.GetFreeSpace() < freeSpace) {
-        throw std::runtime_error("all pages are occupied");
+    auto lx = std::unique_lock{buffer};
+    if (page.IsNew()) {
+        // Someone can concurrently initialize this page (???)
+        HeapPage::Init(page);
     }
+    lx.unlock();
 
+    auto ls = std::shared_lock{buffer};
+    assert(page.GetFreeSpace() < freeSpace);
     return pin;
 }
 void HeapTable::InsertTuple(ITuple &tuple) {
@@ -118,39 +117,38 @@ void HeapTable::InsertTuple(ITuple &tuple) {
     do {
         auto pin = this->searchPageFreeSpace(freeSpace);
 
-        // update S -> X, so we can change page contents
         auto buffer = pin.GetBuffer();
         auto lock = std::unique_lock{buffer};
-
         auto page = HeapPage{buffer.GetContents()};
 
-        // Check we still have free space
+        // Someone can occupy space since last lock release
         if (page.GetFreeSpace() < freeSpace) {
             continue;
         }
 
         // TupleId of newly inserted tuple (always last)
-        auto tupleId = TupleId{pin.GetPageTag().PageNo, page.ItemsCount()};
+        auto newTupId = TupleId{pin.GetPageTag().PageNo, page.ItemsCount()};
 
         // First, create and insert undo record
-        auto undoRec = undo::DeleteUndoRecord{this->_tableId, tupleId};
+        auto undoRec = undo::DeleteUndoRecord{this->_tableId, newTupId};
         auto usn = MyTransaction->GetUndoLog().InsertRecord(undoRec);
 
         // Now we have USN, so set it to tuple and actually insert
         heapPageTuple.Header().undo = usn;
 
         // Make WAL entry before writing to disk
-        auto walRec = wal::InsertHeapWALRecord{tupleId, heapTuple};
+        auto walRec = wal::InsertHeapWALRecord{newTupId, heapTuple};
         auto lsn = WALGlobal->WriteLogRecord(walRec);
 
         // Now perform changes itself
-        auto header = page.GetHeader();
-        header->lsn = lsn;
+        auto pageHeader = page.GetHeader();
+        pageHeader->lsn = lsn;
         auto lp = page.GetLinePointerArray();
         auto &itemId = lp[page.ItemsCount()];
 
         // Update it's ItemId
-        auto offset = static_cast<uint16_t>(page.GetHeader()->upper - BitUtils::MaxAlign(heapTuple.size()));
+        auto offset =
+            static_cast<uint16_t>(page.GetHeader()->upper - BitUtils::MaxAlign(heapTuple.size()));
         itemId.flags = ItemState::Normal;
         itemId.setLength(static_cast<uint16_t>(heapTuple.size()));
         itemId.setOffset(offset);
@@ -160,8 +158,8 @@ void HeapTable::InsertTuple(ITuple &tuple) {
         std::memcpy(ptr, heapTuple.data(), heapTuple.size());
 
         // Update lower/upper
-        header->lower += sizeof(ItemId);
-        header->upper -= static_cast<uint16_t>(BitUtils::MaxAlign(heapTuple.size()));
+        pageHeader->lower += sizeof(ItemId);
+        pageHeader->upper -= static_cast<uint16_t>(BitUtils::MaxAlign(heapTuple.size()));
 
         inserted = true;
     } while (!inserted);
@@ -258,26 +256,31 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
 
     // Now we have USN for this tuple - update it
     newHeapPageTuple.Header().undo = usn;
-    auto newHeapPageTupleSerialized = HeapTupleSerializer::Serialize(newHeapPageTuple, *this->_tupleDescriptor);
+    auto newHeapPageTupleSerialized =
+        HeapTupleSerializer::Serialize(newHeapPageTuple, *this->_tupleDescriptor);
     assert(newHeapPageTupleSerialized.size() < UINT16_MAX);
 
     // Then WAL record
     storage::wal::LogSeqNumber lsn;
     {
-        auto record = heap::wal::UpdateHeapWALRecord{this->_tableId, newTID, oldTID, newHeapPageTupleSerialized};
+        auto record = heap::wal::UpdateHeapWALRecord{this->_tableId, newTID, oldTID,
+                                                     newHeapPageTupleSerialized};
         lsn = WALGlobal->WriteLogRecord(record);
     }
 
     // Now we are ready to update page contents
     if (newTID == oldTID) {
-        // New tuple overwrites old one.
+        // Inplace update
+
         // Note we do not change itemId's length because transaction can be aborted and we must be
         // able to undo changes (otherwise someone can concurrently insert new data there)
         auto itemId = oldPage.GetItemId(newTID.itemid);
         auto header = oldPage.GetTuple(*itemId);
-        std::memcpy(reinterpret_cast<std::byte *>(header), newHeapPageTupleSerialized.data(), newHeapPageTupleSerialized.size());
+        std::memcpy(reinterpret_cast<std::byte *>(header), newHeapPageTupleSerialized.data(),
+                    newHeapPageTupleSerialized.size());
     } else if (newTID.pageno == oldTID.pageno) {
-        // Tuples on the same page, but different places
+        // Tuples on the same page, but in different slots
+
         auto itemId = oldPage.GetItemId(newTID.itemid);
         auto header = oldPage.GetHeader();
         auto offset = static_cast<uint16_t>(header->upper - newHeapPageTupleSerialized.size());
@@ -287,10 +290,11 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
         header->lower += sizeof(ItemId);
 
         // Insert tuple
-        std::memcpy(reinterpret_cast<std::byte *>(oldPage.GetTuple(*itemId)), newHeapPageTupleSerialized.data(),
-                    newHeapPageTupleSerialized.size());
+        std::memcpy(reinterpret_cast<std::byte *>(oldPage.GetTuple(*itemId)),
+                    newHeapPageTupleSerialized.data(), newHeapPageTupleSerialized.size());
     } else {
         // New tuple is on different page
+
         auto newPage = HeapPage{newPin.GetContents()};
         auto itemId = newPage.GetItemId(newTID.itemid);
         auto header = newPage.GetHeader();
@@ -301,8 +305,8 @@ void HeapTable::UpdateTuple(ITuple &oldTuple, ITuple &newTuple) {
         header->lower += sizeof(ItemId);
 
         // Insert tuple
-        std::memcpy(reinterpret_cast<std::byte *>(newPage.GetTuple(*itemId)), newHeapPageTupleSerialized.data(),
-                    newHeapPageTupleSerialized.size());
+        std::memcpy(reinterpret_cast<std::byte *>(newPage.GetTuple(*itemId)),
+                    newHeapPageTupleSerialized.data(), newHeapPageTupleSerialized.size());
     }
 
     // Mark old tuple as updated
@@ -374,8 +378,7 @@ void HeapTable::DeleteTuple(ITuple &tuple) {
     page.GetHeader()->lsn = lsn;
 }
 
-std::unique_ptr<mi::access::ITableScan>
-HeapTable::StartScan(storage::trans::Snapshot *snapshot) {
+std::unique_ptr<mi::access::ITableScan> HeapTable::StartScan(storage::trans::Snapshot *snapshot) {
     return std::make_unique<HeapTableScan>(snapshot, this);
 }
 

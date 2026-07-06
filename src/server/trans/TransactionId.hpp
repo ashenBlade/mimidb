@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <bits/functional_hash.h>
+#include <functional>
 
 namespace mi::storage::trans {
 

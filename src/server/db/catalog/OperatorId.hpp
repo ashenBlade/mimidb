@@ -2,6 +2,9 @@
 
 namespace mi::db::catalog {
 enum OperatorId {
-    EqInt32Int32 = 1,
+    EqInt16Int16 = 1,
+    EqInt32Int32,
+    EqInt64Int64,
+    EqTextText,
 };
 }

@@ -11,7 +11,7 @@ class BitUtils final {
 
     template <class T> static constexpr T MaxAlign(T length) {
         return TypeAlign(length, alignof(size_t));
-    }    
+    }
 
     template <class T> static constexpr size_t BitmapSize(T size) { return (size + 7U) / 8U; }
 };

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "access/heap/HeapPageTuple.hpp"
 #include "access/ITable.hpp"
 #include "access/ITuple.hpp"
-#include "executor/Oid.hpp"
 #include "access/TupleDescriptor.hpp"
+#include "access/heap/HeapPageTuple.hpp"
+#include "executor/Oid.hpp"
 #include "storage/buffer/BufferPin.hpp"
 #include "storage/buffer/PageNumber.hpp"
 
@@ -32,13 +32,12 @@ class HeapTable : public mi::access::ITable, private NonCopyable {
 
   public:
     HeapTable(Oid tableId, std::unique_ptr<TupleDescriptor> descriptor);
-    ~HeapTable() = default;
+    ~HeapTable() override = default;
 
     Oid GetOid() const { return this->_tableId; }
     const TupleDescriptor *GetDescriptor() const override { return this->_tupleDescriptor.get(); }
 
-    std::unique_ptr<mi::access::ITableScan>
-    StartScan(storage::trans::Snapshot *snapshot) override;
+    std::unique_ptr<mi::access::ITableScan> StartScan(storage::trans::Snapshot *snapshot) override;
     void InsertTuple(ITuple &tuple) override;
     void UpdateTuple(ITuple &oldTuple, ITuple &newTuple) override;
     void DeleteTuple(ITuple &tuple) override;

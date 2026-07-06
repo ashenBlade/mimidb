@@ -6,6 +6,8 @@
 #include <string>
 
 namespace mi::db::catalog {
+constexpr ssize_t TypeSizeVariable = -1;
+
 class TypeInfo {
   public:
     using OutputFunction = std::function<std::string(Datum)>;
@@ -13,7 +15,7 @@ class TypeInfo {
   private:
     /// @brief Global id for this type
     Oid _id;
-    /// @brief Byte size of type or -1 if variable width
+    /// @brief Byte size of type or TypeSizeVariable -1 if variable width
     int _size;
     /// @brief Serialization function
     OutputFunction _output;
